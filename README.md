@@ -1,4 +1,4 @@
-# Straypenguins Tips Inventory
+# Straypenguin's Tips Inventory
 
 ## What this project is for
 
@@ -6,8 +6,8 @@ This repository serves as a comprehensive technical knowledge base and documenta
 
 ## Contents Summary
 
-### vSphere Certificate Management
-The repository currently focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA):
+### vCSA Certificate Replacement Procedures
+The sub-folder focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA):
 
 #### 📋 [Certificate Replacement Procedures](./vSphere/vcsa-cert-replace-procedures/vcsa-cert-replace-procedures.md)
 Comprehensive step-by-step procedures for renewing and replacing vCSA certificates using:
