@@ -1,0 +1,8 @@
+##########################################################
+# These variables are 'export'ed on calling startWebLogic.sh
+##########################################################
+
+## JAVA arguments to override those set in WebLogic's setDomainEnv.sh
+# and commEnv.sh per default
+USER_MEM_ARGS="-Xms256m -Xmx512m -XX:MetaspaceSize=256m -XX:MaxMetaspaceSize=256m"
+#JAVA_OPTIONS=

@@ -1,0 +1,9 @@
+##########################################################
+# These variables are 'export'ed on calling startWebLogic.sh
+##########################################################
+
+## JAVA arguments to override those set in WebLogic's setDomainEnv.sh
+# and commEnv.sh per default
+WLST_PROPERTIES="-Dweblogic.security.SSL.ignoreHostnameVerification=true, -Dweblogic.security.TrustKeyStore=DemoTrust"
+USER_MEM_ARGS="-Xms768m -Xmx768m -XX:MetaspaceSize=256m -XX:MaxMetaspaceSize=256m"
+JAVA_OPTIONS="-XX:+UseParallelGC -XX:+UseTLAB -XX:MaxTenuringThreshold=0 -XX:SurvivorRatio=256 -XX:CMSInitiatingOccupancyFraction=60 -XX:+DisableExplicitGC"
