@@ -1,0 +1,22 @@
+[Unit]
+Description=WebLogic Managed Server
+Requisite=weblogic-admin.service
+After=network-online.target weblogic-admin.service
+StartLimitIntervalSec=2min
+StartLimitBurst=4
+
+[Service]
+Type=simple
+User=oracle
+Restart=always
+RestartSec=1
+EnvironmentFile=/etc/sysconfig/weblogic-%i
+ExecStart=/opt/oracle/user_projects/domains/base_domain/bin/startManagedWebLogic.sh %i
+ExecStop=/opt/oracle/user_projects/domains/base_domain/bin/stopManagedWebLogic.sh %i
+LimitNPROC=16384
+LimitNOFILE=65536
+LimitSTACK=32768K
+LimitCORE=infinity
+
+[Install]
+WantedBy=multi-user.target

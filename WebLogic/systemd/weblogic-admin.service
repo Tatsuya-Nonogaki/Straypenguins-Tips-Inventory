@@ -1,0 +1,21 @@
+[Unit]
+Description=WebLogic Admin Server
+After=network-online.target
+StartLimitIntervalSec=2min
+StartLimitBurst=4
+
+[Service]
+Type=simple
+User=oracle
+Restart=always
+RestartSec=1
+TimeoutStopSec=30
+EnvironmentFile=/etc/sysconfig/weblogic-AdminServer
+ExecStart=/opt/oracle/user_projects/domains/base_domain/bin/startWebLogic.sh
+ExecStop=/opt/oracle/user_projects/domains/base_domain/bin/stopWebLogic.sh
+LimitNPROC=5120:16384
+LimitNOFILE=10240:65536
+LimitCORE=infinity
+
+[Install]
+WantedBy=multi-user.target
