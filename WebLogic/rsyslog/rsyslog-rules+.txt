@@ -1,0 +1,18 @@
+# WebLogic logs
+if $programname == 'startWebLogic.sh' or $programname == 'stopWebLogic.sh' then {
+    action(type="omfile"
+           fileOwner="oracle" fileGroup="oracle" FileCreateMode="0600"
+           iOBufferSize="8k"
+           File="/var/log/weblogic/startWebLogic.log"
+    )
+    stop
+}
+
+if $programname == 'startManagedWebLogic.sh' or $programname == 'stopManagedWebLogic.sh' then {
+    action(type="omfile"
+           fileOwner="oracle" fileGroup="oracle" FileCreateMode="0600"
+           iOBufferSize="8k"
+           File="/var/log/weblogic/startManagedWebLogic.log"
+    )
+    stop
+}
