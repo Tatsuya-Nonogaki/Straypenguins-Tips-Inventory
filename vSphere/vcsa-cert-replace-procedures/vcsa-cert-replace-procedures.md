@@ -1,9 +1,12 @@
 ### Overall policy
-- Use `vCert` instead of now discouraged `fixcerts.py` for stability, if possible. Use the most recent version of either tool.  
-  > **Note:** One invaluable advantage of `fixcerts.py` is the capability to specify an extended validity period of renewed certificates (`--validityDays <DAYS>`).  
-  > The actual period of generated certificates **cannot exceed the expiry of the vCSA root CA**—even if a longer value is specified, certificates will expire at the root CA's end date.  
 
-  > **Note:** Because some functionality for certain certificate types (notably STS certificates) is not covered in either tool, it is recommended to have `vCert` available—even if your main tool is `fixcerts.py`! This is required because the STS certificates are not visible via VECS CLI or `fixcerts.py`, and require `vCert` or equivalent tools for inspection.
+- Select between `vCert` and `fixcerts.py` based on your operational needs, certificate types, and available features. Both tools are robust and reliable; in many scenarios, using them in combination increases flexibility and success rate.
+  > **Resilience advantage:** If one tool encounters a limitation or fails to address a specific certificate type, you can seamlessly switch to the other. This "failover between tools" is a deliberate part of these procedures—ensuring certificate renewal remains possible no matter the situation.
+
+  > **Note:** An invaluable feature of `fixcerts.py` is its ability to specify an extended validity period for renewed certificates (`--validityDays <DAYS>`).  
+  > However, the actual validity of generated certificates **cannot exceed the expiry of the vCSA root CA**—even if a longer value is specified, certificates will expire at the root CA's end date.
+
+  > **Note:** Some certificate types (notably STS certificates) are not fully covered by either tool. It is recommended to have `vCert` available—even if your main tool is `fixcerts.py`! For example, STS certificates are not visible via VECS CLI or `fixcerts.py`, and require `vCert` or equivalent tools for inspection and renewal.
 
 - Enable logging of the terminal application as far as possible  
   It is strongly recommended to run the commands, including the execution of the `vCert.py`/`fixcerts.py` on a `SSH` session with a terminal software, e.g., `PuTTY` or OS standard `ssh`.
