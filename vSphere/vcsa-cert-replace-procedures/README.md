@@ -3,18 +3,20 @@
 ## What this project is for
 
 This sub-folder focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA).
-VMware (Broadcom) has more than two tools for maintain certificates on vCenter Server Appliance (vCSA);
+VMware (Broadcom) has more than two tools to maintain certificates on vCenter Server Appliance (vCSA);
+
 - **vCert** - The main script is `vCert.py`, which is interactive certificate management tool. Recently released
 - **fixcerts.py** - Command-line certificate replacement utility, previously released and officially depricated (but useable!)
-- **certificate-manager** - Standard utility to manage certificates on vCSA
-This project summarize the procedures to renew the certificates using `vCert` and `fixcerts.py`.
+- **certificate-manager** - Standard utility to manage certificates on vCSA.
+
+This project summarizes the procedures to renew the different certificates, selectively using `vCert` and `fixcerts.py`.
 
 ---
 
 ## Contents Summary
 
 ### 📋 vcsa-cert-replace-procedures.md
-Comprehensive step-by-step procedures for renewing and replacing vCSA certificates using:
+Comprehensive step-by-step procedures for renewing and replacing vCSA certificates:
 
 Key features include:
 - Pre-renewal and post-renewal checklists
@@ -28,4 +30,3 @@ Essential reference materials containing:
 - Certificate type mappings across different tools
 - Store and alias name correlations
 - Tool-specific operation commands
-
