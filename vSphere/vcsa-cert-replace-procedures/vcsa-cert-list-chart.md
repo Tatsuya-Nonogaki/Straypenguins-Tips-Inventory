@@ -1,4 +1,4 @@
-**1. vCSA certificate types & terms by different tools**
+## 1. vCSA certificate types & terms by different tools
 
 | Store                                 | Alias name in vecs-cli | Name in vSphereClient              | Name in fixcerts.py   | Name in vCert.py                       | Notes                                                                |
 |---------------------------------------|------------------------|------------------------------------|-----------------------|----------------------------------------|----------------------------------------------------------------------|
@@ -17,9 +17,8 @@
 | STS Signing Cert                      | N/A                    | STS: ssoserverSign (STS_CERT)      | Signing Cert (STS)    | TenantCredential-1 signing certificate | STS signing for SAML tokens                                          |
 | STS_INTERNAL_SSL_CERT                 | N/A                    | STS: CA (STS_CERT)                 | STS_INTERNAL_SSL_CERT | N/A                                    | HTTPS endpoint for STS, referenced by Lookup Service (Not a real CA) |
 | Root CA                               | TRUSTED_ROOTS          | Trusted Roots: CA (VMCA_ROOT_CERT) | TRUSTED_ROOTS         | CA certificates in VECS                | CA trust chain                                                       |
-<br />
-**2. fixcerts.py Operation for each certificate**
 
+## 2. fixcerts.py Operation for each certificate
 | Store                 | Alias                | fixcerts.py operation                                      |
 |-----------------------|----------------------|------------------------------------------------------------|
 | MACHINE_SSL_CERT      | __MACHINE_CERT       | replace --certType machinessl                              |
@@ -35,27 +34,27 @@
 | SMS                   | &lt;UUIDs&gt;              | Not directly supported in menu; likely manual via vecs-cli |
 | STS Signing Cert      | (Signing Cert (STS)) | replace --certType sts                                     |
 | STS_INTERNAL_SSL_CERT | N/A                  | replace --certType lookupservice                           |
-<br />
-**3. vCert.py Operation for each certificate**
 
+## 3. vCert.py Operation for each certificate
 | Store                 | Alias                | vCert.py menu operation                                                |
 |-----------------------|----------------------|------------------------------------------------------------------------|
-| MACHINE_SSL_CERT      | __MACHINE_CERT       | Manage vCenter Certificates > Machine SSL certificate                  |
-| machine               | machine              | Manage vCenter Certificates > Solution User certificates               |
-| vsphere-webclient     | vsphere-webclient    | Manage vCenter Certificates > Solution User certificates               |
-| vpxd                  | vpxd                 | Manage vCenter Certificates > Solution User certificates               |
-| vpxd-extension        | vpxd-extension       | Manage vCenter Certificates > Solution User certificates               |
-| hvc                   | hvc                  | Manage vCenter Certificates > Solution User certificates               |
-| wcp                   | wcp                  | Manage vCenter Certificates > Solution User certificates               |
+| MACHINE_SSL_CERT      | __MACHINE_CERT       | Manage vCenter Certificates &gt; Machine SSL certificate                  |
+| machine               | machine              | Manage vCenter Certificates &gt; Solution User certificates               |
+| vsphere-webclient     | vsphere-webclient    | Manage vCenter Certificates &gt; Solution User certificates               |
+| vpxd                  | vpxd                 | Manage vCenter Certificates &gt; Solution User certificates               |
+| vpxd-extension        | vpxd-extension       | Manage vCenter Certificates &gt; Solution User certificates               |
+| hvc                   | hvc                  | Manage vCenter Certificates &gt; Solution User certificates               |
+| wcp                   | wcp                  | Manage vCenter Certificates &gt; Solution User certificates               |
 | data-encipherment     | data-encipherment    | Not directly supported?                                                |
-| SMS                   | sms_self_signed      | Manage vCenter Certificates > SMS certificates                         |
-| SMS                   | sps-extension        | Manage vCenter Certificates > SMS certificates (if applicable)         |
+| SMS                   | sms_self_signed      | Manage vCenter Certificates &gt; SMS certificates                         |
+| SMS                   | sps-extension        | Manage vCenter Certificates &gt; SMS certificates (if applicable)         |
 | SMS                   | &lt;UUIDs&gt;              | Not directly supported in menu; likely manual via vecs-cli             |
-| STS Signing Cert      | (Signing Cert (STS)) | Manage vCenter Certificates > STS signing certificates                 |
+| STS Signing Cert      | (Signing Cert (STS)) | Manage vCenter Certificates &gt; STS signing certificates                 |
 | STS_INTERNAL_SSL_CERT | N/A                  | Not directly supported in menu; use fixcerts.py or manual via vecs-cli |
-<br />
-**4. vCert.py direct operation arguments** E.G., `./vCert.py --run config/op_check_cert.yaml`
 
+## 4. vCert.py direct operation arguments 
+
+E.G., `./vCert.py --run config/op_check_cert.yaml`
 | Menu Item Label                               | Valid --run Argument                                             |
 |-----------------------------------------------|------------------------------------------------------------------|
 | Check current certificate status              | config/op_check_cert.yaml                                        |
