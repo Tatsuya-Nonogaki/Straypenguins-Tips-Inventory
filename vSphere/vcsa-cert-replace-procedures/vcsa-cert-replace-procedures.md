@@ -17,6 +17,8 @@
     ```
     for store in $(/usr/lib/vmware-vmafd/bin/vecs-cli store list | grep -v TRUSTED_ROOT_CRLS); do echo "[*] Store :" $store; /usr/lib/vmware-vmafd/bin/vecs-cli entry list --store $store --text | grep -ie "Alias" -ie "Not Before" -ie "Not After"; done
     ```
+    > You can find this as a separate script file, `list-vecs-certs.sh`, for ease of use.
+
 - Next, obtain information about the STS certificates and Extension Thumbprints, which are **not covered by the above command**, using vCert.py:
     ```
     ./vCert.py --run config/view_cert/op_view_11-sts.yaml
