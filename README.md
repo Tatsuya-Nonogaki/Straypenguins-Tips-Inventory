@@ -9,8 +9,8 @@ This repository serves as a comprehensive technical knowledge base and documenta
 ## 🧭 Table of Contents
 - 🖥️ [vSphere](#%EF%B8%8F-vsphere)
 - 🐧 [Linux](#-linux)
-- ☕ [WebLogic]([#-weblogic))
-- 🐙 [GitHub](#-github))
+- ☕ [WebLogic](#-weblogic)
+- 🐙 [GitHub](#-github)
 
 ---
 
