@@ -31,7 +31,7 @@ System administration and security:
 Setting tools and Examples: 
 
 - Useful maintenance tools
-- [Systemd](WebLogic/systemd/)
+- [systemd](WebLogic/systemd/)
 - [rsyslog](WebLogic/rsyslog/)
 - [profile.d](WebLogic/profile.d/)
 - [Automation WLST](WebLogic/automation-wlst/)
