@@ -14,7 +14,7 @@ This repository serves as a comprehensive technical knowledge base and documenta
 
 ---
 
-## 🖥️ [vSphere](vSphere/)
+## 🖥️ [vSphere](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/vSphere)
 Procedures and Tools for administration:
 
 - [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/)  
