@@ -6,33 +6,40 @@ This repository serves as a comprehensive technical knowledge base and documenta
 
 ---
 
-## Contents Summary
+## 🧭 Table of Contents
+- 🖥️ [vSphere](#vsphere)
+- 🐧 [Linux](#linux)
+- ☕ [WebLogic](#weblogic)
+- 🐙 [GitHub](#github)
 
-### [vSphere](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/vSphere)
+---
 
-#### [vCSA Certificate Replacement Procedures](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/vSphere/vcsa-cert-replace-procedures)
-The sub-folder focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA).
-This project organizes and streamlines the procedures for renewing the different certificates, selectively using `vCert` and `fixcerts.py`.
+## 🖥️ vSphere
+Procedures and Tools for administration:
 
-### [Linux](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux)
+- [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/)  
+   This sub-folder focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA).
+   This project organizes and streamlines the procedures for renewing the different certificates, selectively using `vCert` and `fixcerts.py`.
 
-#### [OpenSSL](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux/OpenSSL)
+## 🐧 Linux
+System administration and security:
 
-#### [SELinux](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux/SELinux)
+- [OpenSSL](Linux/OpenSSL/)
+- [SELinux](Linux/SELinux/)
 
-### [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
+## ☕ WebLogic
+Setting tools and Examples: 
 
-#### Basic and convenient setting tools
+- Useful maintenance tools
+- [Systemd](WebLogic/systemd/)
+- [rsyslog](WebLogic/rsyslog/)
+- [profile.d](WebLogic/profile.d/)
+- [Automation WLST](WebLogic/automation-wlst/)
 
-#### [Systemd](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic/systemd)
+## 🐙 GitHub
+Repository management tips:
 
-#### [rsyslog](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic/rsyslog)
-
-#### [profile.d](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic/profile.d)
-
-#### [Automation WLST](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic/automation-wlst)
-
-### [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
+- Tips
 
 ---
 
