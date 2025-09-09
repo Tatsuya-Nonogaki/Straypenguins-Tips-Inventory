@@ -21,13 +21,13 @@ Procedures and Tools for administration:
    This sub-folder focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA).
    This project organizes and streamlines the procedures for renewing the different certificates, selectively using `vCert` and `fixcerts.py`.
 
-## 🐧 Linux
+## 🐧 [Linux](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux)
 System administration and security:
 
 - [OpenSSL](Linux/OpenSSL/)
 - [SELinux](Linux/SELinux/)
 
-## ☕ WebLogic
+## ☕ [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
 Setting tools and Examples: 
 
 - Useful maintenance tools
@@ -36,7 +36,7 @@ Setting tools and Examples:
 - [profile.d](WebLogic/profile.d/)
 - [Automation WLST](WebLogic/automation-wlst/)
 
-## 🐙 GitHub
+## 🐙 [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
 Repository management tips:
 
 - Tips
