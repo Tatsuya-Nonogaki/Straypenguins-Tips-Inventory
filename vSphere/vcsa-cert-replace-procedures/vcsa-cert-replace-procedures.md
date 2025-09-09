@@ -19,19 +19,19 @@
     ```
     > You can find this as a separate script file, `list-vecs-certs.sh`, for ease of use.
 
-- Next, obtain information about the STS certificates and Extension Thumbprints, which are **not covered by the above command**, using vCert.py:
+- Next, obtain information about the STS certificates and Extension Thumbprints, which are **not covered by the above command**, using `vCert.py`:
     ```
     ./vCert.py --run config/view_cert/op_view_11-sts.yaml
     ./vCert.py --run config/check_cert/op_check_10-vc_ext_thumbprints.yaml
     ```
-    > **Note:** Because the STS certificates and Extension Thumbprints are not visible via VECS CLI or `fixcerts.py`, it is necessary to have vCert.py available—even if your main tool is fixcerts.py! The second check is included in "1. Check current certificate status" main menu or an invocation with "--run config/op_check_cert.yaml" option.
+    > **Note:** Because the STS certificates and Extension Thumbprints are not visible via VECS CLI or `fixcerts.py`, it is necessary to have `vCert.py` available—even if your main tool is `fixcerts.py`! The second check is included in "1. Check current certificate status" main menu or an invocation with "--run config/op_check_cert.yaml" option.
 
 - Check the health of the vCenter Server  
   - Service status (can be checked on VAMI graphically)
      ```
      service-control --status --all
      ```
-  - Check for prior errors in:
+  - Check for prior errors (optional, for extra caution) in:
     - **`/var/log/vmware/vmcad/`**
 
       Mainly:
@@ -82,7 +82,9 @@ After completing certificate renewal procedures, it is essential to verify the h
 ---
 
 ### Procedures for vCert
-Always use its interactive navigation. (Command-line options are very limited)
+`vCert.py` is primarily designed for use via its interactive menu. While it does support direct operations with the `--run` option by specifying the path to a particular YAML file, this usually requires more typing, and the other command-line options are quite limited.
+
+However, depending on the situation, using the `--run` option for specific operations can be beneficial. For your convenience, the table **vCert.py direct operation arguments** in the separate file `vcsa-cert-list-chart.md` summarizes the available YAML file paths for each operation category.
 
 #### Procedures
 1. **Run vCert.py:**  
@@ -97,10 +99,10 @@ Always use its interactive navigation. (Command-line options are very limited)
 4. **Service restart prompt:**  
    Answer "N" (default) to "Restart VMware services [N]: " prompt, if succeeded or failed.
 
-5. **Check logs for errors after vCert.py runs:**  
+5. **Check logs for errors after vCert.py runs (optional, for extra caution):**  
    - Review `/var/log/vmware/vmcad/` and `/var/log/vmware/vmware/sso/` for signs of certificate renewal problems.
    - Check the own log files of vCert.py. Official Web document say (extract);  
-     > The script will create `/var/log/vmware/vCert/vCert.log` (which will be included in a support bundle), and a directory in /root/vCert-master with the name format YYYYMMDD, which will include several sub-directories for staging, backups, etc. Other than certificate backup files, the temporary files are deleted when the vCert tool exits.
+     > The script will create `/var/log/vmware/vCert/vCert.log` (which will be included in a support bundle), and a directory in `/root/vCert-master` with the name format 'YYYYMMDD', which will include several sub-directories for staging, backups, etc. Other than certificate backup files, the temporary files are deleted when the vCert tool exits.
 
 6. **Post-renewal verification and service restart:**  
    - If the recreation of certificates was successful, choose "8. Restart services" in the main menu. (This will take some time.)
@@ -114,7 +116,7 @@ Always use its interactive navigation. (Command-line options are very limited)
       for store in $(/usr/lib/vmware-vmafd/bin/vecs-cli store list | grep -v TRUSTED_ROOT_CRLS); do echo "[*] Store :" $store; /usr/lib/vmware-vmafd/bin/vecs-cli entry list --store $store --text | grep -ie "Alias" -ie "Not Before" -ie "Not After"; done
       ```
    3. Try recreating certificates per Certificate-Type, by selecting "3. Manage certificates" in the main menu and proceeding to the specific sub menu such as "2. Solution User certificates". Check the status of the certificates again.
-      > *Refer to the certificate-type chart for correct menu entries.*
+      > *Refer to the chart **vCert.py Operation for each certificate** in the separate file `vcsa-cert-list-chart.md` for correct menu entries.*
    4. If any of the certificates were updated, check for consistency in Extension Thumbprints by selecting "3. Manage certificates" in the main menu then "6. vCenter Extension thumbprints" (or directly run `./vCert.py --run config/manage_cert/op_manage-vc-ext-thumbprints.yaml`). If any MISMATCH are found, proceed with "Y" to solve.
    5. After complete renewal of all the failed certificates, go back to the main menu and select "8. Restart services". (This will take some time.)
 
@@ -131,7 +133,7 @@ Always use its interactive navigation. (Command-line options are very limited)
 ---
 
 ### Procedures for fixcerts.py
-It is sometimes reported that `fixcerts.py` has difficulties in stability; for example, some certificates may fail to renew while others succeed. **Staged renewal per certificate-type, instead of renewing all at once, is recommended to minimize the risk of failures.** Always use the newest version (`fixcerts_3_2.py` at the time of writing).
+`fixcerts.py` has occasionally been reported to have stability issues, where renewal may succeed for some certificate types but not others. However, in practice, it has proven to be reliable in many cases. To further reduce the possibility of renewal failures, it is recommended to perform **staged renewals by certificate type** rather than renewing all at once. Always use the latest version (`fixcerts_3_2.py` at the time of writing).
 
 #### Procedures
 1. **Run fixcerts.py per certificate-type:**  
@@ -141,7 +143,7 @@ It is sometimes reported that `fixcerts.py` has difficulties in stability; for e
      ```
      **Key Points:**  
      - Change the `--certType` argument for each run to match the certificate-type.  
-       *Refer to the certificate-type chart for correct values (e.g. `machinessl`, `solutionusers`, `sms`, `data-encipherment`, etc.).*
+       *Refer to the chart **fixcerts.py Operation for each certificate** in the separate file `vcsa-cert-list-chart.md` for correct values (e.g. `machinessl`, `solutionusers`, etc.).*
      - Use the `--validityDays` option to extend certificate validity, if desired.  
        **Note:** The actual period of generated certificates **cannot exceed the expiry of the root CA**—even if a longer value is specified, the certificates will expire at the root CA's end date.
      - Always set `--serviceRestart False` for each run. You will restart services after all renewals are complete.
@@ -150,7 +152,7 @@ It is sometimes reported that `fixcerts.py` has difficulties in stability; for e
      - **Note:** `fixcerts.py` does not provide an interactive menu; all operations are done via command-line arguments.
 
 2. **Verify certificate renewal after each type:**  
-   - After each certificate-type renewal, run the certificate status one-liner to confirm expiry dates have changed:
+   - After each certificate-type renewal, run the certificate status one-liner (or the dedicated script file) to confirm expiry dates have changed:
      ```
      for store in $(/usr/lib/vmware-vmafd/bin/vecs-cli store list | grep -v TRUSTED_ROOT_CRLS); do echo "[*] Store :" $store; /usr/lib/vmware-vmafd/bin/vecs-cli entry list --store $store --text | grep -ie "Alias" -ie "Not Before" -ie "Not After"; done
      ```
@@ -160,7 +162,7 @@ It is sometimes reported that `fixcerts.py` has difficulties in stability; for e
      ```
    - Review for any certificates that were not updated.
 
-3. **Check logs for errors after each run:**  
+3. **Check logs for errors after each run (optional, for extra caution):**  
    - Check standard system logs for issues:
      - `/var/log/vmware/vmcad/`
      - `/var/log/vmware/vmware/sso/`
@@ -168,7 +170,7 @@ It is sometimes reported that `fixcerts.py` has difficulties in stability; for e
      - `fixcerts.log` (found in the current working directory where the script was executed).
 
 4. **Troubleshoot and retry failed renewals:**  
-   - If any certificate-type fails to renew, attempt rerunning fixcerts.py for that type.
+   - If any certificate-type fails to renew, attempt rerunning `fixcerts.py` for that type.
    - Use the `--debug` option for more detailed error output.
    - If failures persist, consider manual renewal using `vecs-cli` or consult official product support documentation.
    - If any of the certificates were updated, check for consistency in Extension Thumbprints by running;
@@ -181,7 +183,7 @@ It is sometimes reported that `fixcerts.py` has difficulties in stability; for e
      ```
      service-control --stop --all && service-control --start --all
      ```
-     > This is the recommended and safe method to restart services, as used internally by fixcerts.py itself.
+     > This is the recommended and safe method to restart services, as used internally by `fixcerts.py` itself.
 
 6. **Final health check and post-renewal verification:**  
    Verify the vCSA service health and certificate validity. For detailed verification steps, refer to the "Post-Renewal Checklist" section under "Overall policy" at the beginning of this document.
