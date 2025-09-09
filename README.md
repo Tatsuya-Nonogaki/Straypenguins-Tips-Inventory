@@ -17,7 +17,7 @@ This repository serves as a comprehensive technical knowledge base and documenta
 ## 🖥️ [vSphere](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/vSphere)
 Procedures and Tools for administration:
 
-- [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/)  
+- [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/README.md)  
    This sub-folder focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA).
    This project organizes and streamlines the procedures for renewing the different certificates, selectively using `vCert` and `fixcerts.py`.
 
