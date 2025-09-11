@@ -234,7 +234,7 @@ If your service needs to read/write other directories—such as `/var/log/mypkg/
 
 > In this example, we define a _catch-all_ type `mysvcd_var_t`. If your service requires more strict separation of log, cache, lib, etc., you can easily split into more granular types (e.g., `mysvcd_var_log_t`, `mysvcd_var_cache_t`, etc.).
 
-**Example TE policy for variable data directory: mysvcd_storage.te:**
+**Example TE policy for variable data directory: `mysvcd_storage.te`:**
 
 ```te
 module mysvcd_storage 1.0;
