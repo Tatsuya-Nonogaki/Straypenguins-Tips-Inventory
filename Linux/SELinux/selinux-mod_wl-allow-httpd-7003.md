@@ -220,10 +220,10 @@ semodule -lfull | grep mysvcd
 
 ```bash
 semanage fcontext -a -t mysvcd_exec_t "/opt/mypkg/mysvcd"
-restorecon -v /opt/mypkg/mysvcd
+restorecon -Fv /opt/mypkg/mysvcd
 
 semanage fcontext -a -t mysvcd_opt_t "/opt/mypkg(/.*)?"
-restorecon -Rv /opt/mypkg/
+restorecon -FRv /opt/mypkg/
 ```
 
 ---
@@ -234,10 +234,10 @@ If your service needs to read/write other directories—such as `/var/log/mypkg/
 
 > In this example, we define a _catch-all_ type `mysvcd_var_t`. If your service requires more strict separation of log, cache, lib, etc., you can easily split into more granular types (e.g., `mysvcd_var_log_t`, `mysvcd_var_cache_t`, etc.).
 
-**Example TE policy for variable data directory:**
+**Example TE policy for variable data directory: mysvcd_storage.te:**
 
 ```te
-# File: mysvcd_storage.te
+module mysvcd_storage 1.0;
 
 require {
     type mysvcd_t;
@@ -254,13 +254,22 @@ allow mysvcd_t mysvcd_var_t:dir { read search write add_name remove_name };
 allow mysvcd_t mysvcd_var_t:file { read write append open create unlink };
 ```
 
+**Build and install the module:**
+
+```bash
+checkmodule -M -m -o mysvcd_storage.mod mysvcd_storage.te
+semodule_package -o mysvcd_storage.pp -m mysvcd_storage.mod
+semodule -i mysvcd_storage.pp
+semodule -lfull | grep mysvcd_storage
+```
+
 **Example labeling and restorecon commands:**
 
 ```bash
 semanage fcontext -a -t mysvcd_var_t "/var/log/mypkg(/.*)?"
 semanage fcontext -a -t mysvcd_var_t "/var/cache/mypkg(/.*)?"
 semanage fcontext -a -t mysvcd_var_t "/var/lib/mypkg(/.*)?"
-restorecon -Rv /var/log/mypkg/ /var/cache/mypkg/ /var/lib/mypkg/
+restorecon -FRv /var/log/mypkg/ /var/cache/mypkg/ /var/lib/mypkg/
 ```
 
 **You can build, install, and update these modules independently as your package requirements evolve.**
