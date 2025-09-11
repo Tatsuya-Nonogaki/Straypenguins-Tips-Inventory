@@ -254,6 +254,22 @@ allow mysvcd_t mysvcd_var_t:dir { read search write add_name remove_name };
 allow mysvcd_t mysvcd_var_t:file { read write append open create unlink };
 ```
 
+Furthermore, if the file type your program accesses is a predefined one, the `te` file will look like below:
+
+```te
+module mysvcd_storage 1.0;
+
+require {
+    type mysvcd_t;
+    type var_log_t;
+    class dir { read search write add_name remove_name };
+    class file { read write append open create unlink };
+}
+
+allow mysvcd_t var_log_t:dir { read search write add_name remove_name };
+allow mysvcd_t var_log_t:file { read write append open create unlink };
+```
+
 **Build and install the module:**
 
 ```bash
@@ -379,4 +395,3 @@ You should see `mysvcd_t` in the process label.
 semodule -r myhttpd_mod_wl
 semodule -lfull | grep myhttpd_mod_wl
 ```
-
