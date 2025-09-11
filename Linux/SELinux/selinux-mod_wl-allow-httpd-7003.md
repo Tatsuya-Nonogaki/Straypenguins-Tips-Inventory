@@ -279,7 +279,7 @@ semodule -i mysvcd_storage.pp
 semodule -lfull | grep mysvcd_storage
 ```
 
-**Example labeling and restorecon commands:**
+**Example labeling and restorecon commands (not required if predefined ports only):**
 
 ```bash
 semanage fcontext -a -t mysvcd_var_t "/var/log/mypkg(/.*)?"
