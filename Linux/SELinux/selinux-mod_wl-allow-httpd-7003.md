@@ -1,5 +1,11 @@
 # Manage SELinux to Allow httpd to Access Port 7003/TCP
+## Overview
+
 **This document provides practical, adaptable steps for customizing SELinux policy to securely enable `httpd` to establish outbound access to non-standard network port, e.g., 7003/TCP.**
+
+**Related Documents**
+- [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md)
+- [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](selinux-service-policy-troubleshooting.md)
 
 ---
 
