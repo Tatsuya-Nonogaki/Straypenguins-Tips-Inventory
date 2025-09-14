@@ -1,4 +1,4 @@
-# Create SELinux Policy Module for Your Own service
+# Create SELinux Policy Module for Your Own Service
 This document -- preface here
 
 ---
@@ -8,7 +8,7 @@ This document -- preface here
 - **Service:** `/opt/mysvc/bin/mysvcd`
 - **SELinux domain:** `mysvcd_t`
 - **SELinux status:** Enforcing
-- **Symptoms:** Repeated audit denials for operation `getopt` on class `tcp_socket` during outbound connection attempts to `x.x.x.x:443`.
+- **Network access:** Make outbound connection to `x.x.x.x:443/TCP` (or `:7001TCP`).
 
 ---
 
@@ -60,7 +60,7 @@ Further procedures to cerate a policy module for a port is a duplicate area with
 
 ## Create a Domain Type Module for Custom Executable
 
-### 1. Define Exec Type and Domain Type, with Transition for systemd
+### 1. Define Exec type and Domain type, with Transition for systemd
 
 **File: `mysvcd.te`**
 > You need to replace `http_port_t` with `httpd_wls_port_t` if you chose to use 7001/TCP instead.
@@ -206,7 +206,7 @@ restorecon -FRv /var/log/mysvc/ /var/cache/mysvc/ /var/lib/mysvc/
 
 ---
 
-## Start and Verify with systemd
+## Start with Systemd and Verify
 
 Start your service via systemd, and check the running process label:
 
@@ -218,11 +218,13 @@ You should see `mysvcd_t` in the process label.
 
 ---
 
-## Uninstall the Module (if you ought to do in the future...)
+## Uninstall the Module: *if you ought to do in the future...*
 
 Stop and disable the service and follow the steps below.
 
 ### 1. Reset file labels
+
+Uninstallation of policy modules will fail while files and directories still have the labeled which defined in the policy modules in question.
 
 #### For storage module
 
