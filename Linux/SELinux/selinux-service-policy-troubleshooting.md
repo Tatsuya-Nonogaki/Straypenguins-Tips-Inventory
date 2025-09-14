@@ -3,7 +3,7 @@
 ## Overview
 
 This document records the investigation, diagnostics, and resolution steps for SELinux policy denials encountered by a custom service/domain (e.g., `mysvcd_t`). The process covers how to identify, analyze, and resolve permission issues when running services under SELinux in Enforcing mode.  
-The workflow and troubleshooting checklist can be adapted for other SELinux modules (e.g., httpd custom policies) by substituting the relevant domain/type and permissions.
+The workflow and troubleshooting checklist can be adapted for many SELinux modules (e.g., httpd custom policies) by substituting the relevant domain/type and permissions.
 
 ---
 
