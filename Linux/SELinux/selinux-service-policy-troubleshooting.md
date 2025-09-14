@@ -12,7 +12,7 @@ The workflow and troubleshooting checklist can be adapted for many SELinux modul
 - **Domain/type:** SELinux security label assigned to a process (e.g., `mysvcd_t`)
 - **Class:** SELinux object class (e.g., `tcp_socket`, `file`)
 - **Permission/operation:** Specific allowed actions for a class (e.g., `connect`, `getopt`)
-- **Policy module:** Packaged SELinux policy rules for installation (`.pp` *(Policy Package)* file; its source is usually `.te` *(Type Enforcement)*, among others like `.if`, `.fc`, etc.)
+- **Policy module:** Packaged SELinux policy rules for installation (`.pp` *(Policy Package)* file; its source is usually `.te` *(Type Enforcement)*, plus others like `.if`, `.fc`, etc.)
 
 ---
 
