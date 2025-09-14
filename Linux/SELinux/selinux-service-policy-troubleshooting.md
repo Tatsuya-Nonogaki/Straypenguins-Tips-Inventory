@@ -25,6 +25,23 @@ The workflow and troubleshooting checklist can be adapted for other SELinux modu
 
 ---
 
+## Procedure Outline
+
+- [Diagnostics Steps](#diagnostics-steps)
+  - [1. Identify Denied Operations](#1-identify-denied-operations)
+  - [2. Verify Running Context](#2-verify-running-context)
+  - [3. Check Policy Permissions](#3-check-policy-permissions)
+- [Resolution Steps](#resolution-steps)
+  - [1. Update Policy Source](#1-update-policy-source)
+  - [2. Rebuild and Reload Policy](#2-rebuild-and-reload-policy)
+  - [3. Verify Policy is Active](#3-verify-policy-is-active)
+  - [4. Test Service Behavior](#4-test-service-behavior)
+  - [5. If Not Solved or Another Denial is Observed](#5-if-not-solved-or-another-denial-is-observed)
+- [Key Lessons](#key-lessons)
+- [References](#references)
+
+---
+
 ## Diagnostics Steps
 
 ### 1. **Identify Denied Operations**
@@ -209,15 +226,3 @@ Repeat the diagnostics process starting from Step 1.
 - `sesearch(1)`: SELinux policy rule search tool  
 - `semodule(8)`: SELinux policy module management  
 - [SELinux Project Documentation](https://selinuxproject.org/)
-
----
-
-## Example: Troubleshooting Checklist
-
-1. Check audit logs for denials.
-2. Verify process SELinux context.
-3. List active policy rules with `sesearch`.
-4. Update `.te` source if needed.
-5. Rebuild and install policy module.
-6. Confirm permissions are now active.
-7. Test application, confirm resolution.
