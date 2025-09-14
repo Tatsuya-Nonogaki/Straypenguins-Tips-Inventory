@@ -50,7 +50,7 @@ Check audit logs for AVC (Access Vector Cache) denials:
 ```bash
 ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -su mysvcd_t
 ```
-> `-m`(`--message`): message type (case-sensitive), `-su`(`--subject`): scontext (subject), `-c`(`--comm`): executable name (full-match, not helpful for common file name e.g.`mysvcd`)
+> `-m`(`--message`): message type (case-sensitive), `-su`(`--subject`): scontext (subject), `-c`(`--comm`): executable name (full-match, not helpful for common file name e.g.`agent`)
 
 > `-ts`(`--start`): start-time is often useful to filter out old messages, e.g. `-ts mm/dd/yy 'HH:MM:SS'`, `-ts today`(since 00:00:01-), `-ts recent`(10 min ago-)
 
