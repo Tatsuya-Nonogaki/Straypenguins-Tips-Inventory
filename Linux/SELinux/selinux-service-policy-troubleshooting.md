@@ -225,4 +225,4 @@ Repeat the diagnostics process starting from Step 1.
 - `ausearch(8)`: Audit log search tool  
 - `sesearch(1)`: SELinux policy rule search tool  
 - `semodule(8)`: SELinux policy module management  
-- [SELinux Project Documentation](https://selinuxproject.org/)
+- [SELinux - Gentoo Wiki](https://wiki.gentoo.org/wiki/SELinux)
