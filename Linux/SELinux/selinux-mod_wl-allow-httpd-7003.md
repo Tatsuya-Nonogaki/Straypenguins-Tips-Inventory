@@ -272,7 +272,7 @@ sesearch --allow -s httpd_t -t httpd_wls_port_t -c tcp_socket -p name_connect
 semanage port -a -t httpd_wls_port_t -p tcp 7003
 ```
 
-**Verify Assignment**
+Verify Assignment
 
 ```bash
 echo $(semanage port -l | awk '$1=="httpd_wls_port_t" && $2=="tcp" {$1=$2=""; print $0}')
