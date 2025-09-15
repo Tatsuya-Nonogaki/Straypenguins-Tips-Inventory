@@ -191,7 +191,6 @@ allow mysvcd_t mysvcd_var_t:dir { read search write add_name remove_name };
 allow mysvcd_t mysvcd_var_t:file { read write append open create unlink };
 ```
 
-
 **Build and install the module:**
 
 ```bash
@@ -237,13 +236,18 @@ If any denials are observed, start diagnostics; Consult the related document:
 
 ## Uninstall the Module: *if you ought to do in the future...*
 
-Stop and disable the service and follow the steps below.
+Uninstallation of policy modules will fail or other problems will occur while;
+- Service/program is using the policy
+- Files and directories still have the labels which defined or used in the policy modules
 
-### 1. Reset file labels
+### 1. Stop the service 
 
-Uninstallation of policy modules will fail while files and directories still have the labeled which defined in the policy modules in question.
+Stop the service via designated service manager; in this case, `systemd`.  
+Since these modules are dedicated to the `mysvcd` service, you should also disable its auto-start, i.e., `systemctl disable mysvcd`.
 
-#### For storage module
+### 2. Uninstall policy module for storage
+
+#### 2-1. Reset file labels
 
 If you have assigned dedicated file labels (e.g., `mysvcd_var_log_t`, `mysvcd_var_cache_t`) to variable files ruled by `mysvcd_storage` module, you need to reset the labels to standard, before uninstall.
 
@@ -261,7 +265,18 @@ ls -ldZ /var/log/mysvcd
 ls -lZ /var/log/mysvcd
 ```
 
-#### For main module
+#### 2.2. Uninstall the policy module
+
+```bash
+semodule -v -X 300 -r mysvcd_storage
+semodule -lfull | grep mysvcd_storage
+```
+
+### 3. Uninstall main policy module
+
+#### 3-1. Reset file labels
+
+This step is requred if any dedicated file-type is defined in the policy module. In this example case, it is required.
 
 ```bash
 restorecon -Fv /opt/mysvc/bin/mysvcd
@@ -279,16 +294,7 @@ ls -ldZ /opt/mysvc
 ls -lZ /opt/mysvc
 ```
 
-### 2. Uninstall the policy modules
-
-#### Storage module
-
-```bash
-semodule -v -X 300 -r mysvcd_storage
-semodule -lfull | grep mysvcd_storage
-```
-
-#### Main module
+#### 3.2. Uninstall the policy module
 
 ```bash
 semodule -v -X 300 -r mysvcd
