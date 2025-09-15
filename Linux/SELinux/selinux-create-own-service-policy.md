@@ -243,7 +243,7 @@ Uninstallation of policy modules will fail or other problems will occur while;
 ### 1. Stop the service 
 
 Stop the service via designated service manager; in this case, `systemd`.  
-Since these modules are dedicated to the `mysvcd` service, you should also disable its auto-start, i.e., `systemctl disable mysvcd`.
+Since these modules are dedicated to the `mysvcd` service, you should also disable its auto-start, i.e., "systemctl disable mysvcd".
 
 ### 2. Uninstall policy module for storage
 
