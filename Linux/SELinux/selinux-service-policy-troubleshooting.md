@@ -48,50 +48,38 @@ The workflow and troubleshooting checklist can be adapted for many SELinux modul
 
 ## Diagnostics Steps
 
-### 1. **Identify Denied Operations**
+### 1. Identify Denied Operations
 
-Check audit logs for AVC (Access Vector Cache) denials:
+Check audit logs for SELinux denials using `ausearch`.
+
 ```bash
 ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -su mysvcd_t
 ```
-> `-m`(`--message`): message type (case-sensitive), `-su`(`--subject`): scontext (subject), `-c`(`--comm`): executable name (full-match, not helpful for common file name e.g.`agent`)
 
-> `-ts`(`--start`): start-time is often useful to filter out old messages, e.g. `-ts mm/dd/yy 'HH:MM:SS'`, `-ts today`(since 00:00:01-), `-ts recent`(10 min ago-)
+Use `ausearch` to efficiently locate relevant information. Below is a quick reference:
 
-> **Tip on message types in `ausearch`:**  
-> While `AVC` is most common for denials, `USER_AVC`, `SELINUX_ERR`, and `USER_SELINUX_ERR` can surface in special cases (user-space denials, errors in SELinux processing). Including them in your searches helps to catch edge cases.
+| Goal                           | Command Example                                                  | Notes                    |
+|---------------------------------|------------------------------------------------------------------|--------------------------|
+| All SELinux denials            | `ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`          | Message type, case-sensitive     |
+| By process name                | `ausearch -c mysvcd`                                             | Full executable name only        |
+| By subject domain/type         | `ausearch -su mysvcd_t`                                          | Partial match on scontext        |
+| By message type                | `ausearch -m AVC`                                                | AVC: most common denials         |
+| By start time (since)          | `ausearch -ts today`<br>`... -ts mm/dd/yy 'HH:MM:SS'`<br>`... -ts recent`(means 10 min ago)  | Filter by time   |
+| Fuzzy match (with grep)        | `ausearch ... \| grep mysvcd`                                    | Any line with string             |
+| Command prefix match (with grep)| `ausearch ... \| grep 'comm="mysvcd'`                           | Commands starting with name      |
 
-> **About scontext**: `scontext`: "source security context" is a distinguished-name such as `system_u:system_r:mysvcd_t:s0`. The `-su` argument matches against any part of it.  
-> You can specify just the domain/type (e.g. `mysvcd_t`), the role (e.g. `system_r`), or even the full context (`system_u:system_r:mysvcd_t:s0`). Partial substring matches are allowed, but matching on type is usually most effective and precise.
-
-Other filtering methods are also available.
-
-Match by the exact name of the executable with `-c` (`--comm`). Beware this is exact match, not partial:
-
-```bash
-ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -c mysvcd
-```
-
-If you want to search for denials in a slightly more flexible way, omit builtin filters and use `grep` to catch commands **starting with** `mysvcd`:
-
-```bash
-ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep 'comm="mysvcd'
-```
-
-Or, if you want to catch also edge cases, more simply:
-
-```bash
-ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep mysvcd
-```
+**Tips:**
+- In the output, look for `denied { ... }` and `tclass=...` to help identify the cause and resolution.
+- `comm`: Executable filename (not policy name).
+- `scontext`: SELinux subject context (domain/type).
+- Combine options for precise results (e.g. by process and time).
+- Most denials are `AVC`, but `USER_AVC`, `SELINUX_ERR`, etc. may appear.
+- See [audit(8) man page](https://man7.org/linux/man-pages/man8/ausearch.8.html) for advanced usage.
 
 Typical denial entry:
 > type=AVC msg=audit(...): avc:  denied  { getopt } for  pid=... scontext=system_u:system_r:mysvcd_t:s0 ... comm="mysvcd" ... tclass=tcp_socket ...
 
-> **Note:** `denied { * }` and `tclass=*` are the key.
-
-> **Note:** `comm` is the executable file name on the filesystem, not the defined name in the policy.
-
-### 2. **Verify Running Context**
+### 2. Verify Running Context
 
 Ensure the service runs under the intended domain (if it is operating even partially):
 ```bash
@@ -102,7 +90,7 @@ Expected output:
 system_u:system_r:mysvcd_t:s0 ...
 ```
 
-### 3. **Check Policy Permissions**
+### 3. Check Policy Permissions
 
 List all active permissions for the domain:
 ```bash
@@ -141,7 +129,7 @@ allow mysvcd_t mysvcd_t:tcp_socket { connect create };
 
 ## Resolution Steps
 
-### 1. **Update Policy Source**
+### 1. Update Policy Source
 
 Examine your source `.te` file to ensure the permission rule exists and includes all required *operations* (*permissions*); for example:
 ```te
@@ -158,7 +146,7 @@ allow mysvcd_t self:tcp_socket { create connect getopt };
 > **Note:** If domain transition (changing from one SELinux domain/type to another, mainly used to activate an executable via `Systemd`/`SysVinit`) is not working as expected, check that you have declared the correct `role` in your policy and that your process is allowed to enter the target domain under that role.  
 > In SELinux, both the `role` and `type` must be authorized for transitions to succeed. Missing or misconfigured role declarations are a common source of unexpected transition failures.
 
-### 2. **Rebuild and Reload Policy**
+### 2. Rebuild and Reload Policy
 
 ```bash
 checkmodule -M -m -o mysvcd.mod mysvcd.te
@@ -199,7 +187,7 @@ semodule -v -X 300 -i mysvcd.pp
 
 > **Note:** If you remove or overwrite a module, consider whether filesystem labels need to be reset (`restorecon` or `semanage fcontext`), especially when changing types or paths.
 
-### 3. **Verify Policy is Active**
+### 3. Verify Policy is Active
 
 Check again with `sesearch`:
 ```bash
@@ -207,7 +195,7 @@ sesearch --allow -s mysvcd_t -t mysvcd_t -c tcp_socket
 ```
 Confirm the operation `getopt` is now present.
 
-### 4. **Test Service Behavior**
+### 4. Test Service Behavior
 
 - Start the service.
 - Monitor audit logs and the service’s own logs.
@@ -215,7 +203,7 @@ Confirm the operation `getopt` is now present.
 - Stop the service, and check audit again; In some cases, different denials occur on service shutdown.
 - If the policy is correct and loaded, audit denials should cease for the permitted operation.
 
-### 5. **If Not Solved or Another Denial is Observed**
+### 5. If Not Solved or Another Denial is Observed
 
 Repeat the diagnostics process starting from Step 1.
 
