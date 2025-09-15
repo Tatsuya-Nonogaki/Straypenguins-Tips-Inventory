@@ -222,7 +222,7 @@ Start your service via systemd, and check the running process label:
 systemctl start mysvcd.service
 ps -Z -C mysvcd
 ```
-You should see `mysvcd_t` in the process label.
+Expected: `mysvcd_t` should appear in the process label.
 
 Check for SELinux denials using `ausearch`:
 ```bash
