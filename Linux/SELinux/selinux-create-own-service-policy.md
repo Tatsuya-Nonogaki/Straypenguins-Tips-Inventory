@@ -224,10 +224,11 @@ ps -Z -C mysvcd
 ```
 You should see `mysvcd_t` in the process label.
 
-Search audit logs for AVC (Access Vector Cache) denials:
+Check for SELinux denials using `ausearch`:
 ```bash
 ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -su mysvcd_t
 ```
+For more audit log search options and tips, see the [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations).
 
 If any denials are observed, start diagnostics; Consult the related document:
 [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](selinux-service-policy-troubleshooting.md)
