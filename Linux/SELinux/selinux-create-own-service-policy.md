@@ -238,7 +238,7 @@ If any denials are observed, start diagnostics; Consult the related document:
 
 Uninstallation of policy modules will fail or other problems will occur while;
 - Service/program is using the policy
-- Files and directories still have the labels which defined or used in the policy modules
+- Files and directories still have the labels defined in the policy modules
 
 ### 1. Stop the service 
 
