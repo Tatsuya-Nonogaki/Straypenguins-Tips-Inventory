@@ -21,27 +21,15 @@ dnf install setools-console
 
 ## See What Is Going On
 
-Search SELinux denials for a specific process name. Use the exact name of the executable with `-c` (`--comm`)—no partial match:
-
-```bash
-ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -c httpd
-```
-
-Example output:
-
-> type=AVC msg=audit(1752813896.450:64983): avc:  denied  { name_connect } for  pid=2766333 comm="httpd" dest=7003 scontext=system_u:system_r:httpd_t:s0 tcontext=system_u:object_r:unreserved_port_t:s0 tclass=tcp_socket permissive=0
-
-If you want to search for denials in a slightly more flexible way, omit `-c` and filter with `grep` for commands starting with `httpd`:
-
-```bash
-ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep 'comm="httpd'
-```
-
-Or, if you want to catch also edge cases more simply:
-
+Search for SELinux denials for the httpd process:
 ```bash
 ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 ```
+In the output, look for `denied { ... }` and `tclass=...` entries.
+
+For alternative audit log search methods (exact process matching, filtering by time, etc.), see the [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations).
+
+If relevant denials are found, proceed to the policy customization or troubleshooting sections below.
 
 ---
 
