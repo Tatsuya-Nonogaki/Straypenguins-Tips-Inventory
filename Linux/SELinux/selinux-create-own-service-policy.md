@@ -9,7 +9,7 @@
 
 ---
 
-## Environment &amp; Example Situation
+## Environment &amp; Specification
 
 - **Service:** `/opt/mysvc/bin/mysvcd`
 - **SELinux domain:** `mysvcd_t`
