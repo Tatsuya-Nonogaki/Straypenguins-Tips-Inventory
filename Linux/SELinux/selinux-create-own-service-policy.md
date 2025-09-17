@@ -234,49 +234,70 @@ If any denials are observed, start diagnostics; Consult the related document:
 
 ---
 
-## Uninstall the Module: *if you ought to do in the future...*
+## Uninstalling Policy Modules (When Needed)
 
-Uninstallation of policy modules will fail or other problems will occur while;
-- Service/program is using the policy
-- Files and directories still have the labels defined in the policy module
+When you need to remove your custom SELinux policy modules, follow this procedure for a clean uninstall.
 
-### 1. Stop the service 
+### Considerations Before Commiting Module Removals
 
-Stop the service via designated service manager; in this case, `systemd`.  
-Since these modules are dedicated to the `mysvcd` service, you should also disable its auto-start, i.e., "systemctl disable mysvcd".
+- **Don't Remove Module While Modules Are Actively Used**
 
-### 2. Uninstall policy module for storage
+  Removing a module while it is used can cause uninstall errors or leave files with “orphan” labels that SELinux no longer recognizes.
 
-#### 2-1. Reset file labels
+  - Ensure the service/program using the policy is stoped/disabled.
+  - Reset labels defined by the module you're trying to remove on files or directories.
 
-If you have assigned dedicated file labels (e.g., `mysvcd_var_log_t`, `mysvcd_var_cache_t`) to variable files ruled by `mysvcd_storage` module, you need to reset the labels to standard, before uninstall.
+- **Module Removal Order Relies on Dependencies**
 
-Example:
+  - When multiple modules are involved, remove them in an order that respects their dependencies.
+  - Look for `allow` and `type` statements in the modules to determine their interdependencies.
+
+### 1. Stop the Service
+
+Stop and disable the service to ensure no processes are using the policies.
+
+```bash
+systemctl stop mysvcd
+systemctl disable mysvcd
+```
+
+### 2. Remove the Storage Policy Module
+
+In the case of our example module structure, the supplementary module `mysvcd_storage` is depending on main module `mysvcd`; `mysvcd_storage` module contains permission rules `allow mysvcd_t ...`, where `mysvcd_t` is a type/domain defined in the main module. The main module can not be safely removed until the *storage* module is uninstalled.
+
+#### 2-1. Reset File Labels
+
+Remove any custom file context assignments and restore default SELinux labels for data directories.
+
 ```bash
 semanage fcontext -d "/var/log/mysvcd"
 semanage fcontext -d "/var/log/mysvc(/.*)?"
-
 restorecon -RFv /var/log/mysvcd
 ```
 
-Confirm reset
-```
+Verify the reset:
+```bash
 ls -ldZ /var/log/mysvcd
 ls -lZ /var/log/mysvcd
 ```
 
-#### 2.2. Uninstall the policy module
+#### 2-2. Uninstall the Storage Policy Module
+
+Remove the storage-related policy module.
 
 ```bash
 semodule -v -X 300 -r mysvcd_storage
 semodule -lfull | grep mysvcd_storage
 ```
 
-### 3. Uninstall main policy module
+### 3. Remove the Main Policy Module
 
-#### 3-1. Reset file labels
+Now proceed to remove your main custom policy module.
 
-This step is requred if any dedicated file-type is defined in the policy module. In this example case, it is required.
+#### 3-1. Reset File Labels
+
+Reset custom file types for executables and primary package directories.  
+This is required if your main policy module defined its own file types.
 
 ```bash
 restorecon -Fv /opt/mysvc/bin/mysvcd
@@ -288,13 +309,15 @@ semanage fcontext -d "/opt/mysvc(/.*)?"
 restorecon -RFv /opt/mysvc
 ```
 
-Confirm reset
+Verify the reset:
 ```bash
 ls -ldZ /opt/mysvc
 ls -lZ /opt/mysvc
 ```
 
-#### 3.2. Uninstall the policy module
+#### 3-2. Uninstall the Main Policy Module
+
+Remove the main policy module.
 
 ```bash
 semodule -v -X 300 -r mysvcd
