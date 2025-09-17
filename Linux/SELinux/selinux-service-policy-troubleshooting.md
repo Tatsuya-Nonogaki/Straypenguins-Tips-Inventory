@@ -185,7 +185,7 @@ This will list the loaded SELinux module(s) and show the defined types.
 > ```
 > This automates routine builds and reminds you how to verify installation.
 
-📝 **Note:** When you remove or overwrite a module, also consider whether filesystem labels need to be reset (`restorecon` or `semanage fcontext`), especially when changing types or paths. If your want to check if it applies to your case, refer to [Uninstall the policy module](selinux-create-own-service-policy.md#uninstall-the-module-if-you-ought-to-do-in-the-future) in the related document [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md).
+📝 **Note:** When you remove or overwrite a module, also consider whether filesystem labels need to be reset (`restorecon` or `semanage fcontext`), especially when changing types or paths. If your want to check if it applies to your case, refer to [Uninstalling Policy Modules](selinux-create-own-service-policy.md#uninstalling-policy-modules-when-needed) in the related document [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md).
 
 ### 3. Verify Policy is Active
 
