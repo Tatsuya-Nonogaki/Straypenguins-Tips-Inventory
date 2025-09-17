@@ -64,11 +64,12 @@ Further procedures to cerate a policy module for a port is a duplicate area with
 
 ---
 
-## Create a Domain Type Module for Custom Executable
+## Create Domain Type Module for Custom Executable
 
-### 1. Create policy module source `.te` file
+### 1. Create Policy Module Source `.te` File
 
-Define Exec type and Domain type, with Transition for systemd.
+This is the "main" module, which defines Exec type and Domain type, with Transition for systemd.  
+👉 *The supplementary type definitions and permissions go into separate [Storage Module](selinux-create-own-service-policy.md#create-a-supplementary-module-storage-module).*
 
 **File: `mysvcd.te`**
 > You need to replace `http_port_t` with `httpd_wls_port_t` if you chose to use 7001/TCP instead.
@@ -135,7 +136,7 @@ semodule -v -X 300 -i mysvcd.pp
 semodule -lfull | grep mysvcd
 ```
 
-### 3. Label Your Executable and Package Directory
+### 3. Label Your Executable and Package Home Directory
 
 ```bash
 semanage fcontext -a -t mysvcd_exec_t "/opt/mysvc/mysvcd"
