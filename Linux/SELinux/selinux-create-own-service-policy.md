@@ -238,23 +238,23 @@ If any denials are observed, start diagnostics; Consult the related document:
 
 When you need to remove your custom SELinux policy modules, follow this procedure for a clean uninstall.
 
-### Considerations Before Commiting Module Removals
+### Considerations Before Committing Module Removal
 
-- **Don't Remove Module While Modules Are Actively Used**
+- **Do Not Remove Modules While They Are In Use**
 
-  Removing a module while it is used can cause uninstall errors or leave files with “orphan” labels that SELinux no longer recognizes.
+  Removing a module while it is still in use can cause uninstall errors or leave files with “orphaned” labels that SELinux no longer recognizes.
 
-  - Ensure the service/program using the policy is stoped/disabled.
-  - Reset labels defined by the module you're trying to remove on files or directories.
+  - Ensure the service/program using the policy is stopped and disabled.
+  - Reset any labels defined by the module you intend to remove from all affected files or directories.
 
-- **Module Removal Order Relies on Dependencies**
+- **Removal Order Depends on Module Dependencies**
 
   - When multiple modules are involved, remove them in an order that respects their dependencies.
-  - Look for `allow` and `type` statements in the modules to determine their interdependencies.
+  - Review the `allow` and `type` statements in your modules to determine these dependencies.
 
 ### 1. Stop the Service
 
-Stop and disable the service to ensure no processes are using the policies.
+Stop and disable the service to ensure no processes are using the policy modules.
 
 ```bash
 systemctl stop mysvcd
@@ -263,7 +263,9 @@ systemctl disable mysvcd
 
 ### 2. Remove the Storage Policy Module
 
-In the case of our example module structure, the supplementary module `mysvcd_storage` is depending on main module `mysvcd`; `mysvcd_storage` module contains permission rules `allow mysvcd_t ...`, where `mysvcd_t` is a type/domain defined in the main module. The main module can not be safely removed until the *storage* module is uninstalled.
+In this example, the supplementary module `mysvcd_storage` depends on the main module `mysvcd`;  
+The `mysvcd_storage` module contains permission rules such as `allow mysvcd_t ...`, where `mysvcd_t` is a type/domain defined in the main module.  
+The main module cannot be safely removed until the storage module is uninstalled.
 
 #### 2-1. Reset File Labels
 
