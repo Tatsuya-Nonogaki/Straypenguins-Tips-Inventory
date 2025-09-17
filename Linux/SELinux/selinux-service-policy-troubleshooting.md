@@ -70,8 +70,8 @@ Use `ausearch` to efficiently locate relevant information. Below is a quick refe
 
 **Tips:**
 - In the output, look for `denied { ... }` and `tclass=...` to help identify the cause and resolution.
-- `comm`: Executable filename (not policy name).
-- `scontext`: SELinux subject context (domain/type).
+- `-c`/`--comm`: Command name, i.e. executable filename (not policy name).
+- `-su`: scontext (SELinux subject context) e.g., `system_u:system_r:mysvcd_t:s0`. Practically a domain/type.
 - Combine options for precise results (e.g. by process and time).
 - Most denials are `AVC`, but `USER_AVC`, `SELINUX_ERR`, etc. may appear.
 - See [audit(8) man page](https://man7.org/linux/man-pages/man8/ausearch.8.html) for advanced usage.
