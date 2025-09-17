@@ -147,24 +147,26 @@ restorecon -FRv /opt/mysvc/
 
 ---
 
-### Additional Note: Handling Other Directories for Service Read/Write Access
+## Create a Supplementary Module (Storage Module)
 
-This guide uses a modular SELinux policy design, separating access for different file groups.  
-- **Core policy module:** Grants fundamental access to the service’s installation and configuration directories.
-- **Supplementary/storage module(s):** Handle access to data or variable directories your service needs to read/write, such as `/var/log/mysvc/`, `/var/cache/mysvc/`, or `/var/lib/mysvc/`.
+This guide recommends a modular approach to SELinux policy, separating access for different file groups:
+
+- The **core policy module** grants fundamental access to the service’s installation and configuration directories.
+- The **supplementary "storage" module** handles access to variable data or shared directories your service needs to read/write, such as `/var/log/mysvc/`, `/var/cache/mysvc/`, or `/var/lib/mysvc/`.
 
 **Best Practice:**  
-If your service requires access to shared or variable directories (especially under `/var/`), define this access in a dedicated supplementary policy module. This approach:
-- Keeps your policy modular, making future updates or troubleshooting easier.
-- Allows you to adjust permissions for variable data independently from core service logic.
+Defining access to shared or variable directories in a dedicated supplementary policy module keeps your SELinux policy maintainable and flexible.  
+It allows you to adjust permissions for variable data independently of core service logic, and simplifies updates or troubleshooting.
 
-> **Granularity Tip:**  
+> **Type Granularity:**  
 > In this example, we define a *catch-all* type (`mysvcd_var_t`) for all variable service data.  
-> If you need stricter separation—for example, isolating logs from caches or application data—define more granular types such as `mysvcd_var_log_t`, `mysvcd_var_cache_t`, and so on, and assign them to the corresponding directories.
+> For stricter separation (logs vs. cache, etc.), define more granular types (e.g., `mysvcd_var_log_t`, `mysvcd_var_cache_t`) and assign them to the respective directories.
 
-**Example .te for variable data directory: `mysvcd_storage.te`:**
+### 1. Create Policy Module Source `.te` For Storage
 
-For the case files/directories your service accesses are those assigned with predefined/shared labels:
+File: **mysvcd_storage.te:**
+
+For accessing files/directories with predefined/shared labels:
 
 ```te
 module mysvcd_storage 1.0;
@@ -180,7 +182,7 @@ allow mysvcd_t var_log_t:dir { read search write add_name remove_name };
 allow mysvcd_t var_log_t:file { read write append open create unlink };
 ```
 
-On the other hand, if you give a dedicated label for the serivce to the files/directories:
+Or, for dedicated labels for your service’s variable files/directories:
 
 ```te
 module mysvcd_storage 1.0;
@@ -191,16 +193,15 @@ require {
     class file { read write append open create unlink };
 }
 
-# Repeat this pair of definition for each more granular type if required
+# Define a dedicated type for all (or split by purpose, see above)
 type mysvcd_var_t;
 files_type(mysvcd_var_t)
 
-# Repeat this pair of definition for each more granular type if required
 allow mysvcd_t mysvcd_var_t:dir { read search write add_name remove_name };
 allow mysvcd_t mysvcd_var_t:file { read write append open create unlink };
 ```
 
-**Build and install the module:**
+### 2. Build and Install Storage Module
 
 ```bash
 checkmodule -M -m -o mysvcd_storage.mod mysvcd_storage.te
@@ -209,7 +210,7 @@ semodule -v -X 300 -i mysvcd_storage.pp
 semodule -lfull | grep mysvcd_storage
 ```
 
-**Example labeling and restorecon commands (not required if predefined ports only):**
+### 3. Label Variable Directories and Files
 
 ```bash
 semanage fcontext -a -t mysvcd_var_t "/var/log/mysvc(/.*)?"
