@@ -147,11 +147,20 @@ restorecon -FRv /opt/mysvc/
 
 ---
 
-### Additional note on other directory to allow your own service to R/W
+### Additional Note: Handling Other Directories for Service Read/Write Access
 
-This guide employs modular design for different groups of files; fundamental access permissions to the dedicated directories for the service itself, and other variable file access. If your service needs to read/write such *shared* directories—as `/var/log/`, `/var/log/mysvc/`, `/var/cache/mysvc/` etc. —it is best practice to manage these in a separate policy module for modularity and future flexibility.
+This guide uses a modular SELinux policy design, separating access for different file groups.  
+- **Core policy module:** Grants fundamental access to the service’s installation and configuration directories.
+- **Supplementary/storage module(s):** Handle access to data or variable directories your service needs to read/write, such as `/var/log/mysvc/`, `/var/cache/mysvc/`, or `/var/lib/mysvc/`.
 
-> In this example, we define a *catch-all* type `mysvcd_var_t`. If your service requires more strict separation of log, cache, lib, etc., you can easily split into more granular types (e.g., `mysvcd_var_log_t`, `mysvcd_var_cache_t`, etc.).
+**Best Practice:**  
+If your service requires access to shared or variable directories (especially under `/var/`), define this access in a dedicated supplementary policy module. This approach:
+- Keeps your policy modular, making future updates or troubleshooting easier.
+- Allows you to adjust permissions for variable data independently from core service logic.
+
+> **Granularity Tip:**  
+> In this example, we define a *catch-all* type (`mysvcd_var_t`) for all variable service data.  
+> If you need stricter separation—for example, isolating logs from caches or application data—define more granular types such as `mysvcd_var_log_t`, `mysvcd_var_cache_t`, and so on, and assign them to the corresponding directories.
 
 **Example .te for variable data directory: `mysvcd_storage.te`:**
 
