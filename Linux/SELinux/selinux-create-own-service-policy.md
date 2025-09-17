@@ -1,7 +1,15 @@
 # Create SELinux Policy Module for Your Own Service
+
 ## Overview
 
-**This document -- preface here**
+This document explains how to design, implement, test, and maintain custom SELinux policy modules for your own services on RHEL/CentOS 9 systems.  
+You will learn how to:
+
+- Decide when to use a predefined port type or create your own.
+- Write a modular SELinux policy—splitting service and data access into separate, maintainable modules.
+- Build, install, and label files for each module.
+- Troubleshoot policy denials and verify correct operation.
+- Cleanly uninstall your policy modules, respecting inter-module dependencies.
 
 **Related Documents**
 - [Manage SELinux to Allow httpd to Access Port 7003/TCP](selinux-mod_wl-allow-httpd-7003.md)
@@ -14,7 +22,7 @@
 - **Service:** `/opt/mysvc/bin/mysvcd`
 - **SELinux domain:** `mysvcd_t`
 - **SELinux status:** Enforcing
-- **Network access:** Make outbound connection to `x.x.x.x:443/TCP` (or `:7001TCP`).
+- **Network access:** Outbound connection to `x.x.x.x:443/TCP` (or `:7001/TCP`)
 
 ---
 
@@ -23,7 +31,7 @@
 - **Domain/type:** SELinux security label assigned to a process (e.g., `mysvcd_t`)
 - **Class:** SELinux object class (e.g., `tcp_socket`, `file`)
 - **Permission/operation:** Specific allowed actions for a class (e.g., `connect`, `getopt`)
-- **Policy module:** Packaged SELinux policy rules for installation (`.pp` *(Policy Package)* file; its source is usually `.te` *(Type Enforcement)*, plus others like `.if`, `.fc`, etc.)
+- **Policy module:** Packaged SELinux policy rules for installation (`.pp` file, typically built from `.te` (Type Enforcement) and other sources like `.if`, `.fc`, etc.)
 
 ---
 
@@ -37,11 +45,17 @@ dnf install setools-console
 
 ---
 
-## Decide Between Predefined Port-Type or Create One to Use
+## Decide Between Predefined Port Type or Creating Your Own
 
-If the outbound network port your service connects is 443/TCP, you have no choice; use predefined `http_port_t`. Also, if the port is not defined on your OS, you have to define a new type. On the other hand, you need to consider whether to use predefined one or to re-define the port-type with a new name, when the port is unused and rerely used one.
+When enabling SELinux access to outbound ports, you have two options:
 
-Suppose the port in question is 7001/TCP. Check if it is already defined:
+- **Use an existing predefined port type** (e.g., `http_port_t` for 443/TCP), if it matches your security intent.
+- **Create your own port type** if:
+    - There is no suitable predefined type for the port you need.
+    - You prefer to assign a custom type for clarity or future maintenance, even if the port is already associated with a rarely-used predefined type.
+    - You want to clear an old mapping and define your own.
+
+To check if your desired port is already associated with a type:
 
 ```bash
 semanage port -l | grep -w '700[0-9]' | grep tcp
@@ -55,12 +69,13 @@ afs_pt_port_t                  tcp      7002
 gatekeeper_port_t              tcp      1721, 7000
 ```
 
-Further procedures to cerate a policy module for a port is a duplicate area with another document. Please refer to;
-[Manage SELinux to Allow httpd to Access Port 7003/TCP](selinux-mod_wl-allow-httpd-7003.md)
+If your port is **not listed**, or **you wish to assign your own type name**, see  
+[Manage SELinux to Allow httpd to Access Port 7003/TCP](selinux-mod_wl-allow-httpd-7003.md)  
+for instructions on defining or reassigning a port type.
 
-> This document assumes two cases to proceed with explanation; Your SELinux port-type is one of;
+> This document proceeds with two cases:
 > - Predefined `http_port_t` : 443/TCP
-> - Your own  `httpd_wls_port_t` : 7001/TCP (the policy Module must be built and installed to continue the following procedures)
+> - Custom `httpd_wls_port_t` : 7001/TCP (requires building/installing a port policy module before proceeding)
 
 ---
 
@@ -68,11 +83,12 @@ Further procedures to cerate a policy module for a port is a duplicate area with
 
 ### 1. Create Policy Module Source `.te` File
 
-This is the "main" module, which defines Exec type and Domain type, with Transition for systemd.  
-👉 *The supplementary type definitions and permissions go into separate [Storage Module](selinux-create-own-service-policy.md#create-a-supplementary-module-storage-module).*
+This is the **main module**, defining Exec type and Domain type, with transition for systemd.  
+👉 *Supplementary type definitions and permissions go into a separate [Storage Module](#create-a-supplementary-module-storage-module).*
 
-**File: `mysvcd.te`**
-> You need to replace `http_port_t` with `httpd_wls_port_t` if you chose to use 7001/TCP instead.
+**File: `mysvcd.te`**  
+*Replace `http_port_t` with `httpd_wls_port_t` if you use 7001/TCP.*
+
 ```te
 module mysvcd 1.0;
 
@@ -119,10 +135,10 @@ allow mysvcd_t mysvcd_opt_t:lnk_file read;
 allow mysvcd_t http_port_t:tcp_socket name_connect;
 allow mysvcd_t self:tcp_socket { create connect getopt };
 
-# Filesystem (e.g,. /):
+# Filesystem (e.g., /):
 allow mysvcd_t fs_t:filesystem getattr;
 
-# service package home access
+# Service package home access
 allow mysvcd_t mysvcd_opt_t:dir { read search write add_name remove_name getattr open };
 allow mysvcd_t mysvcd_opt_t:file { read write append open create unlink map getattr };
 ```
@@ -150,24 +166,18 @@ restorecon -FRv /opt/mysvc/
 
 ## Create a Supplementary Module (Storage Module)
 
-This guide recommends a modular approach to SELinux policy, separating access for different file groups:
+This guide recommends a modular SELinux policy design:
+- The **core policy module** covers service executable and home directories.
+- The **supplementary "storage" module** grants access to variable data or shared directories (e.g., `/var/log/mysvc/`, `/var/cache/mysvc/`, `/var/lib/mysvc/`).
 
-- The **core policy module** grants fundamental access to the service’s installation and configuration directories.
-- The **supplementary "storage" module** handles access to variable data or shared directories your service needs to read/write, such as `/var/log/mysvc/`, `/var/cache/mysvc/`, or `/var/lib/mysvc/`.
+💡 **Best Practice:**  
+Handle access to variable/shared directories in a dedicated supplementary module to keep policy maintainable, flexible, and easier to troubleshoot.
 
-**Best Practice:**  
-Defining access to shared or variable directories in a dedicated supplementary policy module keeps your SELinux policy maintainable and flexible.  
-It allows you to adjust permissions for variable data independently of core service logic, and simplifies updates or troubleshooting.
+### 1. Create Policy Module Source `.te` for Storage
 
-> **Type Granularity:**  
-> In this example, we define a *catch-all* type (`mysvcd_var_t`) for all variable service data.  
-> For stricter separation (logs vs. cache, etc.), define more granular types (e.g., `mysvcd_var_log_t`, `mysvcd_var_cache_t`) and assign them to the respective directories.
+**File: `mysvcd_storage.te`**
 
-### 1. Create Policy Module Source `.te` For Storage
-
-File: **mysvcd_storage.te:**
-
-For accessing files/directories with predefined/shared labels:
+*For accessing files/directories with predefined/shared labels:*
 
 ```te
 module mysvcd_storage 1.0;
@@ -183,7 +193,7 @@ allow mysvcd_t var_log_t:dir { read search write add_name remove_name };
 allow mysvcd_t var_log_t:file { read write append open create unlink };
 ```
 
-Or, for dedicated labels for your service’s variable files/directories:
+*Or, for dedicated labels for your service’s variable files/directories:*
 
 ```te
 module mysvcd_storage 1.0;
@@ -201,6 +211,9 @@ files_type(mysvcd_var_t)
 allow mysvcd_t mysvcd_var_t:dir { read search write add_name remove_name };
 allow mysvcd_t mysvcd_var_t:file { read write append open create unlink };
 ```
+
+> 💡 **Type Granularity:**  
+> The module example above uses one single *catch-all* type `mysvcd_var_t` for all variable data. Alternatively if you want stricter access control, you can define more granular types, e.g., `mysvcd_var_log_t` for logs, `mysvcd_var_cache_t` for cache, etc.
 
 ### 2. Build and Install Storage Module
 
@@ -240,7 +253,7 @@ ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -su mysvcd_t
 ```
 For more audit log search options and tips, see the [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations).
 
-If any denials are observed, start diagnostics; Consult the related document:
+If any denials are observed, start diagnostics; consult the related document:  
 [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](selinux-service-policy-troubleshooting.md)
 
 ---
@@ -274,7 +287,7 @@ systemctl disable mysvcd
 
 ### 2. Remove the Storage Policy Module
 
-In this example, the supplementary module `mysvcd_storage` depends on the main module `mysvcd`;  
+In this example, the supplementary module `mysvcd_storage` depends on the main module `mysvcd`.  
 The `mysvcd_storage` module contains permission rules such as `allow mysvcd_t ...`, where `mysvcd_t` is a type/domain defined in the main module.  
 The main module cannot be safely removed until the storage module is uninstalled.
 
