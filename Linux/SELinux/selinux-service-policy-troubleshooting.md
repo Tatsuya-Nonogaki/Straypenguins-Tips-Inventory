@@ -58,7 +58,7 @@ ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR -su mysvcd_t
 
 Use `ausearch` to efficiently locate relevant information. Below is a quick reference:
 
-| Goal                           | Command Example                                                  | Notes                    |
+| Goal                           | Command Example                                                  | Description              |
 |---------------------------------|------------------------------------------------------------------|--------------------------|
 | All SELinux denials            | `ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`          | Message type, case-sensitive     |
 | By process name                | `ausearch -c mysvcd`                                             | Full executable name only        |
@@ -68,12 +68,12 @@ Use `ausearch` to efficiently locate relevant information. Below is a quick refe
 | Fuzzy match (with grep)        | `ausearch ... \| grep mysvcd`                                    | Any line with string             |
 | Command prefix match (with grep)| `ausearch ... \| grep 'comm="mysvcd'`                           | Commands starting with name      |
 
-**Tips:**
+📝 **Note:**
 - In the output, look for `denied { ... }` and `tclass=...` to help identify the cause and resolution.
 - `-c`/`--comm`: Command name, i.e. executable filename (not policy name).
 - `-su`: scontext (SELinux subject context) e.g., `system_u:system_r:mysvcd_t:s0`. Practically a domain/type.
 - Combine options for precise results (e.g. by process and time).
-- Most denials are `AVC`, but `USER_AVC`, `SELINUX_ERR`, etc. may appear.
+- Most denials are `AVC`, but `USER_AVC`,` SELINUX_ERR`,` USER_SELINUX_ERR` may appear.
 - See [audit(8) man page](https://man7.org/linux/man-pages/man8/ausearch.8.html) for advanced usage.
 
 Typical denial entry:
