@@ -97,24 +97,13 @@ List all active permissions for the domain:
 sesearch --allow -s mysvcd_t
 ```
 > This command shows the list of permissions currently active for the domain as loaded in the system policy.  
-> **Tip:** It will reveal rules that are missing, not loaded, or not taking effect for any reason. In troubleshooting, this step is crucial for verifying that your intended policy is actually enforced—if a rule is absent here, your module may not be fully loaded, or the source `.te` file may have different permission rules or parameters than you actually intended.
+> It will reveal rules that are missing, not loaded, or not taking effect for any reason. In troubleshooting, this step is crucial for verifying that your intended policy is actually enforced—if a rule is absent here, your module may not be fully loaded, or the source `.te` file may have different permission rules or parameters than you actually intended.
 
 Specifically check for the problematic permission if required:
 ```bash
 sesearch --allow -s mysvcd_t -t mysvcd_t -c tcp_socket
 ```
 > `-s`(`--source`): source type/attr name, `-t`(`--target`): target type/attr, `-c`(`--class`): object class 
-
-> **About `self` in policy rules:**  
-> In SELinux policy, the keyword `self` is used to refer to the case where both the source and target are the same domain/type. For example,  
-> ```te
-> allow mysvcd_t self:tcp_socket { create connect getopt };
-> ```
-> is shorthand for  
-> ```te
-> allow mysvcd_t mysvcd_t:tcp_socket { create connect getopt };
-> ```
-> This matches rules where both `scontext` and `tcontext` are set to `mysvcd_t` in audit logs.
 
 **Expected (correct) output:**
 ```
@@ -124,6 +113,17 @@ allow mysvcd_t mysvcd_t:tcp_socket { connect create getopt };
 ```
 allow mysvcd_t mysvcd_t:tcp_socket { connect create };
 ```
+
+> 📝 **About `self` in policy rules:**  
+> In SELinux policy, the keyword `self` is used to refer to the case where both the source and target are the same domain/type. For example,  
+> ```te
+> allow mysvcd_t self:tcp_socket { create connect getopt };
+> ```
+> is shorthand for  
+> ```te
+> allow mysvcd_t mysvcd_t:tcp_socket { create connect getopt };
+> ```
+> This matches rules where both `scontext` and `tcontext` are set to `mysvcd_t` in audit logs.
 
 ---
 
@@ -140,10 +140,10 @@ Correct to:
 allow mysvcd_t self:tcp_socket { create connect getopt };
 ```
 
-> Also verify that the preceding `require {}` clause declares all necessary `type`, `class`, `attribute`, etc. for the rules. If you omit something, policy compilation or installation will fail or the rule won't be effective.  
-> These missing references are usually highlighted in AVC denial messages.
+Also verify that the preceding `require {}` clause declares all necessary `type`, `class`, `attribute`, etc. for the rules. If you omit something, policy compilation or installation will fail or the rule won't be effective.  
+These missing references are usually highlighted in AVC denial messages.
 
-> **Note:** If domain transition (changing from one SELinux domain/type to another, mainly used to activate an executable via `Systemd`/`SysVinit`) is not working as expected, check that you have declared the correct `role` in your policy and that your process is allowed to enter the target domain under that role.  
+> 💡 **Tips:** If domain transition (changing from one SELinux domain/type to another, mainly used to activate an executable via `Systemd`/`SysVinit`) is not working as expected, check that you have declared the correct `role` in your policy and that your process is allowed to enter the target domain under that role.  
 > In SELinux, both the `role` and `type` must be authorized for transitions to succeed. Missing or misconfigured role declarations are a common source of unexpected transition failures.
 
 ### 2. Rebuild and Reload Policy
@@ -154,19 +154,19 @@ semodule_package -o mysvcd.pp -m mysvcd.mod
 semodule -v -X 300 -i mysvcd.pp
 ```
 
-> **Tip: Overwriting vs. Removing Policy Modules**  
+> 💡 **Tips: Overwriting vs. Removing Policy Modules**  
 > You can overwrite your installed SELinux policy module by simply reinstalling (`semodule -i`). There is **no need to remove the module first**.  
 > In fact, removing a module without resetting labels on associated directories/files can sometimes lead to problems where modules become unremovable or leave remnants.  
 > **Recommendation:** Always update by overwriting unless you are intentionally purging all traces of a module.
 
-> **Tip (Checking Loaded Modules):**  
-> After installing, you can confirm the module is loaded and its types are present by running:
-> ```bash
-> semodule -lfull | grep mysvcd && seinfo -xt | grep mysvcd
-> ```
-> This will list the loaded SELinux module(s) and show the defined types.
+**Checking Loaded Modules:**  
+After installing, you can confirm the module is loaded and its types are present by running:
+```bash
+semodule -lfull | grep mysvcd && seinfo -xt | grep mysvcd
+```
+This will list the loaded SELinux module(s) and show the defined types.
 
-> If you perform these steps often, consider scripting them for convenience.  
+> 💡 **Tips:** If you perform these steps often, consider scripting them for convenience.  
 > Example shell script (`build-mysvcd.sh`):
 > ```sh
 > #!/bin/sh
@@ -185,7 +185,7 @@ semodule -v -X 300 -i mysvcd.pp
 > ```
 > This automates routine builds and reminds you how to verify installation.
 
-> **Note:** If you remove or overwrite a module, consider whether filesystem labels need to be reset (`restorecon` or `semanage fcontext`), especially when changing types or paths.
+📝 **Note:** When you remove or overwrite a module, also consider whether filesystem labels need to be reset (`restorecon` or `semanage fcontext`), especially when changing types or paths. If your want to check if it applies to your case, refer to [Uninstall the policy module](selinux-create-own-service-policy.md#uninstall-the-module-if-you-ought-to-do-in-the-future) in the related document [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md).
 
 ### 3. Verify Policy is Active
 
@@ -207,7 +207,7 @@ Confirm the operation `getopt` is now present.
 
 Repeat the diagnostics process starting from Step 1.
 
-> **Tip: Troubleshooting Sequential Permission Errors**  
+> 💡 **Tips: Troubleshooting Sequential Permission Errors**  
 > If you encounter a series of SELinux denials—where resolving one permission leads to another denial—consider temporarily switching the system to **Permissive mode**:
 > ```bash
 > setenforce 0
