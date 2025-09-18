@@ -108,7 +108,7 @@ afs_pt_port_t                  tcp      7002
 gatekeeper_port_t              tcp      1721, 7000
 ```
 
-**Check for Multiple Ports or Ranges (See also [Tips: Expand Port Ranges]([#tips-expand-port-ranges](#-tips-expand-port-ranges))**
+**Check for Multiple Ports or Ranges (See also [Tips: Expand Port Ranges]([#-tips-expand-port-ranges))**
 
 ```bash
 echo $(semanage port -l | awk '$1=="afs3_callback_port_t" && $2=="tcp" {$1=$2=""; print $0}')
