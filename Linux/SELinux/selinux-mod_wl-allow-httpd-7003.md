@@ -14,12 +14,12 @@ This document provides practical, adaptable steps for customizing SELinux policy
 
 - [Install Prerequisite Packages (RHEL9)](#install-prerequisite-packages-rhel9)
 - [See What Is Going On](#see-what-is-going-on)
-- [Customize the Policy —Automatic Way (Moderate Security - All `unreserved_ports` Are Allowed from httpd)](#customize-the-policy—automatic-way-moderate-security---all-unreserved_ports-are-allowed-from-httpd)
+- [Customize the Policy —Automatic Way](#customize-the-policy--automatic-way)
     - [Preview the Resultant Rule](#preview-the-resultant-rule)
     - [Prepare Module Directory](#prepare-module-directory)
     - [Auto-Generate Policy Module](#auto-generate-policy-module)
     - [Install Policy Module](#install-policy-module)
-- [Customize the Policy —Organized Way (More Secure and controllable)](#customize-the-policy—organized-way-more-secure-and-controllable)
+- [Customize the Policy —Organized Way](#customize-the-policy--organized-way)
     - [Create Port-Type Module](#create-port-type-module)
         - [1. Check if Port 7003 is Assigned](#1-check-if-port-7003-is-assigned)
         - [2. Delete Existing Assignment *If Safe to Do*](#2-delete-existing-assignment-if-safe-to-do)
@@ -59,7 +59,8 @@ If relevant denials are found, proceed to the policy customization or troublesho
 
 ---
 
-## Customize the Policy — Automatic Way (Moderate Security: Allow All `unreserved_ports` from httpd)
+## Customize the Policy — Automatic Way
+**_— Moderate Security: Allow All `unreserved_ports` from httpd —_**
 
 > ⚠️ **Caution:**  
 > When filtering audit logs for use with `audit2allow`, be aware that using the `-m` option (e.g., `-m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`) may accidentally exclude relevant SELinux messages.  
@@ -112,7 +113,8 @@ sesearch --allow -s httpd_t -t unreserved_port_t -c tcp_socket -p name_connect
 
 ---
 
-## Customize the Policy — Organized Way (More Secure and Controllable)
+## Customize the Policy — Organized Way
+**_— More Secure and Controllable —_**
 
 ### Create Port-Type Module
 
