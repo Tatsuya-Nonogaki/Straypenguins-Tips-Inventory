@@ -317,14 +317,14 @@ Return to [See What Is Going On](#see-what-is-going-on) to check for AVC denials
 
 Stop the httpd service, then follow the steps below.
 
-### Remove the port-type module:
+### Remove Port-Type Module:
 
 ```bash
 semodule -v -X 300 -r myhttpd_wls_type
 semodule -lfull | grep myhttpd_wls_type
 ```
 
-### Remove the main module:
+### Remove Main Module:
 
 ```bash
 semodule -v -X 300 -r myhttpd_mod_wl
