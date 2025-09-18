@@ -25,17 +25,16 @@ Search for SELinux denials for the httpd process:
 ```bash
 ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 ```
-In the output, look for `denied { ... }` and `tclass=...` entries.
-
-For alternative audit log search methods (exact process matching, filtering by time, etc.), see the [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations).
-
+In the output, look for `denied { ... }` and `tclass=...` entries.  
 If relevant denials are found, proceed to the policy customization or troubleshooting sections below.
+
+> 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
 
 ---
 
 ## Customize the Policy —Automatic Way (Moderate Security - All `unreserved_ports` Are Allowed from httpd)
 
-> **Caution:**  
+> ⚠️ **Caution:**  
 > When filtering audit logs for use with `audit2allow`, be aware that narrowing results with the `-m` option (e.g., `-m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`) may accidentally exclude relevant SELinux denial messages, especially if your system logs additional or unexpected types.  
 > For best results, omit the `-m` option when piping `ausearch` output to `audit2allow`; the tool will automatically ignore unrelated messages and process all necessary SELinux denials.
 
@@ -148,7 +147,7 @@ semanage port -d -p tcp 7003
 
 ---
 
-#### Tips: Expand Port Ranges
+#### 💡 Tips: Expand Port Ranges
 
 ```bash
 semanage port -l | awk '$1=="afs3_callback_port_t" && $2=="tcp" {$1=$2=""; print $0}' | \
@@ -181,7 +180,7 @@ type httpd_wls_port_t;
 typeattribute httpd_wls_port_t port_type;
 ```
 
-> **Use Underscores in Names!**  
+> ⚠️ **Use Underscores in Names**  
 > Avoid using dashes (`-`), dots (`.`), or other punctuation for word separation in SELinux type names. These characters can prevent SELinux policies from working properly or may cause errors during policy compilation.
 
 **Build and Install Module**
@@ -280,7 +279,7 @@ Go back to [See What Is Going On](#see-what-is-going-on) to check denials in AVC
 
 ---
 
-## Uninstall the Module (if you ought to do in the future...)
+## Uninstall the Module (When Needed)
 
 Stop httpd service and follow the steps below.
 
@@ -296,3 +295,5 @@ semodule -lfull | grep myhttpd_wls_type
 semodule -v -X 300 -r myhttpd_mod_wl
 semodule -lfull | grep myhttpd_mod_wl
 ```
+
+👉 For detail in module removal refer to [Uninstall the policy module](selinux-create-own-service-policy.md#uninstall-the-module-if-you-ought-to-do-in-the-future) in the related document [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md).
