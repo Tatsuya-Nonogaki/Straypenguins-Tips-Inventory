@@ -1,7 +1,8 @@
 # Manage SELinux to Allow httpd to Access Port 7003/TCP
+
 ## Overview
 
-**This document provides practical, adaptable steps for customizing SELinux policy to securely enable `httpd` to establish outbound access to non-standard network port, e.g., 7003/TCP.**
+This document provides practical, adaptable steps for customizing SELinux policy to securely enable `httpd` to establish outbound access to a non-standard network port, e.g., 7003/TCP.
 
 **Related Documents**
 - [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md)
@@ -21,22 +22,24 @@ dnf install setools-console
 
 ## See What Is Going On
 
-Search for SELinux denials for the httpd process:
+Search for SELinux denials related to the httpd process:
+
 ```bash
 ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 ```
+
 In the output, look for `denied { ... }` and `tclass=...` entries.  
 If relevant denials are found, proceed to the policy customization or troubleshooting sections below.
 
-> 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
+> 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document: [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
 
 ---
 
-## Customize the Policy —Automatic Way (Moderate Security - All `unreserved_ports` Are Allowed from httpd)
+## Customize the Policy — Automatic Way (Moderate Security: Allow All `unreserved_ports` from httpd)
 
 > ⚠️ **Caution:**  
-> When filtering audit logs for use with `audit2allow`, be aware that narrowing results with the `-m` option (e.g., `-m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`) may accidentally exclude relevant SELinux denial messages, especially if your system logs additional or unexpected types.  
-> For best results, omit the `-m` option when piping `ausearch` output to `audit2allow`; the tool will automatically ignore unrelated messages and process all necessary SELinux denials.
+> When filtering audit logs for use with `audit2allow`, be aware that using the `-m` option (e.g., `-m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`) may accidentally exclude relevant SELinux messages.
+> For best results, omit the `-m` option when piping `ausearch` output to `audit2allow`; the tool will ignore unrelated messages and process all necessary SELinux denials.
 
 ### Preview the Resultant Rule
 
@@ -46,9 +49,10 @@ ausearch -c httpd | audit2allow -R
 
 ### Prepare Module Directory
 
-Create a directory with arbitrary name:
+Create a working directory (use any name you like):
+
 ```bash
-mkdir -p myhttpd_mod_wl-audo
+mkdir -p myhttpd_mod_wl-auto
 cd myhttpd_mod_wl-auto
 ```
 
@@ -59,7 +63,7 @@ ausearch -c httpd --raw | audit2allow -M myhttpd_mod_wl
 ls -l
 ```
 
-You should see `myhttpd_mod_wl.te` (policy source text) and `myhttpd_mod_wl.pp` (compiled policy module) were created.
+You should see `myhttpd_mod_wl.te` (policy source) and `myhttpd_mod_wl.pp` (compiled module) created.
 
 ---
 
@@ -69,26 +73,28 @@ You should see `myhttpd_mod_wl.te` (policy source text) and `myhttpd_mod_wl.pp` 
 semodule -v -X 300 -i myhttpd_mod_wl.pp
 ```
 
-Verify installation
+Verify installation:
+
 ```bash
 semodule -lfull | grep myhttpd_mod_wl
 ls -l /var/lib/selinux/targeted/active/modules/*/myhttpd_mod_wl
 ```
 
-Check actual permission rule
+Check the actual permission rule:
+
 ```bash
 sesearch --allow -s httpd_t -t unreserved_port_t -c tcp_socket -p name_connect
 ```
 
 ---
 
-## Customize the Policy —Organized Way (More Secure and controllable)
+## Customize the Policy — Organized Way (More Secure and Controllable)
 
 ### Create Port-Type Module
 
 #### 1. Check if Port 7003 is Assigned
 
-If the outbound network port in question is wel-known and commonly used one, you have no choice; use predefined type name. Also, if the port is not defined on your OS, you have to define a new type. On the other hand, you need to consider whether to use predefined one or to re-define the port-type with a new name, when the port is unused and rerely used one.
+If the outbound network port in question is well-known and commonly used, you must use the predefined type name. If the port is not defined on your OS, you will need to define a new type. Or, you may wish to assign your own type name for clarity or future maintenance.
 
 ```bash
 semanage port -l | grep -w '700[0-9]' | grep tcp
@@ -110,11 +116,12 @@ echo $(semanage port -l | awk '$1=="afs3_callback_port_t" && $2=="tcp" {$1=$2=""
 
 #### ⚠️ Safety Check Before Deleting Port Assignment
 
-If you need to assign a custom SELinux port type label to a port that is already associated with another type, you must first delete the existing assignment. **However, never delete a port assignment unless you are certain it is not required by any running service or SELinux policy.**
+If you need to assign a custom SELinux port type label to a port that is already associated with another type, you must first delete the existing assignment.  
+**However, never delete a port assignment without confirming it is not actively used by another domain.**
 
 Follow these steps before deleting:
 
-1. **Find the SELinux type mapped to the port (7003/TCP for example):**
+1. **Find the SELinux type mapped to the port (e.g., 7003/TCP):**
     ```bash
     semanage port -l | grep -w '7003' | grep tcp
     # Note the SELinux type in the first column of the output.
@@ -132,7 +139,7 @@ Follow these steps before deleting:
     netstat -lntp | grep ':7003'
     # Find the PID, then check its SELinux context:
     ps -Z -p <pid>
-    # Make sure the running process is not using a domain that needs this port type
+    # Ensure the running process is not using a domain that needs this port type.
     ```
 
 #### 2. Delete Existing Assignment *If Safe to Do*
@@ -160,7 +167,7 @@ done
 
 #### 3. Build and Install Port-Type Module
 
-**Prepare Module Directory with arbitrary name:**
+**Prepare a module directory (use any name you like):**
 
 ```bash
 mkdir -p myhttpd_mod_wl
@@ -181,9 +188,9 @@ typeattribute httpd_wls_port_t port_type;
 ```
 
 > ⚠️ **Use Underscores in Names**  
-> Avoid using dashes (`-`), dots (`.`), or other punctuation for word separation in SELinux type names. These characters can prevent SELinux policies from working properly or may cause errors during policy compilation.
+> Avoid using dashes (`-`), dots (`.`), or other punctuation for word separation in SELinux type names. These characters can prevent SELinux policies from working properly or may cause errors during policy installation.
 
-**Build and Install Module**
+**Build and Install the Module**
 
 ```bash
 checkmodule -M -m -o myhttpd_wls_type.mod myhttpd_wls_type.te
@@ -191,7 +198,8 @@ semodule_package -o myhttpd_wls_type.pp -m myhttpd_wls_type.mod
 semodule -v -X 300 -i myhttpd_wls_type.pp
 ```
 
-Verify installation
+Verify installation:
+
 ```bash
 semodule -lfull | grep myhttpd_wls_type
 ```
@@ -216,7 +224,7 @@ require {
 allow httpd_t httpd_wls_port_t:tcp_socket name_connect;
 ```
 
-Alternatively, if you decided to reuse predefined port-type (e.g. 7001:`afs3_callback_port_t`):
+Alternatively, if you decided to reuse a predefined port-type (e.g., 7001: `afs3_callback_port_t`):
 
 ```te
 module myhttpd_mod_wl 1.0;
@@ -230,9 +238,9 @@ require {
 allow httpd_t afs3_callback_port_t:tcp_socket name_connect;
 ```
 
-The above two element can be blended (using both or more).
+You can blend the above if you want to allow more than one port type.
 
-**Build and Install Module**
+**Build and Install the Module**
 
 ```bash
 checkmodule -M -m -o myhttpd_mod_wl.mod myhttpd_mod_wl.te
@@ -240,26 +248,28 @@ semodule_package -o myhttpd_mod_wl.pp -m myhttpd_mod_wl.mod
 semodule -v -X 300 -i myhttpd_mod_wl.pp
 ```
 
-Verify installation
+Verify installation:
+
 ```bash
 semodule -lfull | grep myhttpd_mod_wl
 ls -l /var/lib/selinux/targeted/active/modules/*/myhttpd_mod_wl
 ```
 
-Check actual permission rule
+Check the actual permission rule:
+
 ```bash
 sesearch --allow -s httpd_t -t httpd_wls_port_t -c tcp_socket -p name_connect
 ```
 
 ---
 
-### Port Assignment (required only when Manual Build)
+### Port Assignment (Required Only When Manual Build)
 
 ```bash
 semanage port -a -t httpd_wls_port_t -p tcp 7003
 ```
 
-Verify Assignment
+Verify assignment:
 
 ```bash
 echo $(semanage port -l | awk '$1=="httpd_wls_port_t" && $2=="tcp" {$1=$2=""; print $0}')
@@ -269,31 +279,34 @@ echo $(semanage port -l | awk '$1=="httpd_wls_port_t" && $2=="tcp" {$1=$2=""; pr
 
 ## Start Service and Verify
 
-Start httpd via systemd and check logs:
+Start the httpd service and check logs:
 
 ```bash
 systemctl start httpd.service
 ```
 
-Go back to [See What Is Going On](#see-what-is-going-on) to check denials in AVC.
+Return to [See What Is Going On](#see-what-is-going-on) to check for AVC denials.
 
 ---
 
 ## Uninstall the Module (When Needed)
 
-Stop httpd service and follow the steps below.
+Stop the httpd service, then follow the steps below.
 
-### Remove port-type module:
+### Remove the port-type module:
+
 ```bash
 semodule -v -X 300 -r myhttpd_wls_type
 semodule -lfull | grep myhttpd_wls_type
 ```
 
-### Remove main module:
+### Remove the main module:
 
 ```bash
 semodule -v -X 300 -r myhttpd_mod_wl
 semodule -lfull | grep myhttpd_mod_wl
 ```
 
-👉 For detail in module removal refer to [Uninstall the policy module](selinux-create-own-service-policy.md#uninstall-the-module-if-you-ought-to-do-in-the-future) in the related document [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md).
+> 👉 For more complex uninstall scenarios—such as multi-module dependencies or thorough label cleanup—refer to  
+> [Uninstalling Policy Modules (When Needed)](selinux-create-own-service-policy.md#uninstalling-policy-modules-when-needed)  
+> in the related document: [Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md).
