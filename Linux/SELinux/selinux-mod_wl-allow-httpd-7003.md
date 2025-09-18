@@ -26,7 +26,7 @@ This document provides practical, adaptable steps for customizing SELinux policy
         - [3. Build and Install Port-Type Module](#3-build-and-install-port-type-module)
     - [Create Main Module](#create-main-module)
         - [1. Build and Install Main Module](#1-build-and-install-main-module)
-    - [Port Assignment (required only when Manual Build)](#port-assignment-required-only-when-manual-build)
+    - [Port Assignment](#port-assignment)
 - [Start Service and Verify](#start-service-and-verify)
 - [Uninstall the Modules (When Needed)](#uninstall-the-modules-when-needed)
     - [Remove port-type module](#remove-port-type-module)
@@ -289,7 +289,8 @@ sesearch --allow -s httpd_t -t httpd_wls_port_t -c tcp_socket -p name_connect
 
 ---
 
-### Port Assignment (Required Only When Manual Build)
+### Port Assignment
+**_—  Required Only When Manual Build —_**
 
 ```bash
 semanage port -a -t httpd_wls_port_t -p tcp 7003
