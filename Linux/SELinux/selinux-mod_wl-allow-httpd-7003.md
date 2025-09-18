@@ -28,9 +28,9 @@ This document provides practical, adaptable steps for customizing SELinux policy
         - [1. Build and Install Main Module](#1-build-and-install-main-module)
     - [Port Assignment (required only when Manual Build)](#port-assignment-required-only-when-manual-build)
 - [Start Service and Verify](#start-service-and-verify)
-- [Uninstall the Module (When Needed)](#uninstall-the-module-when-needed)
-    - [Remove port-type module:](#remove-port-type-module)
-    - [Remove main module:](#remove-main-module)
+- [Uninstall the Modules (When Needed)](#uninstall-the-modules-when-needed)
+    - [Remove port-type module](#remove-port-type-module)
+    - [Remove main module](#remove-main-module)
 
 ---
 
@@ -313,7 +313,7 @@ Return to [See What Is Going On](#see-what-is-going-on) to check for AVC denials
 
 ---
 
-## Uninstall the Module (When Needed)
+## Uninstall the Modules (When Needed)
 
 Stop the httpd service, then follow the steps below.
 
