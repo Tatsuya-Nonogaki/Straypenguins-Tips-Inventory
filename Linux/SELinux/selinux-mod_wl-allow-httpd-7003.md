@@ -31,7 +31,7 @@ ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 In the output, look for `denied { ... }` and `tclass=...` entries.  
 If relevant denials are found, proceed to the policy customization or troubleshooting sections below.
 
-> 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see the [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document: [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
+> 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document: [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
 
 ---
 
@@ -63,7 +63,7 @@ ausearch -c httpd --raw | audit2allow -M myhttpd_mod_wl
 ls -l
 ```
 
-You should see `myhttpd_mod_wl.te` (policy source) and `myhttpd_mod_wl.pp` (compiled module).
+You should see `myhttpd_mod_wl.te` (policy source) and `myhttpd_mod_wl.pp` (compiled module) created.
 
 ---
 
