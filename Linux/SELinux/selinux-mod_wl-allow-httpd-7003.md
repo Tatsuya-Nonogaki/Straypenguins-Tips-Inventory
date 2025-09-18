@@ -31,14 +31,14 @@ ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 In the output, look for `denied { ... }` and `tclass=...` entries.  
 If relevant denials are found, proceed to the policy customization or troubleshooting sections below.
 
-> 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document: [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
+> 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see the [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document: [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
 
 ---
 
 ## Customize the Policy — Automatic Way (Moderate Security: Allow All `unreserved_ports` from httpd)
 
 > ⚠️ **Caution:**  
-> When filtering audit logs for use with `audit2allow`, be aware that using the `-m` option (e.g., `-m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`) may accidentally exclude relevant SELinux messages.
+> When filtering audit logs for use with `audit2allow`, be aware that using the `-m` option (e.g., `-m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR`) may accidentally exclude relevant SELinux messages.  
 > For best results, omit the `-m` option when piping `ausearch` output to `audit2allow`; the tool will ignore unrelated messages and process all necessary SELinux denials.
 
 ### Preview the Resultant Rule
@@ -63,7 +63,7 @@ ausearch -c httpd --raw | audit2allow -M myhttpd_mod_wl
 ls -l
 ```
 
-You should see `myhttpd_mod_wl.te` (policy source) and `myhttpd_mod_wl.pp` (compiled module) created.
+You should see `myhttpd_mod_wl.te` (policy source) and `myhttpd_mod_wl.pp` (compiled module).
 
 ---
 
@@ -94,7 +94,7 @@ sesearch --allow -s httpd_t -t unreserved_port_t -c tcp_socket -p name_connect
 
 #### 1. Check if Port 7003 is Assigned
 
-If the outbound network port in question is well-known and commonly used, you must use the predefined type name. If the port is not defined on your OS, you will need to define a new type. Or, you may wish to assign your own type name for clarity or future maintenance.
+If the outbound port is well-known and commonly used, you must use the predefined type name. If the port is not defined on your OS, you will need to define a new type, or you may wish to assign your own type name for clarity or future maintenance.
 
 ```bash
 semanage port -l | grep -w '700[0-9]' | grep tcp
@@ -116,8 +116,8 @@ echo $(semanage port -l | awk '$1=="afs3_callback_port_t" && $2=="tcp" {$1=$2=""
 
 #### ⚠️ Safety Check Before Deleting Port Assignment
 
-If you need to assign a custom SELinux port type label to a port that is already associated with another type, you must first delete the existing assignment.  
-**However, never delete a port assignment without confirming it is not actively used by another domain.**
+If you need to assign a custom SELinux port type to a port already associated with another type, you must first delete the existing assignment.  
+**Never delete a port assignment without confirming it is not actively used by another domain.**
 
 Follow these steps before deleting:
 
@@ -127,8 +127,8 @@ Follow these steps before deleting:
     # Note the SELinux type in the first column of the output.
     ```
 
-2. **Check which SELinux domains are allowed to use this type:**
-    Replace `<SELinux_port_type>` with the type found above (e.g., `afs3_callback_port_t`):
+2. **Check which SELinux domains are allowed to use this type:**  
+   Replace `<SELinux_port_type>` with the type found above (e.g., `afs3_callback_port_t`):
     ```bash
     sesearch --allow -t <SELinux_port_type> -c tcp_socket -p name_connect
     sesearch --allow -t <SELinux_port_type> -c tcp_socket -p name_bind
@@ -150,7 +150,7 @@ If you have confirmed the port is not in use:
 semanage port -d -p tcp 7003
 ```
 
-**Otherwise, reuse the predefined port-type.**
+**Otherwise, reuse the predefined port type.**
 
 ---
 
@@ -174,7 +174,7 @@ mkdir -p myhttpd_mod_wl
 cd myhttpd_mod_wl
 ```
 
-**Create policy module source `.te` file: `myhttpd_wls_type.te`**
+**Create the policy module source `.te` file: `myhttpd_wls_type.te`**
 
 ```te
 module myhttpd_wls_type 1.0;
@@ -210,7 +210,7 @@ semodule -lfull | grep myhttpd_wls_type
 
 #### 1. Build and Install Main Module
 
-**Create policy module source `.te` file: `myhttpd_mod_wl.te`**
+**Create the policy module source `.te` file: `myhttpd_mod_wl.te`**
 
 ```te
 module myhttpd_mod_wl 1.0;
@@ -224,7 +224,7 @@ require {
 allow httpd_t httpd_wls_port_t:tcp_socket name_connect;
 ```
 
-Alternatively, if you decided to reuse a predefined port-type (e.g., 7001: `afs3_callback_port_t`):
+Alternatively, if you decide to reuse a predefined port type (e.g., 7001: `afs3_callback_port_t`):
 
 ```te
 module myhttpd_mod_wl 1.0;
