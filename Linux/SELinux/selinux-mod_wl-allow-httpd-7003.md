@@ -10,6 +10,30 @@ This document provides practical, adaptable steps for customizing SELinux policy
 
 ---
 
+## Procedure Outline
+
+- [Install Prerequisite Packages (RHEL9)](#install-prerequisite-packages-rhel9)
+- [See What Is Going On](#see-what-is-going-on)
+- [Customize the Policy —Automatic Way (Moderate Security - All `unreserved_ports` Are Allowed from httpd)](#customize-the-policy—automatic-way-moderate-security---all-unreserved_ports-are-allowed-from-httpd)
+    - [Preview the Resultant Rule](#preview-the-resultant-rule)
+    - [Prepare Module Directory](#prepare-module-directory)
+    - [Auto-Generate Policy Module](#auto-generate-policy-module)
+    - [Install Policy Module](#install-policy-module)
+- [Customize the Policy —Organized Way (More Secure and controllable)](#customize-the-policy—organized-way-more-secure-and-controllable)
+    - [Create Port-Type Module](#create-port-type-module)
+        - [1. Check if Port 7003 is Assigned](#1-check-if-port-7003-is-assigned)
+        - [2. Delete Existing Assignment *If Safe to Do*](#2-delete-existing-assignment-if-safe-to-do)
+        - [3. Build and Install Port-Type Module](#3-build-and-install-port-type-module)
+    - [Create Main Module](#create-main-module)
+        - [1. Build and Install Main Module](#1-build-and-install-main-module)
+    - [Port Assignment (required only when Manual Build)](#port-assignment-required-only-when-manual-build)
+- [Start Service and Verify](#start-service-and-verify)
+- [Uninstall the Module (When Needed)](#uninstall-the-module-when-needed)
+    - [Remove port-type module:](#remove-port-type-module)
+    - [Remove main module:](#remove-main-module)
+
+---
+
 ## Install Prerequisite Packages (RHEL9)
 
 ```bash
