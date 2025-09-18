@@ -64,8 +64,8 @@ Use `ausearch` to efficiently locate relevant information. Here are some useful 
 | By subject domain/type         | `ausearch -su mysvcd_t`                                          | scontext (SELinux subject context), commonly used to match the domain/type |
 | By message type                | `ausearch -m AVC`                                                | AVC: most common denials         |
 | By start time (since)          | `ausearch -ts today`<br>`... -ts mm/dd/yy 'HH:MM:SS'`<br>`... -ts recent` (means 10 min ago)  | Filter by time   |
-| Fuzzy match (with grep)        | `ausearch ... | grep mysvcd`                                    | Any line with substring             |
-| Command prefix match (with grep)| `ausearch ... | grep 'comm="mysvcd'`                           | Commands starting with name      |
+| Fuzzy match (with grep)        | `ausearch ... \| grep mysvcd`                                    | Any line with substring             |
+| Command prefix match (with grep)| `ausearch ... \| grep 'comm="mysvcd'`                           | Commands starting with name      |
 
 📝 **Note:**
 - In the output, look for `denied { ... }` and `tclass=...` to help identify the root cause and solution.
