@@ -138,27 +138,29 @@ gatekeeper_port_t              tcp      1721, 7000
 echo $(semanage port -l | awk '$1=="afs3_callback_port_t" && $2=="tcp" {$1=$2=""; print $0}')
 ```
 
-#### ⚠️ Safety Check Before Deleting Port Assignment
+#### 2. Delete Existing Assignment *If Safe to Do*
+
+⚠️ **Never delete a port assignment without confirming it is not actively used by another domain.**
+
+**2-1. Safety Check Before Deleting Port Assignment**
 
 If you need to assign a custom SELinux port type to a port already associated with another type, you must first delete the existing assignment.  
-**Never delete a port assignment without confirming it is not actively used by another domain.**
-
 Follow these steps before deleting:
 
-1. **Find the SELinux type mapped to the port (e.g., 7003/TCP):**
+2-1-1. Find the SELinux type mapped to the port (e.g., 7003/TCP):  
     ```bash
     semanage port -l | grep -w '7003' | grep tcp
     # Note the SELinux type in the first column of the output.
     ```
 
-2. **Check which SELinux domains are allowed to use this type:**  
+2-1-2. Check which SELinux domains are allowed to use this type:  
    Replace `<SELinux_port_type>` with the type found above (e.g., `afs3_callback_port_t`):
     ```bash
     sesearch --allow -t <SELinux_port_type> -c tcp_socket -p name_connect
     sesearch --allow -t <SELinux_port_type> -c tcp_socket -p name_bind
     ```
 
-3. **Check if any process is actively using the port:**
+2-1-3. Check if any process is actively using the port:  
     ```bash
     netstat -lntp | grep ':7003'
     # Find the PID, then check its SELinux context:
@@ -166,9 +168,7 @@ Follow these steps before deleting:
     # Ensure the running process is not using a domain that needs this port type.
     ```
 
-#### 2. Delete Existing Assignment *If Safe to Do*
-
-If you have confirmed the port is not in use:
+**2-2. If you have confirmed the port is not in use:**
 
 ```bash
 semanage port -d -p tcp 7003
