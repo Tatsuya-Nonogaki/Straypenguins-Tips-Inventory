@@ -26,6 +26,9 @@ System administration and security:
 
 - [OpenSSL](Linux/OpenSSL/)
 - [SELinux](Linux/SELinux/)
+  - [Manage SELinux to Allow httpd to Access Port 7003/TCP](Linux/SELinux/selinux-mod_wl-allow-httpd-7003.md)
+  - [Create SELinux Policy Module for Your Own Service](Linux/SELinux/selinux-create-own-service-policy.md)
+  - [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](Linux/SELinux/selinux-service-policy-troubleshooting.md)
 
 ## ☕ [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
 Setting tools and Examples: 
