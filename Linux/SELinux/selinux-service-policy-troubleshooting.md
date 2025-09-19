@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document demonstrates the investigation, diagnosis, and resolution steps for SELinux policy denials encountered by a custom service/domain (e.g., `mysvcd_t`). It describes how to identify, analyze, and resolve permission problems—using a workflow and troubleshooting checklist that can be adapted for various SELinux modules (such as custom httpd policies) by substituting the relevant domain/type and permissions.
+This document demonstrates the investigation, diagnosis, and resolution steps for SELinux policy denials encountered by a custom service/domain (e.g., `mysvcd_t`). It describes how to identify, analyze, and resolve permission problems—using a workflow and troubleshooting checklist that can be adapted for various SELinux modules by substituting the relevant domain/type and permissions.
 
 **Related Documents**
 - [Manage SELinux to Allow httpd to Access Port 7003/TCP](selinux-mod_wl-allow-httpd-7003.md)
@@ -30,7 +30,7 @@ This document demonstrates the investigation, diagnosis, and resolution steps fo
 
 ## Procedure Outline
 
-- [Diagnostics Steps](#diagnostics-steps)
+- [Diagnostic Steps](#diagnostic-steps)
   - [1. Identify Denied Operations](#1-identify-denied-operations)
   - [2. Verify Running Context](#2-verify-running-context)
   - [3. Check Policy Permissions](#3-check-policy-permissions)
@@ -45,7 +45,7 @@ This document demonstrates the investigation, diagnosis, and resolution steps fo
 
 ---
 
-## Diagnostics Steps
+## Diagnostic Steps
 
 ### 1. Identify Denied Operations
 
@@ -229,7 +229,7 @@ Confirm the operation `getopt` is now present.
 
 ### 5. If Not Solved or Another Denial is Observed
 
-Repeat the diagnostics process starting from Step 1.
+Repeat the diagnostic process starting from [Step 1](#diagnostic-steps).
 
 > 💡 **Tip: Troubleshooting Sequential Permission Errors**  
 > If you encounter a series of SELinux denials—where resolving one permission leads to another denial—consider temporarily switching the system to **Permissive mode**:
