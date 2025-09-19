@@ -10,6 +10,20 @@ This document provides practical, adaptable steps for customizing SELinux policy
 
 ---
 
+## Environment & Example Situation
+
+- **Platform:** A reverse proxy/load balancer server running RHEL9 (or compatible)
+- **SELinux status:** Enforcing
+- **Service:** Apache httpd (`/usr/sbin/httpd`) with Oracle WebLogic plugin DSO (`mod_wl.so`)
+- **Backend:** Application servers listening on TCP port 7003
+- **Scenario:** httpd and `mod_wl` are configured to retrieve contents from backends on 7003/TCP.
+- **Problem:** The default SELinux policy for httpd does not permit outbound connections to port 7003. The `mod_wl` installer does not provide SELinux policy adjustments.
+- **Symptom:** SELinux AVC denials are logged when httpd (with mod_wl) attempts to connect to backend servers on 7003/TCP.
+
+👉 For SELinux-specific terminology, see the [centralized Glossary](README.md#glossary) in the [README.md](README.md) for this folder.
+
+---
+
 ## Procedure Outline
 
 - [Install Prerequisite Packages (RHEL9)](#install-prerequisite-packages-rhel9)
