@@ -67,7 +67,6 @@ ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 ```
 
 In the output, look for `denied { ... }` and `tclass=...` entries.  
-If relevant denials are found, proceed to the policy customization or troubleshooting sections below.
 
 > 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document: [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
 
