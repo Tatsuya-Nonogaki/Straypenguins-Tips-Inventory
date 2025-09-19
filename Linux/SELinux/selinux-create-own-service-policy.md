@@ -24,6 +24,8 @@ You will learn how to:
 - **SELinux status:** Enforcing
 - **Network access:** Outbound connection to `x.x.x.x:443/TCP` (or `:7001/TCP`)
 
+👉 For SELinux-specific terminology, see the [centralized Glossary](README.md#glossary) in the [README.md](README.md) for this folder.
+
 ---
 
 ### Glossary
