@@ -39,7 +39,7 @@ dnf install policycoreutils-devel selinux-policy-devel
 ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 
 # If needed, create and load a custom port type and allow httpd to connect:
-# (See detailed steps in [SELinux Policy Module for httpd on Port 7003](./selinux-mod_wl-allow-httpd-7003.md))
+# (See detailed steps in [SELinux Policy Module for httpd on Port 7003](selinux-mod_wl-allow-httpd-7003.md))
 ```
 
 **Create and load a custom policy module for your own service:**
@@ -65,13 +65,13 @@ For more detailed how-to, see the Documents section below.
 
 ## Documents
 
-- **[SELinux Policy Module for httpd on Port 7003](./selinux-mod_wl-allow-httpd-7003.md):**  
+- **[Manage SELinux to Allow httpd to Access Port 7003/TCP](selinux-mod_wl-allow-httpd-7003.md):**  
   How to allow httpd outbound access to a non-standard port using SELinux, with both quick and organized policy methods.
 
-- **[Create SELinux Policy Module for Your Own Service](./selinux-create-own-service-policy.md):**  
+- **[Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md):**  
   Step-by-step guidance for designing, building, labeling, and uninstalling custom SELinux policy modules for your own programs and data.
 
-- **[SELinux Policy Troubleshooting](./selinux-service-policy-troubleshooting.md):**  
+- **[SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](selinux-service-policy-troubleshooting.md):**  
   How to diagnose, interpret, and resolve SELinux denials—including audit log search, policy verification, and best practices for incremental policy updates.
 
 ---
