@@ -78,7 +78,7 @@ Use `ausearch` to efficiently locate relevant information. Here are some useful 
 - See [audit(8) man page](https://man7.org/linux/man-pages/man8/ausearch.8.html) for advanced usage.
 
 Typical denial entry:
-> type=AVC msg=audit(...): avc:  denied  { getopt } for  pid=... scontext=system_u:system_r:mysvcd_t:s0 ... comm="mysvcd" ... tclass=tcp_socket ...
+> `type=AVC msg=audit(...): avc:  denied  { getopt } for  pid=... scontext=system_u:system_r:mysvcd_t:s0 ... comm="mysvcd" ... tclass=tcp_socket ...`
 
 ### 2. Verify Running Context
 
