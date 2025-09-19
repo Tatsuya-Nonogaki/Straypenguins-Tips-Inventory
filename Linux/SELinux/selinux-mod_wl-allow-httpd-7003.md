@@ -68,6 +68,10 @@ ausearch -m AVC,USER_AVC,SELINUX_ERR,USER_SELINUX_ERR | grep httpd
 
 In the output, look for `denied { ... }` and `tclass=...` entries.  
 
+**Example denial output:**
+
+> `type=AVC msg=audit(1695093000.123:12345): avc:  denied  { name_connect } for  pid=1234 comm="httpd" scontext=system_u:system_r:httpd_t:s0 tcontext=system_u:object_r:port_t:s0 tclass=tcp_socket permissive=0`
+
 > 👉 For alternative audit log search methods (exact process matching, filtering by time, etc.), see [Audit Log Search Cheat Sheet](selinux-service-policy-troubleshooting.md#1-identify-denied-operations) in the related document: [SELinux Policy Troubleshooting](selinux-service-policy-troubleshooting.md).
 
 ---
