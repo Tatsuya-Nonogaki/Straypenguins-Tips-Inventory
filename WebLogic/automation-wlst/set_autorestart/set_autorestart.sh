@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z "$2" -a "$1" != "-h" ]; then
-    echo "Usege: $(basename $0) [-s SERVERNAME -v BOOL] [-lh]"
+    echo "Usage: $(basename $0) [-s SERVERNAME -v BOOL] [-lh]"
     echo '*BOOL should be "True" or "False".'
     exit 1
 fi
