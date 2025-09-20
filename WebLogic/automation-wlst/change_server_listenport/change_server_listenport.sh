@@ -3,7 +3,7 @@
 ## [Caution] Stop all Managed and Admin Servers before run.
 
 if [ -z "$2" -a "$1" != "-h" ]; then
-    echo "Usege: $(basename $0) [-s SERVERNAME --port LISTENPORT] [-lh]"
+    echo "Usage: $(basename $0) [-s SERVERNAME --port LISTENPORT] [-lh]"
     echo "*Domain Home is retrieved from env DOMAIN_HOME"
     exit 1
 fi
@@ -11,7 +11,7 @@ fi
 . /etc/profile.d/oracle.sh
 
 if [ -z "$DOMAIN_HOME" ]; then
-    echo "Usege: $(basename $0) [-s SERVERNAME --port LISTENPORT] [-lh]"
+    echo "Usage: $(basename $0) [-s SERVERNAME --port LISTENPORT] [-lh]"
     echo "*Domain Home is retrieved from env DOMAIN_HOME"
     exit 1
 fi
