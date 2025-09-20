@@ -88,16 +88,16 @@ Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder con
 ### [systemd/](systemd)
 Systemd service definitions for running WebLogic as managed Linux services.
 
-- **weblogic-admin.service**  
+- **`weblogic-admin.service`**  
   Unit file for Admin Server
 
-- **weblogic@.service**  
+- **`weblogic@.service`**  
   Template unit for Managed Servers (parameterized by instance name, e.g., 'MS1')
 
-- **sysconfig/weblogic-AdminServer**  
+- **`sysconfig/weblogic-AdminServer`**  
   Environment file used by the systemd unit for Admin Server
 
-- **sysconfig/weblogic-MS1**  
+- **`sysconfig/weblogic-MS1`**  
   Sample environment file used by the systemd unit for a Managed Server named 'MS1'. The name after the `-` corresponds to the server instance.
 
 ---
