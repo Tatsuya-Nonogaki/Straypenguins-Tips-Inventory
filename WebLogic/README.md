@@ -39,7 +39,7 @@ WebLogic/
 **Verify that the tools do what you intend before use!  
 NO WARRANTY for middleware operational breakdowns!**
 
-### [automation-wlst/](automation-wlst)
+### [automation-wlst/](automation-wlst/)
 Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder contains:
 - A `.py` WLST script (core logic)
 - A `.sh` wrapper (shell script for execution)
@@ -47,45 +47,45 @@ Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder con
 
 #### Provided Automation Modules
 
-- **[change_server_listenport/](automation-wlst/change_server_listenport)**  
+- **[change_server_listenport/](automation-wlst/change_server_listenport/)**  
   Change or list the non-SSL listen port for a specific WebLogic Server instance (e.g., 7003 => 7004).
 
-- **[log_settings/](automation-wlst/log_settings)**  
+- **[log_settings/](automation-wlst/log_settings/)**  
   Automate log rotation and WebServer extended log format settings.
   - `log_settings_admin/`: For AdminServer (extended log format does not apply)
   - `log_settings_ms/`: For Managed Servers
 
-- **[set_default_stagingmode/](automation-wlst/set_default_stagingmode)**  
+- **[set_default_stagingmode/](automation-wlst/set_default_stagingmode/)**  
   Configure the default deployment staging mode (`stage`/`nostage`) for a server.
 
-- **[set_machine_nmtype/](automation-wlst/set_machine_nmtype)**  
+- **[set_machine_nmtype/](automation-wlst/set_machine_nmtype/)**  
   Set the NodeManager type (`SSL` or `Plain`) for a machine. Useful when managing server instances with NodeManager.
 
-- **[set_autorestart/](automation-wlst/set_autorestart)**  
+- **[set_autorestart/](automation-wlst/set_autorestart/)**  
   Enable or disable the AutoRestart setting for a given server. Useful when managing server instances with NodeManager.
 
-- **[set_restartdelaysec/](automation-wlst/set_restartdelaysec)**  
+- **[set_restartdelaysec/](automation-wlst/set_restartdelaysec/)**  
   Set the restart delay (in seconds) for a server. Use together with the `set_autorestart` tool.
 
-- **[set_maxreqparamcount/](automation-wlst/set_maxreqparamcount)**  
+- **[set_maxreqparamcount/](automation-wlst/set_maxreqparamcount/)**  
   Define the maximum number of HTTP request parameters (`MaxRequestParameterCount`) for a server.
 
 ---
 
-### [profile.d/](profile.d)
+### [profile.d/](profile.d/)
 - **oracle.sh**  
   Profile script to set environment variables (`ORACLE_HOME`, `WL_HOME`, `DOMAIN_HOME`) and ulimits for the `oracle` user. Adjust as needed.
   > ⚠️ **Many Automation-WLST scripts read this file** to ensure environment variables are set. Most scripts will not function properly unless this file is deployed and contains the appropriate values.
 
 ---
 
-### [rsyslog/](rsyslog)
+### [rsyslog/](rsyslog/)
 - **rsyslog-rules+.txt**  
   Example `rsyslog` rules to redirect `journald` logs for WebLogic server instances to `/var/log/weblogic/*` when the servers are run under `systemd`.
 
 ---
 
-### [systemd/](systemd)
+### [systemd/](systemd/)
 Systemd service definitions for running WebLogic as managed Linux services.
 
 - **`weblogic-admin.service`**  
