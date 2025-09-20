@@ -31,18 +31,18 @@ System administration and security:
   - [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](Linux/SELinux/selinux-service-policy-troubleshooting.md)
 
 ## ☕ [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
-Setting tools and Examples: 
+Practical, field-tested automation scripts and configuration snippets for Oracle WebLogic Server administration:
 
-- Useful maintenance tools
+- [Automation WLST](WebLogic/automation-wlst/)
+- [profile.d](WebLogic/profile.d/)
 - [systemd](WebLogic/systemd/)
 - [rsyslog](WebLogic/rsyslog/)
-- [profile.d](WebLogic/profile.d/)
-- [Automation WLST](WebLogic/automation-wlst/)
+- [Other basic setting tools](WebLogic/)
 
 ## 🐙 [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
 Repository management tips:
 
-- Tips
+- [Tips](GitHub/)
 
 ---
 
