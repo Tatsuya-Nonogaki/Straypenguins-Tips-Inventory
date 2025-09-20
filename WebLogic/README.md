@@ -47,45 +47,45 @@ Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder con
 
 #### Provided Automation Modules
 
-- **change_server_listenport/**  
+- **[change_server_listenport/](change_server_listenport)**  
   Change or list the non-SSL listen port for a specific WebLogic Server instance (e.g., 7003 => 7004).
 
-- **log_settings/**  
+- **[log_settings/](log_settings)**  
   Automate log rotation and WebServer extended log format settings.
   - `log_settings_admin/`: For AdminServer (extended log format doesn't apply)
   - `log_settings_ms/`: For Managed Servers
 
-- **set_default_stagingmode/**  
+- **[set_default_stagingmode/](set_default_stagingmode)**  
   Configure the default deployment staging mode (`stage`/`nostage`) for a server.
 
-- **set_machine_nmtype/**  
+- **[set_machine_nmtype/](set_machine_nmtype)**  
   Set the NodeManager type (`SSL` or `Plain`) for a machine. Useful when managing server instances by NodeManager.
 
-- **set_autorestart/**  
+- **[set_autorestart/](set_autorestart)**  
   Enable or disable the AutoRestart setting for a given server. Useful when managing server instances by NodeManager.
 
-- **set_restartdelaysec/**  
+- **[set_restartdelaysec/](set_restartdelaysec)**  
   Set the restart delay (in seconds) for a server. Use with the `set_autorestart` tool.
 
-- **set_maxreqparamcount/**  
+- **[set_maxreqparamcount/](set_maxreqparamcount)**  
   Define the maximum number of HTTP request parameters (`MaxRequestParameterCount`) for a server.
 
 ---
 
-### profile.d/
+### [profile.d/](profile.d)
 - **oracle.sh**  
   Profile script to set environment variables (`ORACLE_HOME`, `WL_HOME`, `DOMAIN_HOME`) and ulimits for the `oracle` user. Adjust as you need.
   > ⚠️ **A lot of Automation-WLST scripts read-in this file** to ensure environment variables. Most of them won't function properly without deploying this file.
 
 ---
 
-### rsyslog/
+### [rsyslog/](rsyslog)
 - **rsyslog-rules+.txt**  
   Example `rsyslog` rules to redirect `journald` logs for WebLogic server instances to `/var/log/weblogic/*`, when the servers are run by `systemd`.
 
 ---
 
-### systemd/
+### [systemd/](systemd)
 Systemd service definitions for running WebLogic as managed Linux services.
 
 - **weblogic-admin.service**  
