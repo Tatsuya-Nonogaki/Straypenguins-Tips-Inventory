@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z "$1" ]; then
-    echo "Usege: $(basename $0) [PROPERTIES_FILE_NAME] [-lh]"
+    echo "Usage: $(basename $0) [PROPERTIES_FILE_NAME] [-lh]"
     exit 1
 fi
 
