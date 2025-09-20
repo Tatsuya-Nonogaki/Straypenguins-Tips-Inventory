@@ -83,7 +83,7 @@ For more detailed how-to, see the Documents section below.
   Security-Enhanced Linux, a kernel security module providing mandatory access controls.
 
 - **Label**  
-  The SELinux context assigned to an object (file, process, port, etc.), consisting of user, role, type, and level.
+  The SELinux security context assigned to an object (such as a file, process, or port). It is composed of four fields: user, role, type (or domain), and level. The full label is also called `scontext`, e.g., `system_u:system_r:httpd_t:s0`.
 
 ### Policy Structure & Logic
 - **Policy Module**  
@@ -91,6 +91,9 @@ For more detailed how-to, see the Documents section below.
 
 - **Domain / Type**  
   SELinux label assigned to a process (e.g., `httpd_t`, `mysvcd_t`); controls process permissions.
+
+- **Role**  
+   Used primarily in Role-Based Access Control (RBAC) to define what domains (types) a user or process can enter. Commonly used for user logins and confined user domains, but also plays an important role in Domain Transition.
 
 - **File Type**  
   SELinux label for files/directories (e.g., `mysvcd_exec_t`, `mysvcd_var_t`).
@@ -100,6 +103,12 @@ For more detailed how-to, see the Documents section below.
 
 - **Class**  
   SELinux object class, describing the kind of object (e.g., `file`, `dir`, `tcp_socket`).
+
+- **Level**  
+  The sensitivity level and (optionally) categories of an SELinux context, represented as the last field (e.g., `s0`, `s0-s0:c0.c1023`). Levels are mainly used in Multi-Level Security (MLS) or Multi-Category Security (MCS) policies to provide finer-grained labeling and access control.
+
+- **Domain Transition**  
+  An SELinux mechanism where a process changes its domain (type), usually by executing a file with a different type. This controls how processes switch domains, such as when a service is started by a process manager (e.g., systemd).
 
 - **Permission / Operation**  
   Specific action on a class (e.g., `connect`, `read`, `write`, `getopt`).
