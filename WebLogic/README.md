@@ -1,4 +1,4 @@
-# WebLogic: Automation & Configurations for Administrators
+# WebLogic: Automation & Configuration Snippets for Administrators
 
 This folder is part of the [Straypenguins-Tips-Inventory](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory) repository and provides practical, field-tested automation scripts and configuration snippets for Oracle WebLogic Server administration.
 
@@ -36,14 +36,14 @@ WebLogic/
 ## 🛠️ Contents Breakdown
 
 ⚠️ **WARNING:**  
-**Check the tool components are coded to do what you intend, before use!  
-NO WARRANTY for Middleware Operational Beakdown!**
+**Verify that the tools do what you intend before use!  
+NO WARRANTY for middleware operational breakdowns!**
 
 ### [automation-wlst/](automation-wlst)
 Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder contains:
 - A `.py` WLST script (core logic)
 - A `.sh` wrapper (shell script for execution)
-- `.properties` files (connection/config parameters, not required in a few cases)
+- `.properties` files (for connection/config parameters; not required for some tools)
 
 #### Provided Automation Modules
 
@@ -52,20 +52,20 @@ Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder con
 
 - **[log_settings/](automation-wlst/log_settings)**  
   Automate log rotation and WebServer extended log format settings.
-  - `log_settings_admin/`: For AdminServer (extended log format doesn't apply)
+  - `log_settings_admin/`: For AdminServer (extended log format does not apply)
   - `log_settings_ms/`: For Managed Servers
 
 - **[set_default_stagingmode/](automation-wlst/set_default_stagingmode)**  
   Configure the default deployment staging mode (`stage`/`nostage`) for a server.
 
 - **[set_machine_nmtype/](automation-wlst/set_machine_nmtype)**  
-  Set the NodeManager type (`SSL` or `Plain`) for a machine. Useful when managing server instances by NodeManager.
+  Set the NodeManager type (`SSL` or `Plain`) for a machine. Useful when managing server instances with NodeManager.
 
 - **[set_autorestart/](automation-wlst/set_autorestart)**  
-  Enable or disable the AutoRestart setting for a given server. Useful when managing server instances by NodeManager.
+  Enable or disable the AutoRestart setting for a given server. Useful when managing server instances with NodeManager.
 
 - **[set_restartdelaysec/](automation-wlst/set_restartdelaysec)**  
-  Set the restart delay (in seconds) for a server. Use with the `set_autorestart` tool.
+  Set the restart delay (in seconds) for a server. Use together with the `set_autorestart` tool.
 
 - **[set_maxreqparamcount/](automation-wlst/set_maxreqparamcount)**  
   Define the maximum number of HTTP request parameters (`MaxRequestParameterCount`) for a server.
@@ -74,14 +74,14 @@ Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder con
 
 ### [profile.d/](profile.d)
 - **oracle.sh**  
-  Profile script to set environment variables (`ORACLE_HOME`, `WL_HOME`, `DOMAIN_HOME`) and ulimits for the `oracle` user. Adjust as you need.
-  > ⚠️ **A lot of Automation-WLST scripts read this file in** to ensure environment variables. Most of them won't function properly without deploying this file with appropriate values.
+  Profile script to set environment variables (`ORACLE_HOME`, `WL_HOME`, `DOMAIN_HOME`) and ulimits for the `oracle` user. Adjust as needed.
+  > ⚠️ **Many Automation-WLST scripts read this file** to ensure environment variables are set. Most scripts will not function properly unless this file is deployed and contains the appropriate values.
 
 ---
 
 ### [rsyslog/](rsyslog)
 - **rsyslog-rules+.txt**  
-  Example `rsyslog` rules to redirect `journald` logs for WebLogic server instances to `/var/log/weblogic/*`, when the servers are run by `systemd`.
+  Example `rsyslog` rules to redirect `journald` logs for WebLogic server instances to `/var/log/weblogic/*` when the servers are run under `systemd`.
 
 ---
 
@@ -92,42 +92,43 @@ Systemd service definitions for running WebLogic as managed Linux services.
   Unit file for Admin Server
 
 - **weblogic@.service**  
-  Template unit for Managed Servers (parameterized by instance name, e.g., "MS1")
+  Template unit for Managed Servers (parameterized by instance name, e.g., 'MS1')
 
 - **sysconfig/weblogic-AdminServer**  
   Environment file used by the systemd unit for Admin Server
 
 - **sysconfig/weblogic-MS1**  
-  A sample environment file used by the systemd unit for a Managed Server named "MS1". Note the name after `-` speaks.
+  Sample environment file used by the systemd unit for a Managed Server named 'MS1'. The name after the `-` corresponds to the server instance.
 
 ---
 
 ### Top-level Utility Scripts
 
 - **change-wls-java_home.sh**  
-  Safely modifies, reports, or backs up `JAVA_HOME` path parameter in WebLogic/Oracle Middleware OUI properties and configuration files. As you may know, we are forced to do a painful series of dirty jobs to update JDK version on a already installed/configured Middleware server.  
-  This tool is designed with safety in mind; supplied with "List-only" mode runtime option and in-file hard switch "SAFE_MODE".
+  Safely modifies, reports, or backs up the `JAVA_HOME` path parameter in WebLogic/Oracle Middleware OUI properties and configuration files.  
+  As you may know, updating the JDK version on an already installed/configured Middleware server often involves a series of tedious and error-prone steps.  
+  This tool is designed with safety in mind; it provides a 'list-only' mode runtime option and an in-file 'SAFE_MODE' switch.
 
   > 💡 **Caution & Tips**
-  > The script comes with help contents of a fair amount, shown when `-h` option is given.
-  > It also provides special how-to **"Procedure Outline: How this script involved in WebLogic Server JDK Replacement"** in a form of comments, which describes practical replacement procedure outline.
-  > **Carefully read them before use for successful replacement.**
+  > The script provides extensive help output, which can be displayed by using the `-h` option.
+  > It also provides a detailed 'Procedure Outline: How this script is involved in WebLogic Server JDK Replacement' in the comments, which describes the practical replacement procedure.
+  > Be sure to read these instructions carefully for a successful replacement.
 
 - **derby-disable.sh**  
-  Disables the built-in Java DB (`derby.jar`) startup by renaming `jar` (💀a demo DB; consuming production server resources).
+  Disables the built-in Java DB (`derby.jar`) by renaming the jar file (💀 demo DB; can consume production server resources).
 
 - **jre-securerandom-fix.sh**  
   For JDK 11+: Switches `securerandom.source` from `/dev/random` to `/dev/urandom` in `java.security` to avoid entropy depletion and speed up JVM start.
 
 - **jre8-securerandom-fix.sh**  
-  Same as above, but for Java 8, where still `/dev/./urandom` (with a dot in the middle) was required.
+  Same as above, but for Java 8, which requires `/dev/./urandom` (with a dot in the path).
 
 ---
 
 ## 📝 Usage Notes
 
-- Most tools are designed with assumption that WebLogic/Oracle Middleware is installed and run under the privilege of user `oracle` and relevant environment variables are set (see `profile.d/oracle.sh`).
-- Many setting scripts expect the credentials and configuration parameters from the `.properties` files —**check and replace them before use**.
+- Most tools assume that WebLogic/Oracle Middleware is installed and run under the `oracle` user, with relevant environment variables set (see `profile.d/oracle.sh`).
+- Many scripts expect credentials and configuration parameters to be provided in `.properties` files — **be sure to check and edit these before use**.
 
 ---
 
