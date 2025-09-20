@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z "$2" -a "$1" != "-h" ]; then
-    echo "Usege: $(basename $0) [-m MACHINENAME -t NMTYPE] [-lh]"
+    echo "Usage: $(basename $0) [-m MACHINENAME -t NMTYPE] [-lh]"
     echo '*NMTYPE is usually "SSL" or "Plain".'
     exit 1
 fi
