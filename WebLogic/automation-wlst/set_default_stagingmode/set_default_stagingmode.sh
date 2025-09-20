@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if [ -z "$2" -a "$1" != "-h" ]; then
-    echo "Usege: $(basename $0) [-s SERVERNAME -t STAGINGMODE] [-lh]"
+    echo "Usage: $(basename $0) [-s SERVERNAME -t STAGINGMODE] [-lh]"
     echo '*STAGINGMODE is usually "stage" or "nostage".'
     exit 1
 fi
