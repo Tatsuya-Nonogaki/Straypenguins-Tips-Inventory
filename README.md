@@ -17,21 +17,21 @@ This repository serves as a comprehensive technical knowledge base and documenta
 ## 🖥️ [vSphere](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/vSphere)
 Procedures and Tools for administration:
 
-- [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/README.md)  
+- [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/README.md) *(GitHub Web)* / [*GitHub Pages HTML*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/)  
    This sub-folder focuses on VMware vSphere certificate management procedures, specifically for vCenter Server Appliance (vCSA).
    This project organizes and streamlines the procedures for renewing the different certificates, selectively using `vCert` and `fixcerts.py`.
 
 ## 🐧 [Linux](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux)
 System administration and security:
 
-- [OpenSSL](Linux/OpenSSL/)
+- [OpenSSL](Linux/OpenSSL/) *(GitHub Web)* / [*GitHub Pages HTML*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/OpenSSL/)
   - Provides several simple utility scripts for OpenSSL
-- [SELinux](Linux/SELinux/)
+- [SELinux](Linux/SELinux/) *(GitHub Web)* / [*GitHub Pages HTML*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/SELinux/)
   - [Manage SELinux to Allow httpd to Access Port 7003/TCP](Linux/SELinux/selinux-mod_wl-allow-httpd-7003.md)
   - [Create SELinux Policy Module for Your Own Service](Linux/SELinux/selinux-create-own-service-policy.md)
   - [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](Linux/SELinux/selinux-service-policy-troubleshooting.md)
 
-## ☕ [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
+## ☕ [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic) *(GitHub Web)* / [*GitHub Pages HTML*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/WebLogic/)
 Practical, field-tested automation scripts and configuration snippets for Oracle WebLogic Server administration:
 
 - [Automation WLST](WebLogic/automation-wlst/)
@@ -40,7 +40,7 @@ Practical, field-tested automation scripts and configuration snippets for Oracle
 - [rsyslog](WebLogic/rsyslog/)
 - [Miscellaneous base setting tools](WebLogic/)
 
-## 🐙 [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
+## 🐙 [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub) *(GitHub Web)* / [*GitHub Pages HTML*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/GitHub/)
 GutHub Operation Tips Memorandum:
 
 - [Tips](GitHub/)
