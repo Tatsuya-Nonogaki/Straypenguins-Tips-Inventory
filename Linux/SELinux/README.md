@@ -2,7 +2,7 @@
 
 ## Overview
 
-This folder provides practical, scenario-driven guides for customizing, extending, and troubleshooting SELinux policy modules on modern Linux systems (with a focus on RHEL9/CentOS Stream 9 and derivatives).  
+This sub-folder of the [Straypenguins-Tips-Inventory](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory) repository provides practical, scenario-driven guides for customizing, extending, and troubleshooting SELinux policy modules on modern Linux systems (with a focus on RHEL9/CentOS Stream 9 and derivatives).  
 It includes step-by-step instructions, real-world examples, and reusable policy patterns for admins and developers managing their own services or customizing access for standard daemons.
 
 ---
