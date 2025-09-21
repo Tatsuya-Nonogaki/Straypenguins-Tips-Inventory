@@ -1,4 +1,4 @@
-# WebLogic: Automation & Configuration Snippets for Administrators
+# [WebLogic: Automation & Configuration Snippets for Administrators](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
 
 This folder is part of the [Straypenguins-Tips-Inventory](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory) repository and provides practical, field-tested automation scripts and configuration snippets for Oracle WebLogic Server administration.
 
