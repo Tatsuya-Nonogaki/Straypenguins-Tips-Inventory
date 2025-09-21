@@ -1,4 +1,4 @@
-# [GutHub Operation Tips Memorandum](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/GitHub)
+# [GutHub Operation Tips Memorandum](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
 
 ## What this folder is for
 
