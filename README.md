@@ -38,7 +38,7 @@ Practical, field-tested automation scripts and configuration snippets for Oracle
 - [profile.d](WebLogic/profile.d/)
 - [systemd](WebLogic/systemd/)
 - [rsyslog](WebLogic/rsyslog/)
-- [Other basic setting tools](WebLogic/)
+- [Other base setting tools](WebLogic/)
 
 ## 🐙 [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
 Repository management tips:
