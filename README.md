@@ -41,7 +41,7 @@ Practical, field-tested automation scripts and configuration snippets for Oracle
 - [Miscellaneous base setting tools](WebLogic/)
 
 ## 🐙 [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
-Repository management tips:
+GutHub Operation Tips Memorandum:
 
 - [Tips](GitHub/)
 
@@ -53,3 +53,5 @@ Navigate to the relevant technology folder to access specific documentation or t
 ---
 
 *This inventory is actively maintained and will be expanded with additional technical procedures and reference materials as they become available.*
+
+---
