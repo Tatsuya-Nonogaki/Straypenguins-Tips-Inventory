@@ -1,4 +1,4 @@
-# vCSA Certificate Replacement Procedures
+# [vCSA Certificate Replacement Procedures](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/vSphere/vcsa-cert-replace-procedures)
 
 ## What this project is for
 
