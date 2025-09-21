@@ -1,4 +1,4 @@
-# SELinux Practical Tips & Modules
+# [SELinux Practical Tips & Modules](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux/SELinux)
 
 ## Overview
 
