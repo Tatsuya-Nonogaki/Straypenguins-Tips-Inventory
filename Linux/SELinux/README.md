@@ -156,3 +156,5 @@ For more detailed how-to, see the Documents section below.
 
 - **`sesearch`**  
   Tool to search SELinux policy rules for permissions and access vectors.
+
+---
