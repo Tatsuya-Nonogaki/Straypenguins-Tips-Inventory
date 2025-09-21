@@ -1,4 +1,4 @@
-# Utility Scripts for OpenSSL
+# [Utility Scripts for OpenSSL](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux/OpenSSL)
 
 ## What this folder is for
 
