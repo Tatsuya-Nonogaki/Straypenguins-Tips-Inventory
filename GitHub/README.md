@@ -9,12 +9,8 @@ This sub-folder of the [Straypenguins-Tips-Inventory](https://github.com/Tatsuya
 ## Contents Summary
 
 ### 📋 [Merge devel to main While Keeping the Branch History Clean](merge_devel_to_main_clean_history.md)
-**Step-by-step, actionable procedures** for vCSA certificate replacement and renewal:
-- Detailed operational checklists (pre-renewal and post-renewal)
 
 ### 📋 [UTF-8 Emoji Copy-Paste Sheet](emoji-utf8.md)
-**Step-by-step, actionable procedures** for vCSA certificate replacement and renewal:
-- Detailed operational checklists (pre-renewal and post-renewal)
 
 ---
 
