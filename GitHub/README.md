@@ -17,5 +17,3 @@ A quick reference of UTF-8 emojis that frequently used in writing technical docu
 ---
 
 These collections may be added, removed, modified without explicit notice🥺
-
----
