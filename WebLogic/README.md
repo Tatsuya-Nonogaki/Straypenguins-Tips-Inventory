@@ -70,20 +70,14 @@ Automation scripts leveraging WebLogic Scripting Tool (WLST). Each subfolder con
 - **[set_maxreqparamcount/](automation-wlst/set_maxreqparamcount/)**  
   Define the maximum number of HTTP request parameters (`MaxRequestParameterCount`) for a server.
 
----
-
 ### [profile.d/](profile.d/)
 - **oracle.sh**  
   Profile script to set environment variables (`ORACLE_HOME`, `WL_HOME`, `DOMAIN_HOME`) and ulimits for the `oracle` user. Adjust as needed.
   > ⚠️ **Many Automation-WLST scripts read this file** to ensure environment variables are set. Most scripts will not function properly unless this file is deployed and contains the appropriate values.
 
----
-
 ### [rsyslog/](rsyslog/)
 - **rsyslog-rules+.txt**  
   Example `rsyslog` rules to redirect `journald` logs for WebLogic server instances to `/var/log/weblogic/*` when the servers are run under `systemd`.
-
----
 
 ### [systemd/](systemd/)
 Systemd service definitions for running WebLogic as managed Linux services.
@@ -100,9 +94,7 @@ Systemd service definitions for running WebLogic as managed Linux services.
 - **`sysconfig/weblogic-MS1`**  
   Sample environment file used by the systemd unit for a Managed Server named 'MS1'. The name after the `-` corresponds to the server instance.
 
----
-
-### Top-level Utility Scripts
+### [Top-level Utility Scripts](./)
 
 - **change-wls-java_home.sh**  
   Safely modifies, reports, or backs up the `JAVA_HOME` path parameter in WebLogic/Oracle Middleware OUI properties and configuration files.  
