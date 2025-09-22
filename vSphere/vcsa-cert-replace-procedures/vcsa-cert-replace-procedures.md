@@ -147,11 +147,11 @@ However, depending on the situation, using the `--run` option for specific opera
      - Change the `--certType` argument for each run to match the certificate-type.  
        *Refer to the chart **fixcerts.py Operation for each certificate** in the separate file `vcsa-cert-list-chart.md` for correct values (e.g. `machinessl`, `solutionusers`, etc.).*
      - Use the `--validityDays` option to extend certificate validity, if desired.  
-       **Note:** The actual period of generated certificates **cannot exceed the expiry of the root CA**—even if a longer value is specified, the certificates will expire at the root CA's end date.
+       💡 The actual period of generated certificates **cannot exceed the expiry of the root CA**—even if a longer value is specified, the certificates will expire at the root CA's end date.
      - Always set `--serviceRestart False` for each run. You will restart services after all renewals are complete.
      - Consider passing the `--debug` option to increase verbosity and aid troubleshooting.
      - Consider running the script in an SSH session with logging enabled to capture all console output.
-     - **Note:** `fixcerts.py` does not provide an interactive menu; all operations are done via command-line arguments.
+     - 💡 `fixcerts.py` does not provide an interactive menu; all operations are done via command-line arguments.
 
 2. **Verify certificate renewal after each type:**  
    - After each certificate-type renewal, run the certificate status one-liner (or the dedicated script file) to confirm expiry dates have changed:
