@@ -19,6 +19,7 @@
 | Root CA                               | TRUSTED_ROOTS          | Trusted Roots: CA (VMCA_ROOT_CERT) | TRUSTED_ROOTS         | CA certificates in VECS                | CA trust chain                                                       |
 
 ## 2. fixcerts.py Operation for each certificate
+
 | Store                 | Alias                | fixcerts.py operation                                      |
 |-----------------------|----------------------|------------------------------------------------------------|
 | MACHINE_SSL_CERT      | __MACHINE_CERT       | replace --certType machinessl                              |
@@ -36,6 +37,7 @@
 | STS_INTERNAL_SSL_CERT | N/A                  | replace --certType lookupservice                           |
 
 ## 3. vCert.py Operation for each certificate
+
 | Store                 | Alias                | vCert.py menu operation                                                |
 |-----------------------|----------------------|------------------------------------------------------------------------|
 | MACHINE_SSL_CERT      | __MACHINE_CERT       | Manage vCenter Certificates &gt; Machine SSL certificate                  |
@@ -55,6 +57,7 @@
 ## 4. vCert.py direct operation arguments 
 
 E.G., `./vCert.py --run config/op_check_cert.yaml`
+
 | Menu Item Label                               | Valid --run Argument                                             |
 |-----------------------------------------------|------------------------------------------------------------------|
 | Check current certificate status              | config/op_check_cert.yaml                                        |
