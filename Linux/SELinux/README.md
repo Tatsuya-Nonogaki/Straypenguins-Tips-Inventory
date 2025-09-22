@@ -65,13 +65,13 @@ For more detailed how-to, see the Documents section below.
 
 ## Documents
 
-- **[Manage SELinux to Allow httpd to Access Port 7003/TCP](selinux-mod_wl-allow-httpd-7003.md):**  
+- **[Manage SELinux to Allow httpd to Access Port 7003/TCP](selinux-mod_wl-allow-httpd-7003.md)** *(GitHub Web) /* [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/SELinux/selinux-mod_wl-allow-httpd-7003.html)  
   How to allow httpd outbound access to a non-standard port using SELinux, with both quick and organized policy methods.
 
-- **[Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md):**  
+- **[Create SELinux Policy Module for Your Own Service](selinux-create-own-service-policy.md)** *(GitHub Web) /* [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/SELinux/selinux-create-own-service-policy.html)  
   Step-by-step guidance for designing, building, labeling, and uninstalling custom SELinux policy modules for your own programs and data.
 
-- **[SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](selinux-service-policy-troubleshooting.md):**  
+- **[SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](selinux-service-policy-troubleshooting.md)** *(GitHub Web) /* [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/SELinux/selinux-service-policy-troubleshooting.html)   
   How to diagnose, interpret, and resolve SELinux denials—including audit log search, policy verification, and best practices for incremental policy updates.
 
 ---
