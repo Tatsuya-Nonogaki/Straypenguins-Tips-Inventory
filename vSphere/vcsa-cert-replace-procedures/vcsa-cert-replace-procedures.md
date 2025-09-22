@@ -86,7 +86,7 @@ After completing certificate renewal procedures, it is essential to verify the h
 ## 🛠️ Procedures for vCert
 `vCert.py` is primarily designed for use via its interactive menu. While it does support direct operations with the `--run` option by specifying the path to a particular YAML file, this usually requires more typing, and the other command-line options are quite limited.
 
-However, depending on the situation, using the `--run` option for specific operations can be beneficial. For your convenience, the table **vCert.py direct operation arguments** in the separate file `vcsa-cert-list-chart.md` summarizes the available YAML file paths for each operation category.
+However, depending on the situation, using the `--run` option for specific operations can be beneficial. For your convenience, the table **vCert.py direct operation arguments** in the separate file [`vcsa-cert-list-chart.md`](vcsa-cert-list-chart.md) summarizes the available YAML file paths for each operation category.
 
 ### Procedures
 1. **Run vCert.py:**  
@@ -118,7 +118,7 @@ However, depending on the situation, using the `--run` option for specific opera
       for store in $(/usr/lib/vmware-vmafd/bin/vecs-cli store list | grep -v TRUSTED_ROOT_CRLS); do echo "[*] Store :" $store; /usr/lib/vmware-vmafd/bin/vecs-cli entry list --store $store --text | grep -ie "Alias" -ie "Not Before" -ie "Not After"; done
       ```
    3. Try recreating certificates per Certificate-Type, by selecting "3. Manage certificates" in the main menu and proceeding to the specific sub menu such as "2. Solution User certificates". Check the status of the certificates again.
-      > *Refer to the chart **vCert.py Operation for each certificate** in the separate file `vcsa-cert-list-chart.md` for correct menu entries.*
+      > *Refer to the chart **vCert.py Operation for each certificate** in the separate file [`vcsa-cert-list-chart.md`](vcsa-cert-list-chart.md) for correct menu entries.*
    4. If any of the certificates were updated, check for consistency in Extension Thumbprints by selecting "3. Manage certificates" in the main menu then "6. vCenter Extension thumbprints" (or directly run `./vCert.py --run config/manage_cert/op_manage-vc-ext-thumbprints.yaml`). If any MISMATCH are found, proceed with "Y" to solve.
    5. After complete renewal of all the failed certificates, go back to the main menu and select "8. Restart services". (This will take some time.)
 
@@ -145,7 +145,7 @@ However, depending on the situation, using the `--run` option for specific opera
      ```
      **Key Points:**  
      - Change the `--certType` argument for each run to match the certificate-type.  
-       *Refer to the chart **fixcerts.py Operation for each certificate** in the separate file `vcsa-cert-list-chart.md` for correct values (e.g. `machinessl`, `solutionusers`, etc.).*
+       *Refer to the chart **fixcerts.py Operation for each certificate** in the separate file [`vcsa-cert-list-chart.md`](vcsa-cert-list-chart.md) for correct values (e.g. `machinessl`, `solutionusers`, etc.).*
      - Use the `--validityDays` option to extend certificate validity, if desired.  
        💡 The actual period of generated certificates **cannot exceed the expiry of the root CA**—even if a longer value is specified, the certificates will expire at the root CA's end date.
      - Always set `--serviceRestart False` for each run. You will restart services after all renewals are complete.
