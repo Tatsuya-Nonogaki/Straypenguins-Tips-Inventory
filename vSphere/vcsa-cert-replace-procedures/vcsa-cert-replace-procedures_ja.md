@@ -1,16 +1,18 @@
-### 全体方針
+# vCSA 証明書 更新手順
+
+## 🧭 全体方針
 - 運用上のニーズや対象となる証明書種別、必要な機能に応じて、2つのツール `vCert` と `fixcerts.py` を使い分けていくのが賢いやり方です。どちらのツールも堅牢かつ信頼性は十分で、状況によっては併用することで柔軟性や成功率が向上します。
   > **柔軟な対応力:** いずれかのツールで何らかの制約にぶつかったり、特定のタイプの証明書だけうまく行かなかった場合には、もう一方のツールへとシームレスに切り替えるのも選択肢です。本手順書はこうした「ツール間のフェイルオーバー」を勘案しており、どのような状況でも証明書の更新作業が継続できるよう配慮しています。
 
-  > **補足:** `fixcerts.py` には大きな利点、更新する証明書の有効期間を指定できる機能（`--validityDays <DAYS>`）があります。  
+  > 📝 **補足:** `fixcerts.py` には大きな利点、更新する証明書の有効期間を指定できる機能（`--validityDays <DAYS>`）があります。  
   > ただし、実際に発行される証明書の有効期間は **vCSAのルートCAの有効期限を超えることはできません**。長い期間を指定しても、証明書の有効期限はルートCAと同じになることに注意してください。
 
-  > **補足:** ツールごとに、一部の証明書に関する一部の機能が欠けていたりするため（例えば STS証明書）、もし `fixcerts.py` を主として使用する場合でも、`vCert` も用意しておくことをお勧めします。STS証明書は、VECS CLI や `fixcerts.py` では情報の確認ができません。
+  > 📝 **補足:** ツールごとに、一部の証明書に関する一部の機能が欠けていたりするため（例えば STS証明書）、もし `fixcerts.py` を主として使用する場合でも、`vCert` も用意しておくことをお勧めします。STS証明書は、VECS CLI や `fixcerts.py` では情報の確認ができません。
 
 - 可能な限り、ターミナルアプリケーションのログ保存機能を有効にしてください。  
   `vCert.py` や `fixcerts.py` の操作は、`PuTTY` やOS標準の `ssh` などによるSSHセッション上で実施することを強く推奨します。
 
-#### 更新前チェックリスト
+### 更新前チェックリスト
 - **作業前には必ず対象のvCSAのコールドスナップショット（シャットダウン後）を取得してください。**
 - 変更前に、現在の証明書の状態を一覧取得します。まず、下記ワンライナーで、VECS管理下の証明書の情報を取得します。
     ```
@@ -23,7 +25,7 @@
     ./vCert.py --run config/view_cert/op_view_11-sts.yaml
     ./vCert.py --run config/check_cert/op_check_10-vc_ext_thumbprints.yaml
     ```
-    > **補足:** STS証明書やExtension Thumbprintsの情報を見ることは VECS CLI や `fixcerts.py` ではできないため、 `fixcerts.py` をメインに使う場合にも、`vCert` が使えるように準備しておく必要があります。2行目のチェックは `vCert.py` の "1. Check current certificate status"（または "--run config/op_check_cert.yaml" オプション付きで vCert.pyを実行）にも含まれます。
+    > 📝 **補足:** STS証明書やExtension Thumbprintsの情報を見ることは VECS CLI や `fixcerts.py` ではできないため、 `fixcerts.py` をメインに使う場合にも、`vCert` が使えるように準備しておく必要があります。2行目のチェックは `vCert.py` の "1. Check current certificate status"（または "--run config/op_check_cert.yaml" オプション付きで vCert.pyを実行）にも含まれます。
 
 - vCenter Serverのヘルスチェック  
   - サービス状態（VAMIからもグラフィカルに確認可能）  
@@ -62,12 +64,12 @@
     ```
     df -h /storage/log
     ```
-    > **警告:**  
+    > ⚠️ **警告:**  
     > `/var/log/vmware` ディレクトリ (`/storage/log` パーティション上) が満杯またはそれに近い状態になっていると、証明書管理操作が失敗したり、vCSA上のサービスの動作不良や停止につながります。  
     > 作業を始める前に、各パーティションに十分な空きがあることを確認してください。  
-    > 容量不足が見受けられる場合には、証明書の更新に臨むより先に  [vCenter log disk exhaustion or /storage/log full](https://knowledge.broadcom.com/external/article/313077/vcenter-log-disk-exhaustion-or-storagelo.html) を参照し、原因の調査方法や空きを作る方法を調べるとよいでしょう。
+    > 容量不足が見受けられる場合には、証明書の更新に臨むより先に [vCenter log disk exhaustion or /storage/log full](https://knowledge.broadcom.com/external/article/313077/vcenter-log-disk-exhaustion-or-storagelo.html) を参照し、原因の調査方法や空きを作る方法を調べるとよいでしょう。
 
-#### 更新後チェックリスト
+### 更新後チェックリスト
 必要なすべての証明書の更新が終わったら、 基本的なことですが、vCenter Serverおよび証明書の健全性の確認が必要です。
 - 例のワンライナーおよび、`vCert.py`を活用した STS証明書やExtension用証明書指紋のチェックを行うコマンドを再度実行し、入れ替えたすべての証明書の有効期限と整合性を確認します。
 - vCenter Server上のサービスの健全性を確認します。
@@ -80,11 +82,11 @@
 
 ---
 
-### vCertの手順
+## 🛠️ vCertの手順
 `vCert.py` は、基本的にインタラクティブメニューで使うように作られています。コマンドラインでのオペレーションの決め打ちは `--run` オプションに続けてディレクトリ配下の `yaml` ファイルパスを指定する形式のためタイプ数が多くなりがちで、それ以外のオプションもかなり限られています。
-ただし、時と場合によっては、`--run` でのオペレーション決め打ちが適していることもあります。別紙 `vcsa-cert-list-chart.md` の表 **vCert.py direct operation arguments** に、オペレーション区分毎の `yaml` ファイルパスをまとめてありますので、ご活用ください。
+ただし、時と場合によっては、`--run` でのオペレーション決め打ちが適していることもあります。別紙 [`vcsa-cert-list-chart.md`](vcsa-cert-list-chart.md) の表 **vCert.py direct operation arguments** に、オペレーション区分毎の `yaml` ファイルパスをまとめてありますので、ご活用ください。
 
-#### 手順
+### 手順
 1. **vCert.pyの起動:**  
    ただ簡潔に `./vCert.py` を実行してください。`--user <user@vphere> --password <pswd>` を加えると、特権作業の度に求められる認証が省略できます。
 
@@ -111,7 +113,7 @@
    1. メインメニューで"1. Check current certificate status"を選び、失敗した証明書を特定します。
    2. 前述のワンライナーコマンドでも再度状態を確認します。
    3. メインメニュー"3. Manage certificates"から、失敗した証明書タイプごとに再生成を試みます（例："2. Solution User certificates"など）。再度ステータスを確認してください。
-      > 証明書の種類とメニュー項目の対応は別紙`vcsa-cert-list-chart.md`の表 **vCert.py Operation for each certificate** 参照。
+      > 証明書の種類とメニュー項目の対応は別紙 [`vcsa-cert-list-chart.md`](vcsa-cert-list-chart.md) の表 **vCert.py Operation for each certificate** 参照。
    4. いずれかでも証明書が更新された場合は、Extensionのための証明書指紋の整合性を確認するために、メインメニューで "3. Manage certificates" => "6. vCenter Extension thumbprints" を選択（または直接 `./vCert.py --run config/manage_cert/op_manage-vc-ext-thumbprints.yaml`）し、そこで MISMATCH が見つかった場合には、"Y"で進み修正します。
    5. 全ての失敗証明書が更新できたら、メインメニューに戻り"8. Restart services"を選択します（ある程度の時間を要す）。
 
@@ -120,17 +122,17 @@
 
 ---
 
-**Tips:**
+💡 **Tips:**
 - **変更前には必ず静止スナップショットを取得！**  
 - **更新後はワンライナーと管理画面で有効期限＆警告チェック！**
 - **主要操作ごとにログを確認！ 隠れたエラーも見つかる可能性**
 
 ---
 
-### fixcerts.pyの手順
+## 🛠️ fixcerts.pyの手順
 `fixcerts.py`は、時々、安定性に難があるとの報告もあり、証明書ごとに更新の成否が分かれることがあります。それも踏まえ、**一括更新ではなく証明書タイプごとの段階的な更新をお勧め**します。また、必ず最新版（執筆時点では`3_2`）を使用してください。
 
-#### 手順
+### 手順
 1. **証明書タイプごとにfixcerts.pyを実行:**  
    - 証明書タイプごとにコマンドを個別実行してください。例:
      ```
@@ -138,13 +140,13 @@
      ```
      **ポイント:**  
      - 各実行時は`--certType`を該当するタイプに変更してください。  
-       *（例: `machinessl`, `solutionusers`, `sms`, `data-encipherment` など。証明書の種類と引数名の対応は別紙`vcsa-cert-list-chart.md`の表 **fixcerts.py Operation for each certificate** 参照。）*
+       *（例: `machinessl`, `solutionusers`, `sms`, `data-encipherment` など。証明書の種類と引数名の対応は別紙 [`vcsa-cert-list-chart.md`](vcsa-cert-list-chart.md) の表 **fixcerts.py Operation for each certificate** 参照。）*
      - 有効期間を延長したい場合は`--validityDays`で指定できます。  
-       **注:** 実際の証明書発行期間は**ルートCAの期限を超えません**。長い期間を指定しても、証明書はルートCAの期限と同じになります。
+       💡 実際の証明書発行期間は**ルートCAの期限を超えません**。長い期間を指定しても、証明書はルートCAの期限と同じになります。
      - 各実行時は必ず`--serviceRestart False`を指定します。サービスの再起動は全更新完了の後に一括で行います。
      - 詳細なログ出力が必要な場合は`--debug`オプションを追加することもできます。
      - すべての操作はSSHセッション上で行い、「ログの保存」機能を有効にした状態で行うことを推奨します。
-     - **注:** `fixcerts.py`にはインタラクティブメニューはありません。すべてコマンドライン引数で操作します。
+     - 💡 `fixcerts.py`にはインタラクティブメニューはありません。すべてコマンドライン引数で操作します。
 
 2. **各タイプ更新後の証明書検証:**  
    - 各証明書タイプ更新後、**更新前チェックリスト** でも紹介したワンライナー（または別体の `list-vecs-certs.sh`）で、期限が更新されているか確認してください。
@@ -187,8 +189,10 @@
 
 ---
 
-**Tips:**
+💡 **Tips:**
 - **作業前には必ず静止スナップショットを取得！**
 - **更新後はワンライナーと管理画面で有効期限＆警告チェック！**
 - **主要操作ごとにログを確認！ 隠れたエラーも見つかる可能性**
 - **トラブル時は`--debug`オプションを活用！**
+
+---
