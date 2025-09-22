@@ -1,3 +1,4 @@
+# [Straypenguins-Tips-Inventory](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory) *(GitHub Pages)*
 # [Straypenguin's Tips Inventory](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory)
 
 ## What this project is for
