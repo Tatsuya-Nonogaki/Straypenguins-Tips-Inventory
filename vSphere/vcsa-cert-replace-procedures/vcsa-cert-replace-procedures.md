@@ -1,17 +1,19 @@
-### Overall policy
+# vCSA Certificate Replacement and Renewal Procedures
+
+## 🧭 Overall policy
 
 - Select between `vCert` and `fixcerts.py` based on your operational needs, certificate types, and available features. Both tools are robust and reliable; in many scenarios, using them in combination increases flexibility and success rate.
   > **Resilience advantage:** If one tool encounters a limitation or fails to address a specific certificate type, you can seamlessly switch to the other. This "failover between tools" is a deliberate part of these procedures—ensuring certificate renewal remains possible no matter the situation.
 
-  > **Note:** An invaluable feature of `fixcerts.py` is its ability to specify an extended validity period for renewed certificates (`--validityDays <DAYS>`).  
+  > 📝 **Note:** An invaluable feature of `fixcerts.py` is its ability to specify an extended validity period for renewed certificates (`--validityDays <DAYS>`).  
   > However, the actual validity of generated certificates **cannot exceed the expiry of the vCSA root CA**—even if a longer value is specified, certificates will expire at the root CA's end date.
 
-  > **Note:** Some certificate types (notably STS certificates) are not fully covered by either tool. It is recommended to have `vCert` available—even if your main tool is `fixcerts.py`! For example, STS certificates are not visible via VECS CLI or `fixcerts.py`, and require `vCert` or equivalent tools for inspection and renewal.
+  > 📝 **Note:** Some certificate types (notably STS certificates) are not fully covered by either tool. It is recommended to have `vCert` available—even if your main tool is `fixcerts.py`! For example, STS certificates are not visible via VECS CLI or `fixcerts.py`, and require `vCert` or equivalent tools for inspection and renewal.
 
 - Enable logging of the terminal application as far as possible  
   It is strongly recommended to run the commands, including the execution of the `vCert.py`/`fixcerts.py` on a `SSH` session with a terminal software, e.g., `PuTTY` or OS standard `ssh`.
 
-#### Pre-Renewal Checklist
+### Pre-Renewal Checklist
 - **Always take a cold VM snapshot of the targetted vCSA, once shutting it down, before making any changes.**
 - Before modifying anything, capture the current status of all certificates. First, use this shell one-liner to get all VECS-managed certificates:
     ```
@@ -24,7 +26,7 @@
     ./vCert.py --run config/view_cert/op_view_11-sts.yaml
     ./vCert.py --run config/check_cert/op_check_10-vc_ext_thumbprints.yaml
     ```
-    > **Note:** Because the STS certificates and Extension Thumbprints are not visible via VECS CLI or `fixcerts.py`, it is necessary to have `vCert.py` available—even if your main tool is `fixcerts.py`! The second check is included in "1. Check current certificate status" main menu or an invocation with "--run config/op_check_cert.yaml" option.
+    > 📝 **Note:** Because the STS certificates and Extension Thumbprints are not visible via VECS CLI or `fixcerts.py`, it is necessary to have `vCert.py` available—even if your main tool is `fixcerts.py`! The second check is included in "1. Check current certificate status" main menu or an invocation with "--run config/op_check_cert.yaml" option.
 
 - Check the health of the vCenter Server  
   - Service status (can be checked on VAMI graphically)
@@ -63,12 +65,12 @@
     ```
     df -h /storage/log
     ```
-    > **Warning:**  
+    > ⚠️ **Warning:**  
     > If the `/var/log/vmware` directory (or its backing `/storage/log` partition) is nearly full or out of space, certificate management operations may fail or cause vCSA services to become unavailable or unstable.  
     > Ensure there is sufficient free space **before** proceeding.  
     > If space is low, consult [vCenter log disk exhaustion or /storage/log full](https://knowledge.broadcom.com/external/article/313077/vcenter-log-disk-exhaustion-or-storagelo.html) for diagnostic and cleanup guidance before attempting any certificate changes.
 
-#### Post-Renewal Checklist
+### Post-Renewal Checklist
 After completing certificate renewal procedures, it is essential to verify the health and status of the vCenter Server and its certificates.
 - Re-run the certificate status one-liner, and STS certificates and Extension Thumbprints checks with `vCert.py` to confirm that all renewed certificates have the correct expiry dates and consistency.
 - Check the service health using
@@ -81,12 +83,12 @@ After completing certificate renewal procedures, it is essential to verify the h
 
 ---
 
-### Procedures for vCert
+## 🛠️ Procedures for vCert
 `vCert.py` is primarily designed for use via its interactive menu. While it does support direct operations with the `--run` option by specifying the path to a particular YAML file, this usually requires more typing, and the other command-line options are quite limited.
 
 However, depending on the situation, using the `--run` option for specific operations can be beneficial. For your convenience, the table **vCert.py direct operation arguments** in the separate file `vcsa-cert-list-chart.md` summarizes the available YAML file paths for each operation category.
 
-#### Procedures
+### Procedures
 1. **Run vCert.py:**  
    Start by just `./vCert.py`. If you pass `--user <user@vphere> --password <pswd>`, authentication prior to each authoritative operation is omitted.
 
@@ -125,17 +127,17 @@ However, depending on the situation, using the `--run` option for specific opera
 
 ---
 
-**Tips:**
+💡 **Tips:**
 - **Always snapshot before any changes!**  
 - **After renewal, verify expiry dates using the shell one-liner and check for vCenter alerts.**
 - **Check logs after each major operation for hidden errors.**
 
 ---
 
-### Procedures for fixcerts.py
+## 🛠️ Procedures for fixcerts.py
 `fixcerts.py` has occasionally been reported to have stability issues, where renewal may succeed for some certificate types but not others. However, in practice, it has proven to be reliable in many cases. To further reduce the possibility of renewal failures, it is recommended to perform **staged renewals by certificate type** rather than renewing all at once. Always use the latest version (`fixcerts_3_2.py` at the time of writing).
 
-#### Procedures
+### Procedures
 1. **Run fixcerts.py per certificate-type:**  
    - Execute the script for each certificate-type individually, using appropriate command-line options. For example:
      ```
@@ -190,8 +192,10 @@ However, depending on the situation, using the `--run` option for specific opera
 
 ---
 
-**Tips:**
+💡 **Tips:**
 - **Always snapshot before any changes!**
 - **After renewal, verify expiry dates using the shell one-liner and check for vCenter alerts.**
 - **Check logs, including `fixcerts.log`, after each major operation for hidden errors.**
 - **Use the `--debug` option for more detailed troubleshooting if issues arise.**
+
+---
