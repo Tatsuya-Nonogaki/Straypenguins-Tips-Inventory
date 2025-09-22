@@ -25,7 +25,7 @@ This makes it especially valuable for system engineers and administrators operat
 
 ## Contents Summary
 
-### 📋 [vcsa-cert-replace-procedures.md](vcsa-cert-replace-procedures.md)
+### 📋 [vcsa-cert-replace-procedures.md](vcsa-cert-replace-procedures.md) *(GitHub Web) /* [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/vcsa-cert-replace-procedures.html)
 **Step-by-step, actionable procedures** for vCSA certificate replacement and renewal:
 > [Japanese edition](vcsa-cert-replace-procedures_ja.md) is also available
 - Detailed operational checklists (pre-renewal and post-renewal)
@@ -35,7 +35,7 @@ This makes it especially valuable for system engineers and administrators operat
 - Service health verification and recovery procedures
 - Notes on trust anchors and thumbprints to maintain service connectivity
 
-### 📊 [vcsa-cert-list-chart.md](vcsa-cert-list-chart.md)
+### 📊 [vcsa-cert-list-chart.md](vcsa-cert-list-chart.md) *(GitHub Web) /* [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/vcsa-cert-list-chart.html)
 **Reference tables and mappings** for certificate management:
 - Clear cross-references of certificate types across vSphere tools, UIs, and CLI aliases (vecs-cli, vSphereClient, fixcerts.py, vCert.py)
 - Operation mappings for each certificate type and tool, enabling quick lookup of correct procedures and arguments
