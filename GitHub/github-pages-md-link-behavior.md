@@ -21,7 +21,7 @@ The behavior described in this document is based on my experiments and observati
 - *Pages* tries to convert both `index.md` and `README.md` into `index.html`. This logically collides, of cource. It seems the page generation algorithm always find `index.md` first to be converted, thus `README.md` is not touched.
 
   📝 **Additional Note:**  
-  When `index.md` is created in addtion to an already existing `README.md`, `index.md` is converted into html to overwrite `index.html`. When `index.md` is removed and `README.md` remains, the new `index.html` is created from it. I think some different results were observed; it might imply existence of some race condition.
+  When `index.md` is created in addtion to an already existing `README.md`, `index.md` is converted into html to overwrite `index.html`. When `index.md` is removed and `README.md` remains, the new `index.html` is created from it. I think some different results were observed; it might suggest existence of some race condition.
 
 #### 📌 My `_config.yml`
 
@@ -30,25 +30,25 @@ plugins:
   - jekyll-sitemap
 ```
 
-My `_config.yml` is this simple. See []()
+My `_config.yml` is this simple. See [Best Practices & Practical Tips](#4-best-practices--practical-tips).
 
 ## 1. Three Key Link Conversion Behaviors
 
 ### (1) Relative Link to a Directory Containing a README.md
 
-- **Example:** `Linux/OpenSSL/`
+- **Link in .md:** `Linux/OpenSSL/`
 - **HTML Generation:** The link is left as-is (`Linux/OpenSSL/`).
-- **HTML Browsing:** The directory’s `README.md` is converted to `index.html`, so navigating to `/Linux/OpenSSL/` displays the rendered README.
+- **HTML Browsing:** Navigating to `/Linux/OpenSSL/` displays the rendered `index.html`.
 
 ### (2) Relative Link Directly to a README.md
 
-- **Example:** `vSphere/vcsa-cert-replace-procedures/README.md`
+- **Link in .md:** `vSphere/vcsa-cert-replace-procedures/README.md`
 - **HTML Generation:** The link is automatically rewritten to the directory path (`/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/`), with no filename or extension.
-- **HTML Browsing:** The directory’s `index.html` (from README.md) is displayed.
+- **HTML Browsing:** The directory’s `index.html` is displayed.
 
-### (3) Relative Link to a Non-README Markdown File
+### (3) Relative Link to a Non-README/index Markdown File
 
-- **Example:** `vcsa-cert-replace-procedures.md`
+- **Link in .md:** `vcsa-cert-replace-procedures.md`
 - **HTML Generation:** The link is rewritten to an absolute path ending in `.html`, such as `/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/vcsa-cert-replace-procedures.html`.
 - **HTML Browsing:** The linked file is available as an `.html` page.
 
@@ -63,7 +63,7 @@ GitHub Pages enables several Jekyll plugins by default (see [official docs](http
 - and others
 
 **jekyll-relative-links** is key:  
-It automatically rewrites Markdown links between `.md` files so that, when your site is built, links point to the corresponding `.html` files (or directory paths for README.md). This means you can write all your internal links simply as `[Label](other-page.md)` or `[Label](Subfolder/)`, and they’ll Just Work™ in the published site.
+It automatically rewrites Markdown links between `.md` files so that, when your site is built, links point to the corresponding `.html` files (or directory paths for `index.html`). This means you can write all your internal links simply as `[Label](other-page.md)` or `[Label](Subfolder/)`, and they’ll Just Work™ in the published site.
 
 ---
 
@@ -79,7 +79,8 @@ It automatically rewrites Markdown links between `.md` files so that, when your 
 
 - **Write links as `.md` or directory references** in your Markdown files.  
   No need to hand-convert to `.html` for the site!
-- **README.md** becomes `index.html` for its folder, accessible via the directory path.
+- **README.md** or **index.md** become `index.html` for its folder, accessible via the directory path.
+- From the current implementation on GitHub side, it seems having only `README.md` is the best practice.
 - If you want to offer both GitHub Web view (`.md`) and GitHub Pages view (`.html`) to readers,  
   consider dual-linking—but for most use cases, a single `.md` link suffices.
 - No need to manually add `jekyll-relative-links` or other plugins in `_config.yml`—they’re enabled by default on GitHub Pages.
@@ -90,7 +91,7 @@ It automatically rewrites Markdown links between `.md` files so that, when your 
 ## 5. Summary
 
 - **Modern GitHub Pages + Jekyll** handles Markdown links automatically and smartly.
-- You can write clean, maintainable documentation without worrying about link breakage.
+- You can write clean, maintainable documentation without worrying about link breakage, except for any particularly complex situation.
 - Old advice about manually adjusting links or adding extra plugins is now outdated.
 
 ---
