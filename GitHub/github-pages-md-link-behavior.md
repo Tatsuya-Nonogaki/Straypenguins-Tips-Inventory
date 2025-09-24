@@ -82,7 +82,10 @@ It automatically rewrites Markdown links between `.md` files so that, when your 
 - **README.md** or **index.md** become `index.html` for their folder, accessible via the directory path.
 - Based on GitHub's current implementation, using only `README.md` (and not `index.md`) appears to be the best practice.
 - If you want to offer both GitHub Web view (`.md`) and GitHub Pages view (`.html`) to readers,  
-  consider dual-linking—but for most use cases, a single `.md` link suffices.
+  consider dual-linking—but for most use cases, a single `.md` link suffices.  
+  📝 **My dual-linking example:**
+  > - [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/README.md) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/)  
+
 - No need to manually add `jekyll-relative-links` or other plugins in `_config.yml`—they’re enabled by default on GitHub Pages.
 - Avoid over-customizing `_config.yml` unless you have a specific requirement.
 
