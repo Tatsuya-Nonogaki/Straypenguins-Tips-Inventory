@@ -5,27 +5,29 @@
 GitHub Pages（*Pages*）＋Jekyllでドキュメントを書く際に
 - `.md`ファイル間の内部リンクはどう書くべき？
 - Markdown→HTML変換でリンク切れしない？
-- `.md`と`.html`両方のリンクを管理した方がいい？
+- `.md`と`.html`両方へのリンクを書いた方がいい？
 
-……と悩む方は多いのではないでしょうか。
+……といった悩みを持つ方は多いのではないでしょうか。
 
-**GitHub Pages**（デフォルトのJekyll構成）は、`jekyll-relative-links`などの標準プラグインのおかげで、Markdownリンクを自動的に最適化してくれます。本記事では、2025年9月時点での実験・観察結果をもとに、その挙動や仕組み、ベストプラクティスをまとめます。
+**GitHub Pages**（デフォルトのJekyll構成）は、`jekyll-relative-links`などの標準プラグインのおかげで、Markdownリンクを自動的に最適化してくれます。本記事では、2025年時点での実験・観察結果をもとに、その挙動や仕組み、ベストプラクティスをまとめます。
 
 📝 **注意:**  
-本稿の内容は2025年9月時点の検証・観察に基づきます。将来的に仕様が変更される可能性もあります。
+本稿の内容は2025年9月時点の検証・観察に基づいたものです。将来、仕様が変更される可能性があります。
+
+📝 **ちなみに** `jekyll` は「ジキル」あるいは「ジクル」と読みます。あの物語「ジキル博士とハイド氏」"Dr. Jekyll and Mr. Hyde" のそれ、そのものです。
 
 ---
 
-### GitHub Web／GitHub Pages + Jekyllにおけるリンクの基本挙動
+### GitHub Web/GitHub Pages + Jekyllにおけるリンクの基本挙動
 
-#### 📌 index.md と README.md の挙動
+#### 📌 index.md と README.md の優先順位
 
-- **GitHub Web**では、`README.md`が優先的なインデックスファイルとして認識され、`index.md`は無視されます。
-- **GitHub Pages（*Pages*）**では、`index.html`がインデックスとして認識されます（これは*Pages*特有ではなく、一般的なHTMLサーバーの標準挙動です）。
-- *Pages*は`index.md`と`README.md`両方を`index.html`に変換しようとしますが、両方が同居する場合は「`index.md`が優先され、`README.md`は無視される」という挙動になります。
+- **GitHub Web**では、`index.md`ではなく、`README.md`が優先的なインデックスファイルとして認識されます。
+- **GitHub Pages**（以降 *Pages*）では、`index.html`がインデックスとして認識されます（これは*Pages*特有というより、一般的なHTMLサーバーの標準的な挙動であり、jekyllはそれを遵守しているに過ぎない、と言えます）。
+- *Pages*は`index.md`と`README.md`のどちらも`index.html`に変換しようとしますが、両方が存在する場合には衝突が起きることになります。その場合、HTMLページ生成アルゴリズムは常に`index.md`を先に検出して変換するため、結果的に`README.md`は無視されます。
 
   📝 **補足:**  
-  すでに`README.md`がある状態で`index.md`を追加すると、`index.md`だけが`index.html`として反映されます。逆に`index.md`を削除すると、再び`README.md`が`index.html`として使われるようになります。まれに挙動が不安定な場合もあり、内部処理の競合（race condition）が疑われるケースも観察されました。
+  すでに`README.md`がある状態で`index.md`を追加すると、`index.md`の方がが変換されて、`index.html`を上書きするかたちになります。そこで今度は`index.md`を削除すると、再び`README.md`から`index.html`が生成されます。希に挙動が不定な場合も見られたようです—レースコンディションが存在するのかもしれません。
 
 #### 📌 私の `_config.yml`
 
@@ -34,44 +36,44 @@ plugins:
   - jekyll-sitemap
 ```
 
-_config.ymlはこの程度のシンプルさです。[運用Tips](#4-運用tips・ベストプラクティス)も参照してください。
+_config.ymlはこのようにシンプルです。[運用Tips](#4-運用tips・ベストプラクティス)も参照してください。
 
 ---
 
-## 1. 3種類の主なリンク変換パターン
+## 1. jekyllにおける3つの主なリンク変換パターンでの挙動
 
-### （1）README.mdを含むディレクトリへの相対リンク
+### （1）README.mdのあるディレクトリへの相対リンク
 
 - **Markdown内のリンク例:** `Linux/OpenSSL/`
 - **HTML生成時:** リンクはそのまま（`Linux/OpenSSL/`）。
-- **HTMLブラウズ時:** `/Linux/OpenSSL/` へアクセスすると、そのディレクトリの`index.html`（元のREADME.md）が表示される。
+- **HTMLブラウズ時:** `/Linux/OpenSSL/` へアクセスすると、そのディレクトリの`index.html`(jekyllによって変換されたもの)が表示される。
 
-### （2）README.md自身への相対リンク
+### （2）README.mdを指す相対リンク
 
-- **リンク例:** `vSphere/vcsa-cert-replace-procedures/README.md`
-- **HTML生成時:** ディレクトリパス（`/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/`）に自動で書き換えられる（ファイル名・拡張子なし）。
+- **Markdown内のリンク例:** `vSphere/vcsa-cert-replace-procedures/README.md`
+- **HTML生成時:** レポジトリのルートから始まるディレクトリパス（`/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/`）に自動的に書き換えられる（ファイル名なし）。
 - **HTMLブラウズ時:** ディレクトリ配下の`index.html`が表示される。
 
-### （3）README.md／index.md以外の.mdファイルへの相対リンク
+### （3）README.mdやindex.md以外の.mdファイルへの相対リンク
 
-- **リンク例:** `vcsa-cert-replace-procedures.md`
-- **HTML生成時:** `.html`拡張子付きの絶対パス（例：`/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/vcsa-cert-replace-procedures.html`）に自動書き換え。
-- **HTMLブラウズ時:** 対応する`.html`ページが表示される。
+- **Markdown内のリンク例:** `vcsa-cert-replace-procedures.md`
+- **HTML生成時:** レポジトリのルートから始まるファイルパスであり、拡張子は`.html`に変換されている。（例：`/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/vcsa-cert-replace-procedures.html`）
+- **HTMLブラウズ時:** 呼応する`.html`ページが表示される。
 
 ---
 
-## 2. この自動変換の仕組み： `jekyll-relative-links` プラグイン
+## 2. jekyll-relative-links プラグイン: 自動変換のからくり
 
-GitHub Pagesでは、[公式ドキュメント](https://docs.github.com/ja/pages/setting-up-a-github-pages-site-with-jekyll/about-github-pages-and-jekyll)に記載の通り、以下のような標準プラグインが有効です。
+GitHub Pagesでは、いくつかの`jkeyll`プラグインがデフォルトで有効化されています（[公式ドキュメント](https://docs.github.com/ja/pages/setting-up-a-github-pages-site-with-jekyll/about-github-pages-and-jekyll)）。そこには、以下のようなプラグインが含まれます:
 
 - `jekyll-relative-links`
 - `jekyll-readme-index`
 - その他
 
-**jekyll-relative-links**が特に重要です。  
-Markdown内での`.md`ファイル間の相対リンクを、自動的に（HTML化時に）`.html`リンクや`index.html`パスに変換してくれます。  
-そのため、  
-`[タイトル](other-page.md)` や `[タイトル](Subfolder/)` のように普通に書くだけで、公開サイト上でもリンク切れせず、They’ll Just Work™ です。
+特にキーとなるのが **jekyll-relative-links**:  
+Markdown内での`.md`ファイル間相対リンクを、HTML化の際に自動的に、呼応する`.html`（あるいは`index.html`を持つディレクトリ）パスに変換してくれます。  
+そのおかげで、単に  
+`[Label](other-page.md)` や `[Label](Subfolder/)` といったふうに書くだけで、公開されたサイト上でもリンクが切れせず「つべこべ言わんでもとにかく動く」わけです。
 
 ---
 
@@ -80,28 +82,29 @@ Markdown内での`.md`ファイル間の相対リンクを、自動的に（HTML
 - [GitHub Docs: About GitHub Pages and Jekyll](https://docs.github.com/ja/pages/setting-up-a-github-pages-site-with-jekyll/about-github-pages-and-jekyll)  
   （「GitHub Pagesでサポートされるプラグイン」の項を参照）
 - [jekyll-relative-links プラグイン公式リポジトリ](https://github.com/benbalter/jekyll-relative-links)
+- [Jekyll Web Site](https://jekyllrb.com)
 
 ---
 
 ## 4. 運用Tips・ベストプラクティス
 
-- **Markdown内のリンクは「.md」やディレクトリ参照で十分**です。  
-  わざわざ`.html`に書き換える必要はありません。
-- **README.md または index.md は、そのディレクトリの`index.html`として扱われ、ディレクトリパスでアクセスできます。**
-- 現状のGitHub Pages仕様では、「README.md（index.mdは不要）」のみを使うのが安全です。
-- **GitHub Web（.md表示）とGitHub Pages（.html表示）の両方に配慮したい場合のみ、二重リンク併記もOK**  
-  📝 **二重リンク例:**
+- **Markdown内のリンクは「.md」やディレクトリ参照だけで十分**です。  
+  手作業で`.html`版を作る必要はありません。
+- **README.md**や**index.md**は、そのディレクトリの`index.html`として変換され、ディレクトリパスだけでもアクセスできます。
+- 現状のGitHub Pagesの仕様からすると、`index.md`ではなく`README.md`のみを置くのが最善のようです。
+- GitHub Webの`.md`表示とGitHub Pagesの`.html`表示を両方したい場合には、ダブルリンク併記も有効な手段ですが、`.md`へのリンクだけでも十分です。  
+  📝 **ダブルリンクの実例:**
   > - [vCSA Certificate Replacement](vSphere/vcsa-cert-replace-procedures/README.md) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/)
 
-- `_config.yml`に`jekyll-relative-links`等のプラグインを手動で追加する必要はありません（標準で有効）。
-- `_config.yml`のカスタマイズも、特別な要件がない限りはシンプルに。
+- `_config.yml`に`jekyll-relative-links`等のプラグインを手動で追加する必要はありません（GitHub Pages標準で有効）。
+- 手の混んだ`_config.yml`のカスタマイズも、特別な要件でもない限り、無用。
 
 ---
 
 ## 5. まとめ
 
 - **現行のGitHub Pages + Jekyll**は、Markdownリンクを自動的かつ賢く変換してくれる。
-- よほど特殊なケースを除けば、リンク切れを心配せずシンプルなドキュメント運用が可能。
-- 「リンクを手動で書き換える」「追加プラグインを入れる」といった一昔前の運用は、もはや不要。
+- よほど特殊なケースを除けば、シンプルなドキュメントで、リンク切れの心配はほとんど不要。シンプルな方がドキュメントの維持管理も楽。
+- 「リンクをちまちま手動編集」「追加プラグインを書き足す」といった一昔前の運用は、もはや不要かも。
 
 ---
