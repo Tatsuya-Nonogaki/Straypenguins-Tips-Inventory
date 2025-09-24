@@ -74,6 +74,7 @@ It automatically rewrites Markdown links between `.md` files so that, when your 
 - [GitHub Docs: About GitHub Pages and Jekyll](https://docs.github.com/en/pages/setting-up-a-github-pages-site-with-jekyll/about-github-pages-and-jekyll)  
   (See the section on "Plugins supported by GitHub Pages")
 - [jekyll-relative-links plugin repository](https://github.com/benbalter/jekyll-relative-links)
+- [Jekyll Web Site](https://jekyllrb.com)
 
 ---
 
