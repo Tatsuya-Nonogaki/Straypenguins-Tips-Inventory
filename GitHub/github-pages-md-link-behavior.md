@@ -1,5 +1,7 @@
 # GitHub Pages + Jekyll: How Markdown Links Are Handled (2025 Edition)
 
+👉 日本語版は [こちら](github-pages-md-link-behavior_ja.md) 
+
 ## Overview
 
 When building documentation with GitHub Pages (*Pages*) and Jekyll, many writers wonder:
