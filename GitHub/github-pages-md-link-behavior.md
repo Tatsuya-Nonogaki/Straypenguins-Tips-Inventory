@@ -32,24 +32,24 @@ plugins:
 
 My `_config.yml` is this simple. See [Best Practices & Practical Tips](#4-best-practices--practical-tips).
 
-## 1. Three Key Link Conversion Behaviors
+## 1. Three Key Link Conversion Behaviors with Jekyll
 
 ### (1) Relative Link to a Directory Containing a README.md
 
-- **Link in .md:** `Linux/OpenSSL/`
+- **Link in Markdown:** `Linux/OpenSSL/`
 - **HTML Generation:** The link is left as-is (`Linux/OpenSSL/`).
 - **HTML Browsing:** Navigating to `/Linux/OpenSSL/` displays the rendered `index.html`.
 
 ### (2) Relative Link Directly to a README.md
 
-- **Link in .md:** `vSphere/vcsa-cert-replace-procedures/README.md`
-- **HTML Generation:** The link is automatically rewritten to the directory path (`/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/`), with no filename or extension.
+- **Link in Markdown:** `vSphere/vcsa-cert-replace-procedures/README.md`
+- **HTML Generation:** The link is automatically rewritten to the directory path from the repository root (`/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/`), with no filename.
 - **HTML Browsing:** The directory’s `index.html` is displayed.
 
 ### (3) Relative Link to a Non-README/index Markdown File
 
-- **Link in .md:** `vcsa-cert-replace-procedures.md`
-- **HTML Generation:** The link is rewritten to an absolute path ending in `.html`, such as `/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/vcsa-cert-replace-procedures.html`.
+- **Link in Markdown:** `vcsa-cert-replace-procedures.md`
+- **HTML Generation:** The link is rewritten to the file path from the repository root, with suffix replaced with `.html`, such as `/Straypenguins-Tips-Inventory/vSphere/vcsa-cert-replace-procedures/vcsa-cert-replace-procedures.html`.
 - **HTML Browsing:** The linked file is available as an `.html` page.
 
 ---
