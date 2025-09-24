@@ -7,7 +7,7 @@ When building documentation with GitHub Pages (*Pages*) and Jekyll, many writers
 - Will links break when converting Markdown to HTML?
 - Do I need to maintain both `.md` and `.html` links?
 
-**GitHub Pages** (with its default Jekyll setup) provides powerful, automatic handling of Markdown links—thanks to built-in plugins like `jekyll-relative-links`. This article summarizes observed behaviors and explains how it all works, so you can write Markdown links with confidence.
+**GitHub Pages** (with its default Jekyll setup) provides powerful, automatic handling of Markdown links—thanks to built-in plugins like `jekyll-relative-links`. This article summarizes behaviors I observed and explains how it all works, so you can write Markdown links with confidence.
 
 📝 **Note:**  
 The behavior described in this document is based on my experiments and observations in Sep 2025. They may vary in the future.
@@ -16,12 +16,12 @@ The behavior described in this document is based on my experiments and observati
 
 #### 📌 index.md VS README.md
 
-- GitHub Web view recognizes `README.md` as the primary index, not `index.md`.
-- In GitHub Pages (*Pages*) view, `index.html` is recognized as the primary index; this is not really a *Pages*'s behavior, the serving standard of an *HTML Server*, which *Pages* follows. 
-- *Pages* tries to convert both `index.md` and `README.md` into `index.html`. This logically collides, of cource. It seems the page generation algorithm always find `index.md` first to be converted, thus `README.md` is not touched.
+- On GitHub Web, `README.md` is recognized as the primary index, not `index.md`.
+- In GitHub Pages (*Pages*), `index.html` is recognized as the primary index. This is not unique to *Pages*, but is standard behavior for HTML servers, which *Pages* follows.
+- *Pages* attempts to convert both `index.md` and `README.md` into `index.html`. This naturally causes a conflict when the both coexist. In that case, the page generation algorithm always finds and converts `index.md` first, so `README.md` is ignored.
 
   📝 **Additional Note:**  
-  When `index.md` is created in addtion to an already existing `README.md`, `index.md` is converted into html to overwrite `index.html`. When `index.md` is removed and `README.md` remains, the new `index.html` is created from it. I think some different results were observed; it might suggest existence of some race condition.
+  If you create an `index.md` in addition to an existing `README.md`, `index.md` will be converted to `index.html`, overwriting any previous version. If you then remove `index.md` and leave `README.md`, a new `index.html` will be generated from `README.md`. I have observed some inconsistent results, which may suggest a race condition in the generation process.
 
 #### 📌 My `_config.yml`
 
@@ -79,8 +79,8 @@ It automatically rewrites Markdown links between `.md` files so that, when your 
 
 - **Write links as `.md` or directory references** in your Markdown files.  
   No need to hand-convert to `.html` for the site!
-- **README.md** or **index.md** become `index.html` for its folder, accessible via the directory path.
-- From the current implementation on GitHub side, it seems having only `README.md` is the best practice.
+- **README.md** or **index.md** become `index.html` for their folder, accessible via the directory path.
+- Based on GitHub's current implementation, using only `README.md` (and not `index.md`) appears to be the best practice.
 - If you want to offer both GitHub Web view (`.md`) and GitHub Pages view (`.html`) to readers,  
   consider dual-linking—but for most use cases, a single `.md` link suffices.
 - No need to manually add `jekyll-relative-links` or other plugins in `_config.yml`—they’re enabled by default on GitHub Pages.
@@ -91,7 +91,7 @@ It automatically rewrites Markdown links between `.md` files so that, when your 
 ## 5. Summary
 
 - **Modern GitHub Pages + Jekyll** handles Markdown links automatically and smartly.
-- You can write clean, maintainable documentation without worrying about link breakage, except for any particularly complex situation.
+- You can write clean, maintainable documentation without worrying about link breakage, except in particularly complex situations.
 - Old advice about manually adjusting links or adding extra plugins is now outdated.
 
 ---
