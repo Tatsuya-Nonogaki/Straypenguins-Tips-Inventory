@@ -1,5 +1,7 @@
 # GitHub Pages + Jekyll: Markdownリンク自動変換挙動まとめ（2025年版）
 
+👉 English Edition is also available [HERE](github-pages-md-link-behavior.md)
+
 ## 概要
 
 GitHub Pages（*Pages*）＋Jekyllでドキュメントを書く際に
@@ -64,7 +66,7 @@ _config.ymlはこのようにシンプルです。[運用Tips](#4-運用tips・�
 
 ## 2. jekyll-relative-links プラグイン: 自動変換のからくり
 
-GitHub Pagesでは、いくつかの`jkeyll`プラグインがデフォルトで有効化されています（[公式ドキュメント](https://docs.github.com/ja/pages/setting-up-a-github-pages-site-with-jekyll/about-github-pages-and-jekyll)）。そこには、以下のようなプラグインが含まれます:
+GitHub Pagesでは、いくつかの`jekyll`プラグインがデフォルトで有効化されています（[公式ドキュメント](https://docs.github.com/ja/pages/setting-up-a-github-pages-site-with-jekyll/about-github-pages-and-jekyll)）。そこには、以下のようなプラグインが含まれます:
 
 - `jekyll-relative-links`
 - `jekyll-readme-index`
