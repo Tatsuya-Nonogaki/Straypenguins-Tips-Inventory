@@ -8,6 +8,8 @@ The aim is to help administrators:
 - Save time and labor
 - Increase operational reliability
 
+📝 **Note:** These tools are being developed under WebLogic Server 14c environment on Linux x86_64.
+
 ---
 
 ## 📂 Folder Structure & Tools
