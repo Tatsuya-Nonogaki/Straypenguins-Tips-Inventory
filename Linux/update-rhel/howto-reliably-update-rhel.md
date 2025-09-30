@@ -4,7 +4,7 @@ This document describes a safe and reliable procedure for updating a RHEL system
 
 ---
 
-## Phase 1: Preparation and Update
+## 🔧 Phase 1: Preparation and Update
 
 1. **Determine the Target Release**  
    Decide on your target RHEL release number (e.g., 9.6). See [RHEL Downloads](https://access.redhat.com/downloads/content/479/ver=/rhel---10/10.0/x86_64/product-software) and look up the appropriate kernel version in, for example, [Packages—9.6](https://access.redhat.com/downloads/content/479/ver=/rhel---9/9.6/x86_64/packages).
@@ -65,7 +65,7 @@ This document describes a safe and reliable procedure for updating a RHEL system
 
 ---
 
-## Phase 2: Post-Update Checks
+## 🔧 Phase 2: Post-Update Checks
 
 10. **Post-Check: Confirm Active Kernel and OS Version**  
     After reboot, verify the running kernel and OS version:
@@ -109,4 +109,4 @@ This document describes a safe and reliable procedure for updating a RHEL system
 
 ---
 
-This procedure leverages the `-l` (list-only) script option as a before/after verification for kernel package versions, and provides all commands for a consistent, reliable RHEL minor release update.
+This procedure leverages the `-l` (list-only) script option for before/after verification of kernel package versions, and provides all commands for a consistent, reliable RHEL minor release update.
