@@ -30,7 +30,7 @@ System administration and security:
   - [Manage SELinux to Allow httpd to Access Port 7003/TCP](Linux/SELinux/selinux-mod_wl-allow-httpd-7003.md)
   - [Create SELinux Policy Module for Your Own Service](Linux/SELinux/selinux-create-own-service-policy.md)
   - [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](Linux/SELinux/selinux-service-policy-troubleshooting.md)
-- [Update RHEL](Linux/update-rhel/howto-reliably-update-rhel.md) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/update-rhel/howto-reliably-update-rhel.html)
+- [Reliably Update RHEL](Linux/update-rhel/howto-reliably-update-rhel.md) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/update-rhel/howto-reliably-update-rhel.html)
 
 ## ☕ [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
 [Automation & Configuration Snippets for Administrators](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/WebLogic/)
