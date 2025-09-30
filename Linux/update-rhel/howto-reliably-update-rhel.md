@@ -100,12 +100,14 @@ This document describes a safe and reliable procedure for updating a RHEL system
 
 ## Script Selection Table
 
+👉 **Browse these files on [GitHub Web](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/Linux/update-rhel)**
+
 | Use Case                          | Script Name                         |
 |------------------------------------|-------------------------------------|
-| No kernel-devel, same release      | update-kernel.sh                    |
-| With kernel-devel, same release    | update-kernel-withdevel.sh          |
-| No kernel-devel, across releases   | update-kernel-withrel.sh            |
-| With kernel-devel, across releases | update-kernel-withdevel-withrel.sh  |
+| No kernel-devel, same release      | `update-kernel.sh`                    |
+| With kernel-devel, same release    | `update-kernel-withdevel.sh`          |
+| No kernel-devel, across releases   | `update-kernel-withrel.sh`            |
+| With kernel-devel, across releases | `update-kernel-withdevel-withrel.sh`  |
 
 ---
 
