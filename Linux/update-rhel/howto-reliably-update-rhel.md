@@ -7,7 +7,7 @@ This document describes a safe and reliable procedure for updating a RHEL system
 ## 🔧 Phase 1: Preparation and Update
 
 1. **Determine the Target Release**  
-   Decide on your target RHEL release number (e.g., 9.6). See [RHEL Downloads](https://access.redhat.com/downloads/content/479/ver=/rhel---10/10.0/x86_64/product-software) and look up the appropriate kernel version in, for example, [Packages—9.6](https://access.redhat.com/downloads/content/479/ver=/rhel---9/9.6/x86_64/packages).
+   Decide on your target RHEL release number (e.g., 9.6). See [RHEL Downloads](https://access.redhat.com/downloads/content/479/ver=/rhel---10/10.0/x86_64/product-software) and look up the appropriate kernel version in, for example, [Packages—v9](https://access.redhat.com/downloads/content/479/ver=/rhel---9/9.6/x86_64/packages).
 
 2. **Select and Prepare the Kernel Update Script**  
    Choose the correct script (see also [Script Table below](#script-selection-table)):
