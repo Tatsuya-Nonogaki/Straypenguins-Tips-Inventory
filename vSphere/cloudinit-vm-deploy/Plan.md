@@ -89,7 +89,7 @@
 - `user-data.template.yaml`
 - `meta-data.template.yaml`
 - `network-config.template.yaml`  
-自動化スクリプトはこれら雛形ファイル内のプレースホルダーを共通パラメータファイルの値で置換して固有化し cloud-init seedファイルを生成する
+自動化スクリプトはこれら雛形ファイル内のプレースホルダーを共通パラメータファイルの値で置換して固有化し cloud-init seedファイルを生成する  
 📌 基本形は`original/`フォルダ、他に`minimal/`, `multinic/` などフォルダ単位でバリエーションを用意しておくと応用に便利かもしれない
 
 ---
