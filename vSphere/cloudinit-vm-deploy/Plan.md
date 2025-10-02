@@ -14,8 +14,10 @@
 **—— これより、基本的にデプロイ自動化スクリプト cloudinit-linux-vm-deploy.ps1 により進める ——**  
 📍 `cloudinit-linux-vm-deploy.ps1` は3フェーズで構成され、`-Phase` オプションにより **通しで全自動**／**特定のフェーズのみ** での実行が可能。
 
+📌 各フェーズで致命的エラーが発生した場合は、以降の処理を自動実行しない設計とする。
+
 📌 **cloudinit-linux-vm-deploy.ps1 のVM自動起動/自動停止機能について:**
-勝手に起動やシャットダウンしてほしくない場合もある。`-NoStart` `-NoShut` スイッチで選べるように設計し、下記 ⚡ マークのところの起動／停止はそれによって制御できることとしようか。
+勝手に起動やシャットダウンしてほしくない場合もある。`-NoStart` `-NoShut` スイッチで選べるように設計し、下記 ⚡ マークのところの起動／停止はそれによって制御できる設計とする。
 
 📌 **ログや中間生成物(user-dataファイルなど)の出力先:**
 スクリプトのあるフォルダ直下に成果VMのVM名フォルダを作りそこに出力する。
@@ -90,7 +92,12 @@
 - `meta-data.template.yaml`
 - `network-config.template.yaml`  
 自動化スクリプトはこれら雛形ファイル内のプレースホルダーを共通パラメータファイルの値で置換して固有化し cloud-init seedファイルを生成する  
-📌 基本形は`original/`フォルダ、他に`minimal/`, `multinic/` などフォルダ単位でバリエーションを用意しておくと応用に便利かもしれない
+
+📌 基本形は`original/`フォルダ、他に`minimal/`, `multinic/` などフォルダ単位でバリエーションを用意しておく。他候補 `nultisshkey`, `pwdauth`
+
+📌 VM OSのLinuxは RHLE9 を前提として開発。
+- Networkは標準のNetworkManagerで設定されているものとする
+- SELinuxはデフォルトのEnforceのままとし、とくにcloud-initでいじらない。PermissiveやDisableする場合はデプロイ後に実機上で手動で変更するのが確実
 
 ---
 
