@@ -93,7 +93,7 @@
 - `network-config.template.yaml`  
 自動化スクリプトはこれら雛形ファイル内のプレースホルダーを共通パラメータファイルの値で置換して固有化し cloud-init seedファイルを生成する  
 
-📌 基本形は`original/`フォルダ、他に`minimal/`, `multinic/` などフォルダ単位でバリエーションを用意しておく。他候補 `nultisshkey`, `pwdauth`
+📌 基本形は`original/`フォルダ、他に`minimal/`, `multinic/` などフォルダ単位でバリエーションを用意しておく。他候補 `multisshkey`, `pwdauth` 、フォルダ数があまり増えても扱いづらいので、組み合わせで構成しても良いかもしれない (例 `multinic_multisshkey`)
 
 📌 VM OSのLinuxは RHLE9 を前提として開発。
 - Networkは標準のNetworkManagerで設定されているものとする
