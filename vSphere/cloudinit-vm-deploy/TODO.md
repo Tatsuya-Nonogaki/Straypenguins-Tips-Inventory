@@ -12,8 +12,8 @@
    - templates/original/ :
      最初に作成する「基本形」のcloud-init seed雛形
    - params/ :
-     メインスクリプトに与えるパラメーターファイル; vm-settings.yaml
-   - {VM_NAME}/ :
+     メインスクリプトに与えるパラメーターファイル; vm-settings.yaml。他の成果VM用のものも置く場合はファイル名を vm-settings-<VMNAME>.yaml とする。
+   - spool/{VM_NAME}/ :
      メインスクリプト実行時に自動作成されるフォルダで、ログ、生成済seedファイルが置かれる
    - README.md : 説明書
    - Plan.md（現状維持でOK）
@@ -56,4 +56,3 @@
 - **最初は雛形・サンプルを1セット作り、README/Planと突き合わせて検証**
 - 動作確認しながら**フェーズごとに細部を詰めていく**
 - フィードバックや追加要望が出たらPlan.mdやREADMEに都度反映
-
