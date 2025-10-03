@@ -6,6 +6,60 @@
 
 ☑️ ファイルの文字コードはすべてUTF-8とする。改行コードは、Linux上で使用するものはLF, Windows上で使用するものはCRLFとする。
 
+### 環境・スペック
+
+**Infrastructure**
+
+- vSphere 8 u3+ vCSA & Hosts
+- 管理サーバ
+  - Windows Server 2019
+  - PowerShell 5.1
+  - PowerCLI 13.3+
+
+**Template VM**
+
+- VMName: rhel9-tpl
+- OS-Hostnane: rhel9-tpl
+- FQDN: rhel9-tpl.backyard.local
+- vSphere-Cluster: CLST_A (DRSなし)
+- CPU: 2
+- Mem: 3GB
+- NIC: vmxnet3 x 1
+- vSphere-Network-Label: Backyard_LAN
+- IP: 192.168.1.100/24 GW:.254 DNS:192.168.1.200
+- OS: RHEL9(.4+)
+- vSphere Datastore: BackyardStore
+- Disks: いずれも通常のvmdk   
+  1. sda 40GB : Partition#1:/boot/efi/, P#2:/boot, P#3:/ (残り全部)
+  2. sdb 2GB  : P#1:swap
+  3. sdc 1GB  : P#1:kdump
+- User: mainte
+  - Password: CachDreik5
+  - ssh-authorized-keys: 登録なし
+
+**Example VM (デプロイターゲット)**
+
+- VMName: original01
+- OS-Hostnane: original01
+- FQDN: original1.production.local
+- vSphere-Cluster: CLST_A (DRSなし)
+- ESXi-Host: vhost-a01
+- CPU: 3
+- Mem: 4GB
+- NIC: vmxnet3 x 1
+- vSphere-Network-Label: PROD_LAN01
+- IP: 192.168.0.10/24 GW:.254 DNS:192.168.0.201,192.168.0.202
+- vSphere Datastore: ProdStore  
+  いずれもgrowpartする
+  1. sda 45GB : Partition#1:/boot/efi/, P#2:/boot, P#3:/ (残り全部)
+  2. sdb 6GB  : P#1:swap
+  3. sdc 5GB  : P#1:kdump
+- User: mainte
+  - Password: CachDreik5
+  - ssh-authorized-keys: C:\work\ssh\id_rsa.pub
+- デプロイ時package_update: しない
+- デプロイ時package_upgrade: しない
+
 ---
 
 ## 🚀 工程・運用フロー  
