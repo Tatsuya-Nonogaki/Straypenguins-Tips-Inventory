@@ -41,7 +41,7 @@
 
 - VMName: original01
 - OS-Hostnane: original01
-- FQDN: original1.production.local
+- FQDN: original01.production.local
 - vSphere-Cluster: CLST_A (DRSなし)
 - ESXi-Host: vhost-a01
 - CPU: 3
@@ -107,9 +107,13 @@ function Write-Log {
 
 ☑️ パラメータファイルは3フェーズすべての値を網羅し、成果VM 1台につき1ファイル: 管理・雛形化が容易
 
+☑️ 第1, 2, 3 フェーズの処理ロジックはそれぞれfunction化。グローバルスコープの switch 分岐ディスパッチャ内から、それらをコールする。基本的にはそうだが、いずれかのフェースが非常に短いコードで終わる見込みになった場合、ディスパッチャ内に直接コードを書くことも検討してもよい。
+
 ☑️ 第2フェーズの初期化コマンドの内容は `init-vm-cloudinit.sh` ファイルとして独立しているため、自動化スクリプトからの直接実行の他、ファイルとして転送しての手動実行やターミナルへのコピー&ペーストなどにも柔軟に対応
 
 ☑️ 第3フェーズのcloud-init seedファイル（`user-data`等）のテンプレートも別体ファイル管理で、適時修正しやすく、Git/履歴管理や多環境展開にも強い。
+
+☑️ ISO作成には、Windws機能のwsl2(ubuntu) 内の `genisoimage`を利用。Windows Server 2019でも使用できるはずだが、無理ならば代替手段を検討。wsl ubuntu内からのパス指定が /mnt/c/...と長くなる問題は、ubuntu内で短いパスへシンボリックリンクを作っておくことで対処できる。
 
 ☑️ **vCenter Serverへの接続ロジックについて:**  
 実績のあるファンクション `VIConnect` があるのでそのコード活用
