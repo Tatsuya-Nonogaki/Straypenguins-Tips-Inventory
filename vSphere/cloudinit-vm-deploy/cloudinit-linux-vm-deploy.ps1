@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.5
+  Version: 0.0.6
 
 .DESCRIPTION
-  3-phase deployment: (1) Clone/spec, (2) Guest init, (3) Seed/boot.
+  3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
   Uses a YAML parameter file (see vm-settings.example.yaml).
 
 .PARAMETER Phase
