@@ -1,0 +1,53 @@
+# Example vm-settings.yaml for cloudinit-linux-vm-deploy.ps1
+# == Infrastructure (vCenter Connection) ==
+# If vcenter_user/vcenter_password are blank or omitted,
+# the script will look for cached credentials via New-VICredentialStoreItem.
+vcenter_host: vcenter01.backyard.local
+vcenter_user: administrator@vsphere.local   # Single Sign-On (SSO) user. Example: administrator@vsphere.local
+vcenter_password: "KenFiat50s^"             # SSO password. "" or omit to use credential store.
+
+# == VM Hardware/Placement ==
+template_vm_name: rhel9-tpl
+new_vm_name: original01
+cluster_name: CLST_A
+datastore_name: ProdStore
+esxi_host: vhost-a01
+network_label: PROD_LAN01
+cpu: 3
+memory_mb: 4096
+disks:
+  - device: sda
+    size_gb: 45
+  - device: sdb
+    size_gb: 6
+  - device: sdc
+    size_gb: 5
+
+# == OS/Cloud-init Parameters ==
+hostname: original01
+fqdn: original01.production.local
+
+ip_addr1: 192.168.0.10
+prefix1: 24
+gateway1: 192.168.0.254
+dns1: 192.168.0.201
+dns2: 192.168.0.202
+
+# Additional NIC example (uncomment to use)
+# ip_addr2: 10.10.10.101
+# prefix2: 24
+
+username: mainte
+password_hash: "$6$Kc8......"    # Use openssl passwd -6 "password" for SHA-512 hash
+ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
+# ssh_key2: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
+
+growpart:
+  mode: auto
+  devices: ['/', 'swap', '/var/crash']
+
+package_update: false
+package_upgrade: false
+
+# runcmd:
+#   - [ echo, "Hello, cloud-init!" ]
