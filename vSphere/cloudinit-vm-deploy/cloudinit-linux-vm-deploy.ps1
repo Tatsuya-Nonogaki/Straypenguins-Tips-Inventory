@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3
+  Version: 0.0.4
 
 .DESCRIPTION
   3-phase deployment: (1) Clone/spec, (2) Guest init, (3) Seed/boot.
@@ -150,7 +150,7 @@ VIConnect
 
 # ---- Clone Template VM to the target VM with specified spec ----
 function AutoClone {
-    Write-Log "=== Phase 1: Automatic Clone ==="
+    Write-Log "=== Phase 1: Automatic Cloning ==="
 
     # Clone
     try {
@@ -210,7 +210,7 @@ foreach ($p in $phaseSorted) {
     switch ($p) {
         1 { AutoClone }
         # 2 { InitializeClone }
-        # 3 { KickCloudInitStart }
+        # 3 { CloudInitKickStart }
     }
 }
 
