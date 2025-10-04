@@ -150,7 +150,7 @@ VIConnect
 
 # ---- Clone Template VM to the target VM with specified spec ----
 function AutoClone {
-    Write-Log "=== Phase 1: Clone & Spec ==="
+    Write-Log "=== Phase 1: Automatic Clone ==="
 
     # Clone
     try {
