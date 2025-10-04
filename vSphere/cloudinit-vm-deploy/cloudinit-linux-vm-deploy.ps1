@@ -65,9 +65,17 @@ for ($i=1; $i -lt $phaseSorted.Count; $i++) {
 
 # ---- NoRestart一元管理 ----
 if ($phaseSorted.Count -gt 1 -and $NoRestart) {
-    Write-Log -Warn "-NoRestart is ignored because multiple phases are specified."
+    Write-Host "Warning: Both multiple phases and -NoRestart are specified." -ForegroundColor Yellow
+    Write-Host "Automatic power on/off is required for multi-phase execution."
+    $resp = Read-Host "Proceed and ignore -NoRestart? (y/[N])"
+    if ($resp -ne "y" -and $resp -ne "Y") {
+        Write-Host "Operation cancelled by user."
+        Exit 3
+    }
+    Write-Log -Warn "-NoRestart ignored due to multi-phase execution (user confirmed)."
     $NoRestart = $false
 }
+
 
 # ---- LogFilePath (temporary) ----
 $LogFilePath = Join-Path $spooldir "deploy.log"
