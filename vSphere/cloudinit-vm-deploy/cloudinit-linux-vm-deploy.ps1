@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
+  Ver.0.0.1
 
 .DESCRIPTION
   3-phase deployment: (1) Clone/spec, (2) Guest init, (3) Seed/boot.
@@ -49,7 +50,7 @@ if (-not (Test-Path $spooldir)) {
 }
 
 if (-Not (Get-Module VMware.VimAutomation.Core)) {
-    Write-Output "Loading vSphere PowerCLI. This may take a while..."
+    Write-Host "Loading vSphere PowerCLI. This may take a while..."
     Import-Module VMware.VimAutomation.Core -ErrorAction SilentlyContinue
 }
 
@@ -143,7 +144,17 @@ function CloneAndSpec {
     # Clone
     try {
         $templateVM = Get-VM -Name $params.template_vm_name -ErrorAction Stop
-        $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Select-Object -First 1)
+
+        if ([string]::IsNullOrEmpty($params.resource_pool_name) -or $params.resource_pool_name -eq "Resources") {
+            $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Where-Object { $_.Name -eq "Resources" })
+        } else {
+            $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Where-Object { $_.Name -eq $params.resource_pool_name })
+            if (-not $resourcePool) {
+                Write-Log "Specified Resource Pool not found: $($params.resource_pool_name)"
+                Exit 3
+            }
+        }
+
         $newVM = New-VM -Name $params.new_vm_name `
             -VM $templateVM `
             -ResourcePool $resourcePool `
