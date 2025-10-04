@@ -76,7 +76,6 @@ if ($phaseSorted.Count -gt 1 -and $NoRestart) {
     $NoRestart = $false
 }
 
-
 # ---- LogFilePath (temporary) ----
 $LogFilePath = Join-Path $spooldir "deploy.log"
 
