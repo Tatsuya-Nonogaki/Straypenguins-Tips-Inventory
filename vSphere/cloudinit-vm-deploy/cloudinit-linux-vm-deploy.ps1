@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Ver.0.0.1
+  Version: 0.0.1
 
 .DESCRIPTION
   3-phase deployment: (1) Clone/spec, (2) Guest init, (3) Seed/boot.
@@ -204,3 +204,4 @@ foreach ($p in $phaseSorted) {
 }
 
 Write-Log "Deployment script completed."
+
