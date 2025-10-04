@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.1
+  Version: 0.0.2
 
 .DESCRIPTION
   3-phase deployment: (1) Clone/spec, (2) Guest init, (3) Seed/boot.
@@ -67,10 +67,21 @@ for ($i=1; $i -lt $phaseSorted.Count; $i++) {
 $LogFilePath = Join-Path $spooldir "deploy.log"
 
 function Write-Log {
-    param ([string]$Message)
+    param(
+        [string]$Message,
+        [switch]$Error,
+        [switch]$Warn
+    )
     $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     "$Timestamp - $Message" | Out-File -Append -FilePath $LogFilePath -Encoding UTF8
-    Write-Host $Message
+
+    if ($Error) {
+        Write-Host $Message -ForegroundColor Red
+    } elseif ($Warn) {
+        Write-Host $Message -ForegroundColor Yellow
+    } else {
+        Write-Host $Message
+    }
 }
 
 function VIConnect {
@@ -79,18 +90,18 @@ function VIConnect {
         for ($i = 1; $i -le $connRetry; $i++) {
             try {
                 if ([string]::IsNullOrEmpty($vcuser) -or [string]::IsNullOrEmpty($vcpasswd)) {
-                    Write-Host "Connect-VIServer $vcserver -Port $vcport -Force"
+                    Write-Log "Connect-VIServer $vcserver -Port $vcport -Force"
                     Connect-VIServer $vcserver -Port $vcport -Force -WarningAction SilentlyContinue -ErrorAction Continue -ErrorVariable myErr
                 } else {
-                    Write-Host "Connect-VIServer $vcserver -Port $vcport -User $vcuser -Password ******** -Force"
+                    Write-Log "Connect-VIServer $vcserver -Port $vcport -User $vcuser -Password ******** -Force"
                     Connect-VIServer $vcserver -Port $vcport -User $vcuser -Password $vcpasswd -Force -WarningAction SilentlyContinue -ErrorAction Continue -ErrorVariable myErr
                 }
                 if ($?) { break }
             } catch {
-                Write-Log "Failed to connect (attempt $i): $_"
+                Write-Log -Warn "Failed to connect (attempt $i): $_"
             }
             if ($i -eq $connRetry) {
-                Write-Host "Connection attempts exceeded retry limit" -ForegroundColor Red
+                Write-Log -Error "Connection attempts exceeded retry limit"
                 Exit 1
             }
             Write-Host "Waiting $connRetryInterval sec. before retry.." -ForegroundColor Yellow
@@ -120,7 +131,7 @@ if (-not (Test-Path $workdir)) {
         New-Item -ItemType Directory -Path $workdir | Out-Null
         Write-Log "Created VM output directory: $workdir"
     } catch {
-        Write-Log "Failed to create workdir ($workdir): $_"
+        Write-Log -Error "Failed to create workdir ($workdir): $_"
         Exit 2
     }
 }
@@ -150,7 +161,7 @@ function CloneAndSpec {
         } else {
             $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Where-Object { $_.Name -eq $params.resource_pool_name })
             if (-not $resourcePool) {
-                Write-Log "Specified Resource Pool not found: $($params.resource_pool_name)"
+                Write-Log -Error "Specified Resource Pool not found: $($params.resource_pool_name)"
                 Exit 3
             }
         }
@@ -162,9 +173,9 @@ function CloneAndSpec {
             -VMHost $params.esxi_host `
             -NetworkName $params.network_label `
             -ErrorAction Stop
-        Write-Log "Cloned new VM: $($newVM.Name) in $($params.cluster_name)"
+        Write-Log "Cloned new VM: $($newVM.Name) in $($params.datastore_name)"
     } catch {
-        Write-Log "Error during VM clone: $_"
+        Write-Log -Error "Error occurred during VM clone: $_"
         Exit 1
     }
 
@@ -173,7 +184,7 @@ function CloneAndSpec {
         Set-VM -VM $newVM -NumCpu $params.cpu -MemoryMB $params.memory_mb -Confirm:$false -ErrorAction Stop
         Write-Log "Set CPU: $($params.cpu), Mem: $($params.memory_mb) MB"
     } catch {
-        Write-Log "Error during CPU/memory set: $_"
+        Write-Log -Error "Error during CPU/memory set: $_"
         Exit 1
     }
 
@@ -186,7 +197,7 @@ function CloneAndSpec {
                 Write-Log "Resized disk $($d.device) to $($d.size_gb) GB"
             }
         } catch {
-            Write-Log "Error resizing disk $($d.device): $_"
+            Write-Log -Error "Error resizing disk $($d.device): $_"
             Exit 1
         }
     }
@@ -204,4 +215,3 @@ foreach ($p in $phaseSorted) {
 }
 
 Write-Log "Deployment script completed."
-
