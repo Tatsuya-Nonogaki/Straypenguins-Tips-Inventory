@@ -1,4 +1,5 @@
 # cloud-init 対応: Linux VM Deployment Method on vSphere
+Rev.1
 
 ## 🎯 全般的なガイドライン
 
