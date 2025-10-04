@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.6
+  Version: 0.0.7
 
 .DESCRIPTION
   3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
@@ -63,6 +63,12 @@ for ($i=1; $i -lt $phaseSorted.Count; $i++) {
     }
 }
 
+# ---- NoRestart一元管理 ----
+if ($phaseSorted.Count -gt 1 -and $NoRestart) {
+    Write-Log -Warn "-NoRestart is ignored because multiple phases are specified."
+    $NoRestart = $false
+}
+
 # ---- LogFilePath (temporary) ----
 $LogFilePath = Join-Path $spooldir "deploy.log"
 
@@ -107,6 +113,36 @@ function VIConnect {
             Write-Host "Waiting $connRetryInterval sec. before retry.." -ForegroundColor Yellow
             Start-Sleep -Seconds $connRetryInterval
         }
+    }
+}
+
+# ---- VM Power On/Off Functions ----
+function Start-MyVM {
+    param([Parameter(Mandatory)][object]$VM)
+    if ($VM.PowerState -ne "PoweredOn") {
+        try {
+            Start-VM -VM $VM -ErrorAction Stop | Out-Null
+            Write-Log "Started VM: $($VM.Name)"
+        } catch {
+            Write-Log -Error "Failed to start VM: $_"
+            Exit 1
+        }
+    } else {
+        Write-Log "VM already powered on: $($VM.Name)"
+    }
+}
+
+function Stop-MyVM {
+    param([Parameter(Mandatory)][object]$VM)
+    if (-not $NoRestart) {
+        try {
+            Stop-VM -VM $VM -Confirm:$false -ErrorAction Stop
+            Write-Log "Stopped VM: $($VM.Name)"
+        } catch {
+            Write-Log -Warn "Failed to stop VM: $_"
+        }
+    } else {
+        Write-Log "NoRestart specified: VM remains powered on."
     }
 }
 
@@ -208,8 +244,89 @@ function AutoClone {
 function InitializeClone {
     Write-Log "=== Phase 2: Guest Initialization ==="
 
+    # VM取得
+    try {
+        $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
+    } catch {
+        Write-Log -Error "VM not found for initialization: $($params.new_vm_name)"
+        Exit 1
+    }
 
+    # ゲスト認証情報（SecureString化）
+    $guestUser = $params.username
+    $guestPassPlain = $params.password
+    try {
+        $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force
+    } catch {
+        Write-Log -Error "Failed to convert guest password to SecureString: $_"
+        Exit 3
+    }
 
+    # スクリプトファイル存在チェック
+    $scriptSrc = Join-Path $scriptdir "scripts/init-vm-cloudinit.sh"
+    if (-not (Test-Path $scriptSrc)) {
+        Write-Log -Error "Required script not found: $scriptSrc"
+        Exit 2
+    }
+
+    # VM起動（Start-MyVMを利用）
+    Start-MyVM $vm
+
+    # VMware Tools待ち
+    try {
+        $timeoutSec = 120
+        $waited = 0
+        while ($vm.ExtensionData.Guest.ToolsStatus -ne "toolsOk" -and $waited -lt $timeoutSec) {
+            Start-Sleep -Seconds 5
+            $waited += 5
+            $vm = Get-VM -Name $params.new_vm_name
+        }
+        if ($vm.ExtensionData.Guest.ToolsStatus -ne "toolsOk") {
+            Write-Log -Error "VMware Tools not ready in VM after $timeoutSec seconds."
+            Exit 1
+        }
+        Write-Log "VMware Tools is running in guest."
+    } catch {
+        Write-Log -Warn "Error waiting for VMware Tools: $_"
+    }
+
+    # スクリプトをゲストOSにコピー
+    try {
+        $dstPath = "/tmp/init-vm-cloudinit.sh"
+        Copy-VMGuestFile -Source $scriptSrc -Destination $dstPath `
+            -VM $vm -GuestUser $guestUser -GuestPassword $guestPass `
+            -Force -ErrorAction Stop
+        Write-Log "Copied init script to guest: $dstPath"
+    } catch {
+        Write-Log -Error "Failed to copy script to guest: $_"
+        Exit 1
+    }
+
+    # スクリプト実行
+    try {
+        $result = Invoke-VMScript -VM $vm -ScriptText "chmod +x $dstPath && sudo $dstPath" `
+            -GuestUser $guestUser -GuestPassword $guestPass `
+            -ErrorAction Stop
+        Write-Log "Executed init script in guest. Output: $($result.ScriptOutput)"
+    } catch {
+        Write-Log -Error "Failed to execute script in guest: $_"
+        Exit 1
+    }
+
+    # スクリプト削除
+    try {
+        $result = Invoke-VMScript -VM $vm -ScriptText "rm -f $dstPath" `
+            -GuestUser $guestUser -GuestPassword $guestPass `
+            -ErrorAction Stop
+        Write-Log "Removed init script from guest: $dstPath"
+    } catch {
+        Write-Log -Warn "Failed to remove script from guest: $_"
+    }
+
+    # VM停止
+    Stop-MyVM $vm
+
+    Write-Log "Phase 2 complete"
 }
 
 # ---- Phase dispatcher ----
