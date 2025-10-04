@@ -11,6 +11,7 @@ template_vm_name: rhel9-tpl
 new_vm_name: original01
 cluster_name: CLST_A
 datastore_name: ProdStore
+resource_pool_name: Resources   # If you are not sure, leave as "Resources" or comment out.
 esxi_host: vhost-a01
 network_label: PROD_LAN01
 cpu: 3
