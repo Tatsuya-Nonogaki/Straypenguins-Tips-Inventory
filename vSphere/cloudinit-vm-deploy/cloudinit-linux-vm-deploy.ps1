@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.8
+  Version: 0.0.9
 
 .DESCRIPTION
   3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
@@ -284,10 +284,9 @@ function InitializeClone {
     }
 
     # VM起動（Start-MyVMを利用）
-    if ($NoRestart) {
+    if ($NoRestart -and $vm.PowerState -ne "PoweredOn") {
         Write-Host "'-NoRestart' is specified, but VM must be powered on for initialization."
-        $resp = Read-Host "Start VM anyway? [Y]/n (If you answer N, the entire script will abort here)"
-
+        $resp = Read-Host "Start VM anyway? [Y]/n (If you answer N, the entire script will abort here.)"
         if ($resp -eq "" -or $resp -eq "Y" -or $resp -eq "y") {
             Start-MyVM $vm -Force
         } else {
@@ -365,3 +364,4 @@ foreach ($p in $phaseSorted) {
 }
 
 Write-Log "Deployment script completed."
+
