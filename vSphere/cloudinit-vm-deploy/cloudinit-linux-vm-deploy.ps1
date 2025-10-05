@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.7
+  Version: 0.0.8
 
 .DESCRIPTION
   3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
@@ -125,17 +125,24 @@ function VIConnect {
 
 # ---- VM Power On/Off Functions ----
 function Start-MyVM {
-    param([Parameter(Mandatory)][object]$VM)
-    if ($VM.PowerState -ne "PoweredOn") {
-        try {
-            Start-VM -VM $VM -ErrorAction Stop | Out-Null
-            Write-Log "Started VM: $($VM.Name)"
-        } catch {
-            Write-Log -Error "Failed to start VM: $_"
-            Exit 1
+    param(
+        [Parameter(Mandatory)][object]$VM,
+        [switch]$Force
+    )
+    if ($Force -or -not $NoRestart) {
+        if ($VM.PowerState -ne "PoweredOn") {
+            try {
+                Start-VM -VM $VM -ErrorAction Stop | Out-Null
+                Write-Log "Started VM: $($VM.Name)"
+            } catch {
+                Write-Log -Error "Failed to start VM: $_"
+                Exit 1
+            }
+        } else {
+            Write-Log "VM already powered on: $($VM.Name)"
         }
     } else {
-        Write-Log "VM already powered on: $($VM.Name)"
+        Write-Log "NoRestart specified: VM remains powered off."
     }
 }
 
@@ -277,7 +284,19 @@ function InitializeClone {
     }
 
     # VM起動（Start-MyVMを利用）
-    Start-MyVM $vm
+    if ($NoRestart) {
+        Write-Host "'-NoRestart' is specified, but VM must be powered on for initialization."
+        $resp = Read-Host "Start VM anyway? [Y]/n (If you answer N, the entire script will abort here)"
+
+        if ($resp -eq "" -or $resp -eq "Y" -or $resp -eq "y") {
+            Start-MyVM $vm -Force
+        } else {
+            Write-Log -Error "User aborted due to NoRestart restriction."
+            Exit 1
+        }
+    } else {
+        Start-MyVM $vm
+    }
 
     # VMware Tools待ち
     try {
