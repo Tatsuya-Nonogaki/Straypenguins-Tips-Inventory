@@ -1,0 +1,60 @@
+#cloud-config
+# ======== Basic user-data template for RHEL9 cloud-init VM deployment ========
+#
+# Required parameters:
+#   - hostname: FQDN or short name
+#   - users: at least one user, with password and/or ssh-authorized-keys
+#   - network: not set here (handled via network-config)
+#   - growpart: enabled for root device expansion
+#
+# Notes:
+# - For security and management, this framework requires password authentication enabled for the main user.
+# - Setting "lock_passwd: true" (SSH-key-only user) is NOT supported, as it breaks Phase 2 management (Invoke-VMScript needs password auth).
+# - To allow both password and SSH-key authentication, include both "passwd" and "ssh_authorized_keys".
+
+hostname: ${hostname}              # e.g. original01.production.local
+
+users:
+  - name: ${username}              # e.g. mainte
+    gecos: Maintenance User
+    groups: wheel,adm,systemd-journal
+    # sudo: ALL=(ALL) NOPASSWD:ALL  # (Optional) Uncomment only if you require passwordless sudo for this user
+    lock_passwd: false             # DO NOT set true in this framework (see above)
+    passwd: ${password_hash}       # e.g. (see below for hash method)
+    ssh_authorized_keys:
+      - ${ssh_key1}                # e.g. ssh-rsa AAAAB3... mainte@workstation
+      # - ${ssh_key2}              # (Add more keys if needed)
+    shell: /bin/bash
+
+  # Example: Additional user with password only (no SSH key)
+  # - name: testuser
+  #   lock_passwd: false
+  #   passwd: $6$...  # Password hash
+  #   shell: /bin/bash
+
+chpasswd:
+  expire: false
+
+# -- Authentication strategy examples --
+# 1) Password + SSH-key (recommended): set lock_passwd: false, provide both passwd and ssh_authorized_keys.
+# 2) Password only: set lock_passwd: false, provide passwd, omit ssh_authorized_keys.
+# 3) SSH-key only (NOT SUPPORTED in this framework): lock_passwd: true, provide ssh_authorized_keys, omit passwd.
+#    DO NOT use this pattern, as Phase 2 management will fail.
+
+# Packages to install at first boot (optional)
+# packages:
+#   - vim
+#   - git
+
+package_update: false
+package_upgrade: false
+
+growpart:
+  mode: auto
+  # List all mount points to be auto-expanded if their backing disk was enlarged in Phase 1.
+  # For example: ['/', 'swap', '/var/crash']
+  devices: ['/', 'swap', '/var/crash']
+  ignore_growroot_disabled: false
+
+# runcmd:  # (Optional) Custom commands at first boot
+#   - [ echo, "Hello, cloud-init!" ]
