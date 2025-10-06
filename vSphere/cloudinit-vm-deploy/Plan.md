@@ -126,8 +126,8 @@ function Write-Log {
 
 ☑️ 第3フェーズのcloud-init seedファイル（`user-data`等）のテンプレートも別体ファイル管理で、適時修正しやすく、Git/履歴管理や多環境展開にも強い。
 
-☑️ ISO作成には、mkisofsのwin32版を使用する。[cdrtfe](https://sourceforge.net/projects/cdrtfe/) に含まれるものを取り出して配置(置くだけ—インストール不要)。必要最小限近くまで小構成にしたものをcdrtfe-1.5.9.1-mini.zipとしてで確保した。設計上、実行ファイルのパスは `D:\work\cdrtfe\tools\cdrtools\mkisofs.exe` であるものとする。  
-Windws server 2022以降ならWSL2でミニubuntu Linuxが簡単に動かせ、その内部に `genisoimage`をインストールすれば信頼性も高いのだが...
+☑️ ISO作成には、mkisofsのwin32版を使用する。[cdrtfe](https://sourceforge.net/projects/cdrtfe/) に含まれるものを取り出して配置(置くだけ—インストール不要)。必要最小限近くまで小構成にしたものをcdrtfe-1.5.9.1-mini.zipとしてで確保し、これを配布用パッケージとする(mkisofsはバージョン3.02a10・ISOの構成点検に便利な `isoinfo.exe` も残した)。設計上、実行ファイルのパスは `C:\work\cdrtfe\tools\cdrtools\mkisofs.exe` であるものとする。  
+📍 Windws server 2022以降ならWSL2でミニubuntu Linuxが簡単に動かせ、その内部に `genisoimage`をインストールすれば信頼性も高いのだが...
 
 ☑️ **vCenter Serverへの接続ロジックについて:**  
 - 実績のあるファンクション `VIConnect` があるのでそのコード活用。
