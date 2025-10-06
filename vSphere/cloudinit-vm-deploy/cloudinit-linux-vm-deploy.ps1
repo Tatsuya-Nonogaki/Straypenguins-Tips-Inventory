@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.11
+  Version: 0.0.12
 
 .DESCRIPTION
   3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
@@ -357,12 +357,119 @@ function InitializeClone {
     Write-Log "Phase 2 complete"
 }
 
-# ---- Phase dispatcher ----
+# ---- Generate cloud-init seed ISO and personalize VM ----
+function CloudInitKickStart {
+    Write-Log "=== Phase 3: Cloud-init Seed Generation & Personalization ==="
+
+    # 1. Get target VM object
+    try {
+        $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
+    } catch {
+        Write-Log -Error "Target VM not found: $($params.new_vm_name)"
+        Exit 1
+    }
+
+    # 2. Prepare seed working dir
+    $seedDir = Join-Path $workdir "cloudinit-seed"
+    if (Test-Path $seedDir) {
+        try {
+            Remove-Item -Recurse -Force $seedDir
+            Write-Log "Removed old seed dir: $seedDir"
+        } catch {
+            Write-Log -Warn "Failed to remove previous seed dir: $_"
+        }
+    }
+    try {
+        New-Item -ItemType Directory -Path $seedDir | Out-Null
+        Write-Log "Created seed dir: $seedDir"
+    } catch {
+        Write-Log -Error "Failed to create seed dir: $_"
+        Exit 2
+    }
+
+    # 3. Generate user-data/meta-data/network-config from templates
+    $tplDir = Join-Path $scriptdir "templates"
+    $seedFiles = @(
+        @{tpl="user-data.template.yaml"; out="user-data"},
+        @{tpl="meta-data.template.yaml"; out="meta-data"}
+    )
+    # Optional: network-config
+    $netTpl = Join-Path $tplDir "network-config.template.yaml"
+    if (Test-Path $netTpl) {
+        $seedFiles += @{tpl="network-config.template.yaml"; out="network-config"}
+    }
+
+    foreach ($f in $seedFiles) {
+        $tplPath = Join-Path $tplDir $f.tpl
+        if (-not (Test-Path $tplPath)) {
+            Write-Log -Error "Missing template: $tplPath"
+            Exit 2
+        }
+        try {
+            $template = Get-Content $tplPath -Raw
+            # 簡易テンプレート置換: {{KEY}} → $params.KEY
+            $output = $template
+            foreach ($k in $params.PSObject.Properties.Name) {
+                $output = $output -replace "{{\s*$k\s*}}", [string]$params.$k
+            }
+            $seedOut = Join-Path $seedDir $f.out
+            $output | Set-Content -Encoding UTF8 $seedOut
+            Write-Log "Generated $($f.out) for cloud-init"
+        } catch {
+            Write-Log -Error "Failed to render $($f.tpl): $_"
+            Exit 2
+        }
+    }
+
+    # 4. Create seed ISO with mkisofs
+    $mkisofs = Join-Path $scriptdir "tools\mkisofs.exe"
+    if (-not (Test-Path $mkisofs)) {
+        Write-Log -Error "mkisofs.exe not found: $mkisofs"
+        Exit 2
+    }
+    $isoPath = Join-Path $workdir "seed.iso"
+    $cmd = "`"$mkisofs`" -output `"$isoPath`" -V cidata -r -J `"$seedDir`""
+    Write-Log "Running: $cmd"
+    $mkisofsOut = cmd /c $cmd 2>&1
+    if (-not (Test-Path $isoPath)) {
+        Write-Log -Error "seed.iso not generated: $mkisofsOut"
+        Exit 2
+    } else {
+        Write-Log "cloud-init seed ISO created: $isoPath"
+    }
+
+    # 5. Attach ISO to VM's CD drive (add if not present)
+    $cd = Get-CDDrive -VM $vm
+    if (-not $cd) {
+        try {
+            $cd = New-CDDrive -VM $vm -ISOPath $isoPath -StartConnected -Confirm:$false
+            Write-Log "Added CD drive & attached seed ISO to VM"
+        } catch {
+            Write-Log -Error "Failed to add/attach CD drive: $_"
+            Exit 1
+        }
+    } else {
+        try {
+            Set-CDDrive -CDDrive $cd -ISOPath $isoPath -StartConnected $true -Confirm:$false
+            Write-Log "Set existing CD drive to attach seed ISO"
+        } catch {
+            Write-Log -Error "Failed to set CD drive ISO: $_"
+            Exit 1
+        }
+    }
+
+    # 6. Power on VM for personalization
+    Start-MyVM $vm
+
+    Write-Log "Phase 3 complete"
+}
+
+# ---- Phase dispatcher (add phase 3) ----
 foreach ($p in $phaseSorted) {
     switch ($p) {
         1 { AutoClone }
         2 { InitializeClone }
-        # 3 { CloudInitKickStart }
+        3 { CloudInitKickStart }
     }
 }
 
