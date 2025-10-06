@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.10
+  Version: 0.0.11
 
 .DESCRIPTION
   3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
@@ -255,10 +255,10 @@ function AutoClone {
     Write-Log "Phase 1 complete"
 }
 
+# ---- Initialize the clone VM for Phase-3 kickstart ----
 function InitializeClone {
     Write-Log "=== Phase 2: Guest Initialization ==="
 
-    # VM取得
     try {
         $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
     } catch {
@@ -266,7 +266,6 @@ function InitializeClone {
         Exit 1
     }
 
-    # ゲスト認証情報（SecureString化）
     $guestUser = $params.username
     $guestPassPlain = $params.password
     try {
@@ -276,14 +275,14 @@ function InitializeClone {
         Exit 3
     }
 
-    # スクリプトファイル存在チェック
+    # Prepare the initialization script
     $scriptSrc = Join-Path $scriptdir "scripts/init-vm-cloudinit.sh"
     if (-not (Test-Path $scriptSrc)) {
         Write-Log -Error "Required script not found: $scriptSrc"
         Exit 2
     }
 
-    # VM起動（Start-MyVMを利用）
+    # Boot-up the clone VM
     if ($NoRestart) {
         if ($vm.PowerState -ne "PoweredOn") {
             Write-Host "'-NoRestart' is specified, but VM must be powered on for initialization."
@@ -302,20 +301,7 @@ function InitializeClone {
         Start-MyVM $vm
     }
 
-    if ($NoRestart -and $vm.PowerState -ne "PoweredOn") {
-        Write-Host "'-NoRestart' is specified, but VM must be powered on for initialization."
-        $resp = Read-Host "Start VM anyway? [Y]/n (If you answer N, the entire script will abort here.)"
-        if ($resp -eq "" -or $resp -eq "Y" -or $resp -eq "y") {
-            Start-MyVM $vm -Force
-        } else {
-            Write-Log -Error "User aborted due to NoRestart restriction."
-            Exit 1
-        }
-    } else {
-        Start-MyVM $vm
-    }
-
-    # VMware Tools待ち
+    # Wait until the VM starts
     try {
         $timeoutSec = 120
         $waited = 0
@@ -333,7 +319,7 @@ function InitializeClone {
         Write-Log -Warn "Error waiting for VMware Tools: $_"
     }
 
-    # スクリプトをゲストOSにコピー
+    # Transfer the script and run on the clone
     try {
         $dstPath = "/tmp/init-vm-cloudinit.sh"
         Copy-VMGuestFile -Source $scriptSrc -Destination $dstPath `
@@ -345,7 +331,6 @@ function InitializeClone {
         Exit 1
     }
 
-    # スクリプト実行
     try {
         $result = Invoke-VMScript -VM $vm -ScriptText "chmod +x $dstPath && sudo $dstPath" `
             -GuestUser $guestUser -GuestPassword $guestPass `
@@ -356,17 +341,17 @@ function InitializeClone {
         Exit 1
     }
 
-    # スクリプト削除
     try {
         $result = Invoke-VMScript -VM $vm -ScriptText "rm -f $dstPath" `
             -GuestUser $guestUser -GuestPassword $guestPass `
             -ErrorAction Stop
         Write-Log "Removed init script from guest: $dstPath"
     } catch {
+        # Warn but not abort processing if deletion failed
         Write-Log -Warn "Failed to remove script from guest: $_"
     }
 
-    # VM停止
+    # Shutdown the VM (skipped automatically if applicable)
     Stop-MyVM $vm
 
     Write-Log "Phase 2 complete"
