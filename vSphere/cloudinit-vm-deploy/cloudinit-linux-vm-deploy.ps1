@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.12
+  Version: 0.0.13
 
 .DESCRIPTION
   3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
@@ -390,13 +390,13 @@ function CloudInitKickStart {
     # 3. Generate user-data/meta-data/network-config from templates
     $tplDir = Join-Path $scriptdir "templates"
     $seedFiles = @(
-        @{tpl="user-data.template.yaml"; out="user-data"},
-        @{tpl="meta-data.template.yaml"; out="meta-data"}
+        @{tpl="user-data_template.yaml"; out="user-data"},
+        @{tpl="meta-data_template.yaml"; out="meta-data"}
     )
     # Optional: network-config
-    $netTpl = Join-Path $tplDir "network-config.template.yaml"
+    $netTpl = Join-Path $tplDir "network-config_template.yaml"
     if (Test-Path $netTpl) {
-        $seedFiles += @{tpl="network-config.template.yaml"; out="network-config"}
+        $seedFiles += @{tpl="network-config_template.yaml"; out="network-config"}
     }
 
     foreach ($f in $seedFiles) {
