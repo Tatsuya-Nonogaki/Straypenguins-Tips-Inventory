@@ -126,7 +126,8 @@ function Write-Log {
 
 ☑️ 第3フェーズのcloud-init seedファイル（`user-data`等）のテンプレートも別体ファイル管理で、適時修正しやすく、Git/履歴管理や多環境展開にも強い。
 
-☑️ ISO作成には、Windws機能のwsl2(ubuntu) 内の `genisoimage`を利用。Windows Server 2019でも使用できるはずだが、無理ならば代替手段を検討。wsl ubuntu内からのパス指定が /mnt/c/...と長くなる問題は、ubuntu内で短いパスへシンボリックリンクを作っておくことで対処できる。
+☑️ ISO作成には、mkisofsのwin32版を使用する。[cdrtfe](https://sourceforge.net/projects/cdrtfe/) に含まれるものを取り出して配置(置くだけ—インストール不要)。必要最小限近くまで小構成にしたものをcdrtfe-1.5.9.1-mini.zipとしてで確保した。設計上、実行ファイルのパスは `D:\work\cdrtfe\tools\cdrtools\mkisofs.exe` であるものとする。  
+Windws server 2022以降ならWSL2でミニubuntu Linuxが簡単に動かせ、その内部に `genisoimage`をインストールすれば信頼性も高いのだが...
 
 ☑️ **vCenter Serverへの接続ロジックについて:**  
 - 実績のあるファンクション `VIConnect` があるのでそのコード活用。
