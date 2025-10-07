@@ -16,7 +16,6 @@ hostname: {{hostname}}             # e.g. original01.production.local
 
 users:
   - name: {{username}}             # e.g. mainte
-    gecos: Maintenance User
     groups: wheel,adm,systemd-journal
     # sudo: ALL=(ALL) NOPASSWD:ALL  # (Optional) Uncomment only if you require passwordless sudo for this user
     lock_passwd: false             # DO NOT set true in this framework (see above)
@@ -55,6 +54,16 @@ growpart:
   # For example: ['/', 'swap', '/var/crash']
   devices: ['/', 'swap', '/var/crash']
   ignore_growroot_disabled: false
+
+# Customize hosts file (the file is thoroughly overwritten)
+write_files:
+  - path: /etc/hosts
+    content: |
+      127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+      ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+      {{ip_addr1}}  {{fqdn}} {{hostname}}
+    owner: root:root
+    permissions: '0644'
 
 # runcmd:  # (Optional) Custom commands at first boot
 #   - [ echo, "Hello, cloud-init!" ]
