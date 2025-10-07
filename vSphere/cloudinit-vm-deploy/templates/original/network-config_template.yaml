@@ -3,7 +3,7 @@ version: 2
 ethernets:
   ens192:
     dhcp4: false
-    addresses: ["{{ip_addr1}/{{prefix1}}"]      # e.g. 192.168.0.10/24
+    addresses: ["{{ip_addr1}}/{{prefix1}}"]     # e.g. 192.168.0.10/24
     gateway4: {{gateway1}}                      # e.g. 192.168.0.254
     nameservers:
       addresses: [{{dns1}}, {{dns2}}]           # e.g. 192.168.0.201,192.168.0.202
