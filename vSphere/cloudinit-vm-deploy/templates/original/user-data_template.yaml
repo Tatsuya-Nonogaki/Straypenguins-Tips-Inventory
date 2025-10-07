@@ -55,7 +55,7 @@ growpart:
   devices: ['/', 'swap', '/var/crash']
   ignore_growroot_disabled: false
 
-# Customize hosts file (the file is thoroughly overwritten)
+# Customize hosts file (the file gets thoroughly overwritten)
 write_files:
   - path: /etc/hosts
     content: |
