@@ -105,6 +105,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 - [cloud-init documentation](https://cloud-init.io/)
 - [VMware PowerCLI](https://developer.vmware.com/powercli)
 - [powershell-yaml](https://github.com/cloudbase/powershell-yaml)
+- [cdrtfe (includes mkisofs win32)](https://sourceforge.net/projects/cdrtfe/)
 
 ---
 
