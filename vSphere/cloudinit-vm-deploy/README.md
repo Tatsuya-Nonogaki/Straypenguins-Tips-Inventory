@@ -22,6 +22,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
     ```sh
     sudo dnf install cloud-init cloud-utils-growpart
     ```
+    💡 The packages are also listed in `infra/req-pkg-cloudinit.txt`.
   - Place the following file to prevent accidental cloud-init runs:
     ```sh
     sudo cp infra/99-template-maint.conf /etc/cloud/cloud.cfg.d/99-template-maint.conf
@@ -110,4 +111,3 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](../../LICENSE) file for details.
-
