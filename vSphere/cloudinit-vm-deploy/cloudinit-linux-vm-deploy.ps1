@@ -1,31 +1,37 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.13
+  Version: 0.0.14
 
 .DESCRIPTION
-  3-phase deployment: (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start.
+  Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
+  (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start
   Uses a YAML parameter file (see vm-settings.example.yaml).
+  
+  **Requirements:**
+  * vSphere virtual machine environment (8+ recommended)
+  * VMware PowerCLI
+  * powershell-yaml module
+  * mkisofs: ISO builder command; Redefine the variable in "Global variables"
+    section if you want to use an alternative (with appropriate option flags).
+  
+  **Exit codes:**
+    0: Success
+    1: General runtime error (VM operations, PowerCLI, etc)
+    2: System/environment/file error (directory/file creation, etc)
+    3: Bad arguments or parameter/config input
 
 .PARAMETER Phase
   (Alias -p) List of steps (1,2,3) to execute. e.g. -Phase 1,2,3 or -Phase 2
 
 .PARAMETER Config
-  (Alias -c) Path to YAML parameter file for VM deployment.
+  (Alias -c) Path to YAML parameter file for the VM deployment.
 
 .PARAMETER NoRestart
   If set, disables auto-poweron/shutdown except when multi-phase is needed.
 
 .EXAMPLE
   .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings.yaml
-
-.NOTES
-  Requires: PowerCLI, powershell-yaml, vSphere 8+, Windows Server 2019+
-  Exit codes:
-    0: Success
-    1: General runtime error (VM operations, PowerCLI, etc)
-    2: System/environment/file error (directory/file creation, etc)
-    3: Bad arguments or parameter/config input
 #>
 [CmdletBinding()]
 param(
@@ -41,8 +47,21 @@ param(
     [switch]$NoRestart
 )
 
+#
+# ---- Global variables ----
+#
 $scriptdir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 $spooldir = Join-Path $scriptdir "spool"
+
+$mkisofs = "C:\work\cdrtfe\tools\cdrtools\mkisofs.exe"
+
+# vCenter connection variables
+$vcserver = $params.vcenter_host
+$vcuser   = $params.vcenter_user
+$vcpasswd = $params.vcenter_password
+$vcport = 443
+$connRetry = 2
+$connRetryInterval = 5
 
 if (-not (Test-Path $spooldir)) {
     Write-Host "Error: $spooldir does not exist. Please create it before running this script." -ForegroundColor Red
@@ -54,6 +73,8 @@ if (-Not (Get-Module VMware.VimAutomation.Core)) {
     Import-Module VMware.VimAutomation.Core -ErrorAction SilentlyContinue
 }
 
+Import-Module powershell-yaml -ErrorAction Stop
+
 # ---- Phase argument check ----
 $phaseSorted = $Phase | Sort-Object
 for ($i=1; $i -lt $phaseSorted.Count; $i++) {
@@ -63,7 +84,7 @@ for ($i=1; $i -lt $phaseSorted.Count; $i++) {
     }
 }
 
-# ---- NoRestart一元管理 ----
+# ---- Resolve collision between NoRestart and multi-phase execution ----
 if ($phaseSorted.Count -gt 1 -and $NoRestart) {
     Write-Host "Warning: Both multiple phases and -NoRestart are specified." -ForegroundColor Yellow
     Write-Host "Automatic power on/off is required for multi-phase execution."
@@ -76,7 +97,7 @@ if ($phaseSorted.Count -gt 1 -and $NoRestart) {
     $NoRestart = $false
 }
 
-# ---- LogFilePath (temporary) ----
+# LogFilePath (temporary)
 $LogFilePath = Join-Path $spooldir "deploy.log"
 
 function Write-Log {
@@ -161,7 +182,6 @@ function Stop-MyVM {
 }
 
 # ---- Load parameter file ----
-Import-Module powershell-yaml -ErrorAction Stop
 if (-not (Test-Path $Config)) {
     Write-Host "Parameter file not found: $Config" -ForegroundColor Red
     Exit 3
@@ -173,8 +193,9 @@ try {
     Exit 3
 }
 
-# ---- Resolve working directory ----
 $new_vm_name = $params.new_vm_name
+
+# ---- Resolve working directory ----
 $workdir = Join-Path $spooldir $new_vm_name
 if (-not (Test-Path $workdir)) {
     try {
@@ -187,15 +208,11 @@ if (-not (Test-Path $workdir)) {
 }
 $LogFilePath = Join-Path $workdir ("deploy-" + (Get-Date -Format 'yyyyMMdd') + ".log")
 
-# ---- vCenter connection variables ----
-$vcport = 443
-$connRetry = 2
-$connRetryInterval = 5
-$vcserver = $params.vcenter_host
-$vcuser   = $params.vcenter_user
-$vcpasswd = $params.vcenter_password
+# ---------------------------------------
+# ---- Main processing begins from here
+# ---------------------------------------
 
-# ---- Connect to vCenter ----
+# Connect to vCenter
 VIConnect
 
 # ---- Clone Template VM to the target VM with specified spec ----
@@ -407,7 +424,7 @@ function CloudInitKickStart {
         }
         try {
             $template = Get-Content $tplPath -Raw
-            # 簡易テンプレート置換: {{KEY}} → $params.KEY
+            # Replace: {{KEY}} -> $params.KEY
             $output = $template
             foreach ($k in $params.PSObject.Properties.Name) {
                 $output = $output -replace "{{\s*$k\s*}}", [string]$params.$k
@@ -422,9 +439,8 @@ function CloudInitKickStart {
     }
 
     # 4. Create seed ISO with mkisofs
-    $mkisofs = Join-Path $scriptdir "tools\mkisofs.exe"
     if (-not (Test-Path $mkisofs)) {
-        Write-Log -Error "mkisofs.exe not found: $mkisofs"
+        Write-Log -Error "ISO building tool not found: $mkisofs"
         Exit 2
     }
     $isoPath = Join-Path $workdir "seed.iso"
