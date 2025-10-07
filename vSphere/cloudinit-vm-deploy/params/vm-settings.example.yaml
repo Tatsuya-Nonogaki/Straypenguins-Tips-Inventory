@@ -26,6 +26,7 @@ disks:
 
 # == OS/Cloud-init Parameters ==
 hostname: original01
+instance-id: original01-20251001
 fqdn: original01.production.local
 
 ip_addr1: 192.168.0.10
@@ -39,7 +40,7 @@ dns2: 192.168.0.202
 # prefix2: 24
 
 username: mainte
-password_hash: "$6$Kc8......"    # Use openssl passwd -6 "password" for SHA-512 hash
+password_hash: "$6$Kc8......"    # Use 'openssl passwd -6 "password"' for SHA-512 hash
 ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
 # ssh_key2: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
 
