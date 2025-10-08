@@ -36,7 +36,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 
 ### 2. Parameter File Preparation
 
-- Copy `params/vm-settings.example.yaml` and edit it for each VM to deploy:
+- Copy `params/vm-settings_example.yaml` and edit it for each VM to deploy:
   - Set vCenter connection, VM hardware, networking, users, and cloud-init parameters.
 - Copy all the `templates/original/*_template.yaml` files to `templates/`, and modify if necessary.
 - **Advanced:** Customize `scripts/init-vm-cloudinit.sh` if your environment requiures.
@@ -67,7 +67,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 /
 ├── cloudinit-linux-vm-deploy.ps1
 ├── params/
-│   └── vm-settings.example.yaml
+│   └── vm-settings_example.yaml
 ├── templates/
 │   ├── <your copy of '*_template.yaml's>
 │   │   ...
