@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.14
+  Version: 0.0.15
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
   (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start
-  Uses a YAML parameter file (see vm-settings.example.yaml).
+  Uses a YAML parameter file (see vm-settings_example.yaml).
   
   **Requirements:**
   * vSphere virtual machine environment (8+ recommended)
