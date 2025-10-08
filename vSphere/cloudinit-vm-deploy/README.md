@@ -25,9 +25,10 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
     💡 The packages are also listed in `infra/req-pkg-cloudinit.txt`.
   - Place the following file to prevent accidental cloud-init runs:
     ```sh
-    sudo cp infra/99-template-maint.conf /etc/cloud/cloud.cfg.d/99-template-maint.conf
+    sudo touch /etc/cloud/cloud-init.disabled
+    sudo cp infra/99-template-maint.cfg /etc/cloud/cloud.cfg.d/
     ```
-  - Power off the template and remove/clean any cloud-init artifacts as needed.
+  - Remove/clean any cloud-init artifacts as needed. Power off the VM and turn it into a Template.
 
 - **On the Windows Admin Host**
   - Install [PowerCLI](https://developer.vmware.com/powercli) and [powershell-yaml](https://github.com/cloudbase/powershell-yaml) module.
@@ -78,7 +79,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 ├── scripts/
 │   └── init-vm-cloudinit.sh
 ├── infra/
-│   ├── 99-template-maint.conf
+│   ├── 99-template-maint.cfg
 │   ├── enable-cloudinit-service.sh
 │   ├── req-pkg-cloudinit.txt
 │   └── req-pkg-cloudinit-full.txt
