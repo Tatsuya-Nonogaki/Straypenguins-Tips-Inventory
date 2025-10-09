@@ -26,6 +26,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
   - Place the following file to prevent accidental cloud-init runs:
     ```sh
     sudo touch /etc/cloud/cloud-init.disabled
+    sudo cp infra/cloud.cfg /etc/cloud/cloud.cfg  # Overwrite
     sudo cp infra/99-template-maint.cfg /etc/cloud/cloud.cfg.d/
     ```
   - Remove/clean any cloud-init artifacts as needed. Power off the VM and turn it into a Template.
@@ -68,9 +69,10 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 /
 ├── cloudinit-linux-vm-deploy.ps1
 ├── params/
-│   └── vm-settings_example.yaml
+│   ├── vm-settings_example.yaml
+│   └── <your copy of above>
 ├── templates/
-│   ├── <your copy of '*_template.yaml's>
+│   ├── <your copies of *_template.yaml>
 │   │   ...
 │   └── original/
 │       ├── user-data_template.yaml
@@ -79,6 +81,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 ├── scripts/
 │   └── init-vm-cloudinit.sh
 ├── infra/
+│   ├── cloud.cfg
 │   ├── 99-template-maint.cfg
 │   ├── enable-cloudinit-service.sh
 │   ├── req-pkg-cloudinit.txt
@@ -97,7 +100,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
   The template VM is protected from cloud-init runs. Clones will automatically remove the protection and enable cloud-init at first boot.
 - **PowerCLI** and **powershell-yaml** modules are required on the admin host.
 - **mkisofs.exe** must be available as specified in the script.
-- For multi-NIC or advanced scenarios, edit the parameter YAML and templates as needed.
+- For multi-NIC or advanced scenarios, edit `cloud.cfg` and templates as needed.
 
 ---
 
