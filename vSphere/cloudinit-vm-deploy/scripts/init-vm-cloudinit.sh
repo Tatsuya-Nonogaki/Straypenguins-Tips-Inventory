@@ -4,8 +4,8 @@ subscription-manager remove --all
 cloud-init clean
 truncate -s0 /etc/machine-id
 rm -f /etc/cloud/cloud.cfg.d/99-template-maint.cfg /etc/cloud/cloud-init.disabled
-# Create /etc/cloud/cloud.cfg.d/99-override.conf for the clone
-cat > /etc/cloud/cloud.cfg.d/99-override.conf <<EOM
+# Create /etc/cloud/cloud.cfg.d/99-override.cfg for the clone
+cat > /etc/cloud/cloud.cfg.d/99-override.cfg <<EOM
 preserve_hostname: false
 manage_etc_hosts: false
 EOM 
