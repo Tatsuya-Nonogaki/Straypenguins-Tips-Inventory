@@ -30,7 +30,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
     sudo install -m 644 ./cloud.cfg /etc/cloud    # Overwrite
     sudo install -m 644 ./99-template-maint.cfg /etc/cloud/cloud.cfg.d
     ```
-    💡 The attached shell script `infra/prevent-cloud-init.sh` will do the jobs for you. Bring the whole directory into the template VM and execute it with `sudo`.
+    💡 The attached shell script `infra/prevent-cloud-init.sh` will do the jobs for you. Bring the whole directory into the template VM and execute it with root privileges.
   - Remove/clean any cloud-init artifacts as needed. Power off the VM and turn it into a Template.
 
 - **On the Windows Admin Host**
