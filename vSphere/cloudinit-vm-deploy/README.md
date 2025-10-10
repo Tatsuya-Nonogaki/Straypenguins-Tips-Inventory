@@ -25,10 +25,12 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
     💡 The packages are also listed in `infra/req-pkg-cloudinit.txt`.
   - Place the following file to prevent accidental cloud-init runs:
     ```sh
-    sudo touch /etc/cloud/cloud-init.disabled
-    sudo cp infra/cloud.cfg /etc/cloud/cloud.cfg  # Overwrite
-    sudo cp infra/99-template-maint.cfg /etc/cloud/cloud.cfg.d/
+    cd infra/
+    sudo install -m 644 /dev/null /etc/cloud/cloud-init.disabled
+    sudo install -m 644 ./cloud.cfg /etc/cloud    # Overwrite
+    sudo install -m 644 ./99-template-maint.cfg /etc/cloud/cloud.cfg.d
     ```
+    💡 The attached shell script `infra/prevent-cloud-init.sh` will do the jobs for you. Bring the whole directory into the template VM and execute it with `sudo`.
   - Remove/clean any cloud-init artifacts as needed. Power off the VM and turn it into a Template.
 
 - **On the Windows Admin Host**
@@ -40,8 +42,8 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 
 - Copy `params/vm-settings_example.yaml` and edit it for each VM to deploy:
   - Set vCenter connection, VM hardware, networking, users, and cloud-init parameters.
-- Copy all the `templates/original/*_template.yaml` files to `templates/`, and modify if necessary.
-- **Advanced:** Customize `scripts/init-vm-cloudinit.sh` if your environment requiures.
+- Copy all the `templates/original/*_template.yaml` files to `templates/`, and modify if necessary. In certain cases, you may also need to edit `/etc/cloud/cloud.cfg` so that it aligns with the new parameters.
+- **Advanced:** Customize `scripts/init-vm-cloudinit.sh` if your environments requiure.
 
 ### 3. Run Deployment Script
 
@@ -59,7 +61,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 ### 4. Confirm and Finalize
 
 - Once complete, the deployed VM should boot, apply all cloud-init configuration, and be ready for use.
-- Check logs in the `spool/<VMNAME>/` directory if needed.
+- Check logs in the `spool/<VMNAME>/` directory and `/var/log/cloud-init*.log` files if needed.
 
 ---
 
@@ -84,6 +86,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 │   ├── cloud.cfg
 │   ├── 99-template-maint.cfg
 │   ├── enable-cloudinit-service.sh
+│   ├── prevent-cloud-init.sh
 │   ├── req-pkg-cloudinit.txt
 │   └── req-pkg-cloudinit-full.txt
 └── spool/
