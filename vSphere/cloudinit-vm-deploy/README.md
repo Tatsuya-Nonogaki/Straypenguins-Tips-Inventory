@@ -9,7 +9,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 - **Three-phase deployment workflow:** Template Clone, Guest Preparation, Cloud-init Personalization
 - **Parameter-driven, YAML-based configuration** for per-VM customization
 - **Robust cloud-init integration:** hostname, users, SSH keys, network, `/etc/hosts`, and more
-- **Safety by design:** Template VM protected from accidental cloud-init runs
+- **Template safety:** Template VM is protected from accidental cloud-init runs
 - **Compatible with RHEL9** (and derivatives), designed for vSphere 7/8 and Windows Server 2019+ admin hosts
 - **Cross-platform:** PowerShell/PowerCLI for Windows, Linux guest scripts, and standard cloud-init
 
@@ -22,11 +22,11 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 #### On the Windows Admin Host or Any PC
 
 - **Download or clone this repository**  
-- Copy `infra/` directory to the Template VM.
+- Copy the `infra/` directory to the Template VM.
 
 #### On the Template VM (RHEL9)
 
-- **Ensure VMware Tools equivalent is installed**
+- **Ensure VMware Tools (or open-vm-tools) is installed:**
     ```sh
     sudo dnf install open-vm-tools
     ```
@@ -48,31 +48,33 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
     - Overwrite `/etc/cloud/cloud.cfg` with the optimized configuration
     - Place `/etc/cloud/cloud.cfg.d/99-template-maint.cfg`
 
-- **Clean up previous cloud-init artifacts, if any.**
-- **Shutdown and convert to a Template VM** in vSphere.
+- **Clean up previous cloud-init artifacts, if any.**  
+  You can safely run `cloud-init clean` to remove any old instance state here on the Template VM.
+
+- **Shut down and convert to a Template VM** in vSphere.
 
 #### On the Windows Admin Host
 
 - **Install [PowerCLI](https://developer.vmware.com/powercli)** (v13.3+ recommended)
 - **Install [powershell-yaml](https://github.com/cloudbase/powershell-yaml)** module
+- **Ensure `mkisofs.exe` is available** (from [cdrtfe](https://sourceforge.net/projects/cdrtfe/)) and placed according to the script's `$mkisofs` path. See [Notes & Recommendations](#notes--recommendations) for alternatives.
 - **Download or clone this repository**  
-- **Install `mkisofs.exe`** (from [cdrtfe](https://sourceforge.net/projects/cdrtfe/)) and place as specified in the script's `$mkisofs` path. It can be an alternative (see [Notes & Recommendations](#notes--recommendations))
 
 ---
 
 ### 2. Prepare Parameter and Template Files
 
 - **Create per-VM parameter file:**  
-  Copy `params/vm-settings_example.yaml` → `params/vm-settings_<your-vm>.yaml`(any name of your favor) and edit for your VM's resources, network, and cloud-init needs.
+  Copy `params/vm-settings_example.yaml` → `params/vm-settings_<VMNAME>.yaml` (any name you prefer) and edit for your VM's resources, network, and cloud-init needs.
     - All VM settings (vCenter, hardware, OS, cloud-init) are managed here.
-    - ⚠️ **Important:** Use CRLF (Windows) for this file.
+    - ⚠️ **Important:** Use CRLF (Windows) line endings for this file.
 
 - **Edit cloud-init template files as needed:**  
   Copy `templates/original/*_template.yaml` to `templates/`, and update for your site:
     - `user-data_template.yaml`
     - `meta-data_template.yaml`
     - `network-config_template.yaml`
-    - ⚠️**Important:** These files must use LF (Linux) line endings.
+    - ⚠️ **Important:** These files must use LF (Linux) line endings.
 
 - **(Advanced)** Edit `infra/cloud.cfg` or `infra/99-template-maint.cfg` only if you need to customize template/clone-level cloud-init behavior.
 
@@ -80,10 +82,10 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 
 ### 3. Run the Deployment Script
 
-In a PowerShell terminal, from the repository root:
+Open a PowerShell terminal in the repository root:
 
 ```powershell
-.\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings_<your-vm>.yaml
+.\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings_<VMNAME>.yaml
 ```
 
 - You may run phases separately (`-Phase 1`, `-Phase 2`, `-Phase 3`) if needed.
@@ -134,11 +136,11 @@ In a PowerShell terminal, from the repository root:
 
 - **/etc/hosts Customization:**  
   The kit uses `write_files` in cloud-init user-data to fully control `/etc/hosts` for each VM.  
-  `manage_etc_hosts: false` is automatically set at clone-init to avoid conflict.
+  `manage_etc_hosts: false` is automatically set during clone-init to avoid conflicts.
 
-- **Cloud-init Safety:**  
-  The Template VM is protected from all cloud-init actions (`cloud-init.disabled` and config files).  
-  Clones automatically remove the protection and enable cloud-init on their first boot.
+- **Template and Clone Safety:**  
+  The Template VM is fully protected from cloud-init (`cloud-init.disabled` and config files).  
+  Clones automatically remove this protection and enable cloud-init on first boot.
 
 - **Line Endings:**  
   - `cloudinit-linux-vm-deploy.ps1` and `vm-settings*.yaml`: **CRLF** (Windows)
@@ -149,7 +151,8 @@ In a PowerShell terminal, from the repository root:
 
 - **PowerCLI** and **powershell-yaml** modules are required on the admin host.
 
-- **mkisofs.exe** must be available as specified in the script `cloudinit-linux-vm-deploy.ps1`. The ISO maker can be an alternative, e.g., `genisoimage` on Windows WSL2 if your admin host is running Windows Server 2022+ or Windows 11; in that case, ensure `$mkisofs` and `$cmd = "$mkisofs ..."` variables in the script align with your choice.
+- **mkisofs.exe** must be available as specified in the script.  
+    Alternatives such as `genisoimage` (e.g., under WSL2 on Windows Server 2022/Windows 11) are supported if you adjust `$mkisofs` and related script variables accordingly.
 
 ---
 
@@ -157,14 +160,14 @@ In a PowerShell terminal, from the repository root:
 
 - **Cloud-init did not run?**  
   - Confirm that `/etc/cloud/cloud-init.disabled` was removed in the clone.
-  - Check that seed ISO was attached and contained the correct user-data/meta-data. The ISO and its source files are left under `spool/<your_vm>/` directory.
+  - Check that the seed ISO was attached and contains the correct user-data/meta-data. The ISO and its source files are stored in the `spool/<your_vm>/` directory.
 
 - **VM customization failed?**  
-  - Review `spool/<VMNAME>/deploy-*.log` and guest `/var/log/cloud-init*.log`.
+  - Review `spool/<VMNAME>/deploy-*.log` and guest `/var/log/cloud-init*.log` for details.
 
 - **Line ending errors?**  
-  - YAML templates used by cloud-init must be LF (Linux).  
-    PowerShell/param files should be CRLF (Windows).
+  - YAML templates for cloud-init must use **LF** (Linux).
+  - PowerShell and parameter files must use **CRLF** (Windows).
 
 ---
 
