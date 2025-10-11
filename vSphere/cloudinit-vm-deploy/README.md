@@ -26,7 +26,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 
 #### On the Template VM (RHEL9)
 
-- **Ensure VMware Tools (or open-vm-tools) is installed:**
+- **Ensure VMware Tools (open-vm-tools) is installed:**
     ```sh
     sudo dnf install open-vm-tools
     ```
