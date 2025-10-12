@@ -16,12 +16,13 @@ esxi_host: vhost-a01
 network_label: PROD_LAN01
 cpu: 3
 memory_mb: 4096
+disk_format: Thick    # One of: Thick, Thin, EagerZeroedThick
 disks:
-  - device: sda
+  - name: Hard disk 1
     size_gb: 45
-  - device: sdb
-    size_gb: 6
-  - device: sdc
+  #- name: Hard disk 2
+  #  size_gb: 6
+  - name: Hard disk 3
     size_gb: 5
 
 # == OS/Cloud-init Parameters ==
