@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.15
+  Version: 0.0.16
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -220,29 +220,41 @@ function AutoClone {
     Write-Log "=== Phase 1: Automatic Cloning ==="
 
     # Clone
-    try {
-        $templateVM = Get-VM -Name $params.template_vm_name -ErrorAction Stop
+    $templateVM = Get-Template -Name $params.template_vm_name
+    if (-not $templateVM) {
+        Write-Log -Error "Specified VM Template not found: $($params.template_vm_name)"
+        Exit 3
+    }
 
-        if ([string]::IsNullOrEmpty($params.resource_pool_name) -or $params.resource_pool_name -eq "Resources") {
-            $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Where-Object { $_.Name -eq "Resources" })
-        } else {
-            $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Where-Object { $_.Name -eq $params.resource_pool_name })
-            if (-not $resourcePool) {
-                Write-Log -Error "Specified Resource Pool not found: $($params.resource_pool_name)"
-                Exit 3
-            }
+    if ([string]::IsNullOrEmpty($params.resource_pool_name) -or $params.resource_pool_name -eq "Resources") {
+        $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Where-Object { $_.Name -eq "Resources" })
+    } else {
+        $resourcePool = (Get-Cluster -Name $params.cluster_name | Get-ResourcePool | Where-Object { $_.Name -eq $params.resource_pool_name })
+        if (-not $resourcePool) {
+            Write-Log -Error "Specified Resource Pool not found: $($params.resource_pool_name)"
+            Exit 3
         }
+    }
 
-        $newVM = New-VM -Name $params.new_vm_name `
-            -VM $templateVM `
-            -ResourcePool $resourcePool `
-            -Datastore $params.datastore_name `
-            -VMHost $params.esxi_host `
-            -NetworkName $params.network_label `
-            -ErrorAction Stop
-        Write-Log "Cloned new VM: $($newVM.Name) in $($params.datastore_name)"
+    $vmParams = @{
+        Name         = $params.new_vm_name
+        Template     = $templateVM
+        ResourcePool = $resourcePool
+        Datastore    = $params.datastore_name
+        VMHost       = $params.esxi_host
+        NetworkName  = $params.network_label
+        ErrorAction  = 'Stop'
+    }
+
+    if ($params.PSObject.Properties.Name -contains 'disk_format' -and $params.disk_format) {
+        $vmParams['DiskStorageFormat'] = $params.disk_format
+    }
+
+    try {
+        $newVM = New-VM @vmParams
+        Write-Log "Deployed new VM: $($newVM.Name) from template: $($newVM.Name) in $($params.datastore_name)"
     } catch {
-        Write-Log -Error "Error occurred during VM clone: $_"
+        Write-Log -Error "Error occurred while deploying VM: $($params.new_vm_name): $_"
         Exit 1
     }
 
@@ -256,16 +268,23 @@ function AutoClone {
     }
 
     # Disks
-    foreach ($d in $params.disks) {
-        try {
-            $disk = Get-HardDisk -VM $newVM | Where-Object { $_.Name -like "*$($d.device)*" }
-            if ($disk -and $disk.CapacityGB -lt $d.size_gb) {
-                Set-HardDisk -HardDisk $disk -CapacityGB $d.size_gb -Confirm:$false
-                Write-Log "Resized disk $($d.device) to $($d.size_gb) GB"
+    if ($params.PSObject.Properties.Name -contains 'disks' -and $params.disks) {
+        foreach ($d in $params.disks) {
+            if ($d.PSObject.Properties.Name -contains 'name' -and $d.PSObject.Properties.Name -contains 'size_gb') {
+                $disk = Get-HardDisk -VM $newVM | Where-Object { $_.Name -eq $d.name }
+                if ($disk -and $disk.CapacityGB -lt $d.size_gb) {
+                    try {
+                        Set-HardDisk -HardDisk $disk -CapacityGB $d.size_gb -Confirm:$false
+                        Start-Sleep -Seconds 2
+                        Write-Log "Resized disk $($disk.Name) to $($d.size_gb) GB"
+                    } catch {
+                        Write-Log -Error "Error resizing disk $($d.name): $_"
+                        Exit 1
+                    }
+                }
+            } else {
+                Write-Log -Warn "Skipping disk entry missing 'name' or 'size_gb': $($d | Out-String)"
             }
-        } catch {
-            Write-Log -Error "Error resizing disk $($d.device): $_"
-            Exit 1
         }
     }
 
