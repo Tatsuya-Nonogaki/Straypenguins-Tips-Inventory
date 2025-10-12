@@ -51,7 +51,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 - **Clean up previous cloud-init artifacts, if any.**  
   You can safely run `cloud-init clean` to remove any old instance state here on the Template VM.
 
-- **Shut down and convert to a Template VM** in vSphere.
+- **Shut down and convert to a VM Template** in vSphere.
 
 #### On the Windows Admin Host
 
@@ -154,6 +154,10 @@ Open a PowerShell terminal in the repository root:
 - **mkisofs.exe** must be available as specified in the script.  
     Alternatives such as `genisoimage` (e.g., under WSL2 on Windows Server 2022/Windows 11) are supported if you adjust `$mkisofs` and related script variables accordingly.
 
+- **Disk Parameters:**  
+  You may omit the `disk_format:` and/or the `disks:` parameter (in whole or in part) from your parameter YAML file if you do not wish to change disk provisioning type or disk sizes for some or all disks, as already defined in the template VM.  
+  In this case, the cloned VM will inherit the disk settings for the omitted items from the template as-is.
+
 ---
 
 ## 🛠️ Troubleshooting
@@ -164,6 +168,11 @@ Open a PowerShell terminal in the repository root:
 
 - **VM customization failed?**  
   - Review `spool/<VMNAME>/deploy-*.log` and guest `/var/log/cloud-init*.log` for details.
+
+- **Template VM not found or cannot be used as a template?**  
+  - Have you converted the source VM to a vSphere Template?  
+    The deployment script expects the master VM to be in Template state.  
+    If you see errors such as "Template not found" or related deployment failures, confirm that your VM has been converted to a Template via the vSphere Web UI before running the script.
 
 - **Line ending errors?**  
   - YAML templates for cloud-init must use **LF** (Linux).
