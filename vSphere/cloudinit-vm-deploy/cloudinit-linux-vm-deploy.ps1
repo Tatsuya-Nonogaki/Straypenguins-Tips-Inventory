@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.16
+  Version: 0.0.17
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -56,9 +56,6 @@ $spooldir = Join-Path $scriptdir "spool"
 $mkisofs = "C:\work\cdrtfe\tools\cdrtools\mkisofs.exe"
 
 # vCenter connection variables
-$vcserver = $params.vcenter_host
-$vcuser   = $params.vcenter_user
-$vcpasswd = $params.vcenter_password
 $vcport = 443
 $connRetry = 2
 $connRetryInterval = 5
@@ -119,7 +116,7 @@ function Write-Log {
 }
 
 function VIConnect {
-    # expects $vcserver, $vcuser, $vcpasswd in scope
+    # expects $vcserver, $vcuser, $vcpasswd in global scope
     process {
         for ($i = 1; $i -le $connRetry; $i++) {
             try {
@@ -213,6 +210,9 @@ $LogFilePath = Join-Path $workdir ("deploy-" + (Get-Date -Format 'yyyyMMdd') + "
 # ---------------------------------------
 
 # Connect to vCenter
+$vcserver = $params.vcenter_host
+$vcuser   = $params.vcenter_user
+$vcpasswd = $params.vcenter_password
 VIConnect
 
 # ---- Clone Template VM to the target VM with specified spec ----
@@ -242,16 +242,29 @@ function AutoClone {
         ResourcePool = $resourcePool
         Datastore    = $params.datastore_name
         VMHost       = $params.esxi_host
-        NetworkName  = $params.network_label
         ErrorAction  = 'Stop'
     }
 
-    if ($params.PSObject.Properties.Name -contains 'disk_format' -and $params.disk_format) {
+    if ($params.disk_format) {
         $vmParams['DiskStorageFormat'] = $params.disk_format
     }
 
+    if ($params.dvs_portgroup) {
+        # For Distributed Switch
+        $pg = Get-VDPortgroup -Name $params.dvs_portgroup
+        if (-not $pg) {
+            Write-Log -Error "Specified Distributed Portgroup not found: $($params.dvs_portgroup)"
+            Exit 3
+        }
+        $vmParams['Portgroup'] = $pg
+    }
+    elseif ($params.network_name) {
+        # For standard switch
+        $vmParams['NetworkName'] = $params.network_name
+    }
+
     try {
-        $newVM = New-VM @vmParams
+        $newVM = New-VM @vmParams | Tee-Object -Variable newVMOut | Out-File $LogFilePath -Append -Encoding UTF8
         Write-Log "Deployed new VM: $($newVM.Name) from template: $($newVM.Name) in $($params.datastore_name)"
     } catch {
         Write-Log -Error "Error occurred while deploying VM: $($params.new_vm_name): $_"
@@ -260,7 +273,8 @@ function AutoClone {
 
     # CPU/mem
     try {
-        Set-VM -VM $newVM -NumCpu $params.cpu -MemoryMB $params.memory_mb -Confirm:$false -ErrorAction Stop
+        Set-VM -VM $newVM -NumCpu $params.cpu -MemoryMB $params.memory_mb -Confirm:$false -ErrorAction Stop |
+          Tee-Object -Variable setVMOut | Out-File $LogFilePath -Append -Encoding UTF8
         Write-Log "Set CPU: $($params.cpu), Mem: $($params.memory_mb) MB"
     } catch {
         Write-Log -Error "Error during CPU/memory set: $_"
@@ -268,17 +282,18 @@ function AutoClone {
     }
 
     # Disks
-    if ($params.PSObject.Properties.Name -contains 'disks' -and $params.disks) {
+    if ($params.disks) {
         foreach ($d in $params.disks) {
-            if ($d.PSObject.Properties.Name -contains 'name' -and $d.PSObject.Properties.Name -contains 'size_gb') {
-                $disk = Get-HardDisk -VM $newVM | Where-Object { $_.Name -eq $d.name }
-                if ($disk -and $disk.CapacityGB -lt $d.size_gb) {
+            if ($d.ContainsKey('name') -and $d.ContainsKey('size_gb')) {
+                $disk = Get-HardDisk -VM $newVM | Where-Object { $_.Name -eq $d['name'] }
+                if ($disk -and $disk.CapacityGB -lt $d['size_gb']) {
                     try {
-                        Set-HardDisk -HardDisk $disk -CapacityGB $d.size_gb -Confirm:$false
+                        Set-HardDisk -HardDisk $disk -CapacityGB $d['size_gb'] -Confirm:$false |
+                          Tee-Object -Variable setHDOut | Out-File $LogFilePath -Append -Encoding UTF8
                         Start-Sleep -Seconds 2
-                        Write-Log "Resized disk $($disk.Name) to $($d.size_gb) GB"
+                        Write-Log "Resized disk $($disk.Name) to $($d['size_gb']) GB"
                     } catch {
-                        Write-Log -Error "Error resizing disk $($d.name): $_"
+                        Write-Log -Error "Error resizing disk $($d['name']): $_"
                         Exit 1
                     }
                 }
