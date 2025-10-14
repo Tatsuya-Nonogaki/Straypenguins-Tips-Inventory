@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.17
+  Version: 0.0.18
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -219,6 +219,13 @@ VIConnect
 function AutoClone {
     Write-Log "=== Phase 1: Automatic Cloning ==="
 
+    # Check if a VM with the same name already exists
+    $existingVM = Get-VM -Name $params.new_vm_name -ErrorAction SilentlyContinue
+    if ($existingVM) {
+        Write-Log -Error "A VM with the same name '$($params.new_vm_name)' already exists. Aborting deployment."
+        Exit 2
+    }
+
     # Clone
     $templateVM = Get-Template -Name $params.template_vm_name
     if (-not $templateVM) {
@@ -264,7 +271,8 @@ function AutoClone {
     }
 
     try {
-        $newVM = New-VM @vmParams | Tee-Object -Variable newVMOut | Out-File $LogFilePath -Append -Encoding UTF8
+        $newVM = New-VM @vmParams | Tee-Object -Variable newVMOut
+        $newVMOut | Out-File $LogFilePath -Append -Encoding UTF8
         Write-Log "Deployed new VM: $($newVM.Name) from template: $($newVM.Name) in $($params.datastore_name)"
     } catch {
         Write-Log -Error "Error occurred while deploying VM: $($params.new_vm_name): $_"
