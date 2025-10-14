@@ -82,14 +82,16 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 
 ### 3. Run the Deployment Script
 
-Open a PowerShell terminal in the repository root:
+- Create `spool` folder on the repository root to save logs and seed ISO and its source files.
 
-```powershell
-.\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings_<VMNAME>.yaml
-```
+- Open a PowerShell terminal in the repository root and run:
 
-- You may run phases separately (`-Phase 1`, `-Phase 2`, `-Phase 3`) if needed.
-- The script will:
+  ```powershell
+  .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings_<VMNAME>.yaml
+  ```
+
+  - You may run phases separately (`-Phase 1`, `-Phase 2`, `-Phase 3`) if needed.
+  - The script will:
     1. Clone the Template VM as specified
     2. Prepare the guest (clean cloud-init, set config, enable cloud-init)
     3. Generate and attach a cloud-init seed ISO, then boot the VM to personalize with cloud-init
