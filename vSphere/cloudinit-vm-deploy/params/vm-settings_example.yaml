@@ -13,7 +13,10 @@ cluster_name: CLST_A
 datastore_name: ProdStore
 resource_pool_name: Resources   # If you are not sure, leave as "Resources" or comment out.
 esxi_host: vhost-a01
-network_label: PROD_LAN01
+## Network port label; set either of the two (not both)
+#network_name: VM Network       # For standard switch
+dvs_portgroup: PROD_LAN01       # For Distributed Switch
+##
 cpu: 3
 memory_mb: 4096
 disk_format: Thick    # One of: Thick, Thin, EagerZeroedThick
@@ -41,7 +44,8 @@ dns2: 192.168.0.202
 # prefix2: 24
 
 username: mainte
-password_hash: "$6$Kc8......"    # Use 'openssl passwd -6 "password"' for SHA-512 hash
+password: "naks9slewiv"    # As plain string for use with PowerShell logics
+password_hash: "$6$Kc8......"      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
 ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
 # ssh_key2: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
 
