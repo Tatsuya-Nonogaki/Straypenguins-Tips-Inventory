@@ -30,7 +30,7 @@ disks:
 
 # == OS/Cloud-init Parameters ==
 hostname: original01
-instance-id: original01-20251001
+instance_id: original01-20251001
 fqdn: original01.production.local
 
 ip_addr1: 192.168.0.10
@@ -48,13 +48,3 @@ password: "naks9slewiv"    # As plain string for use with PowerShell logics
 password_hash: "$6$Kc8......"      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
 ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
 # ssh_key2: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
-
-growpart:
-  mode: auto
-  devices: ['/', 'swap', '/var/crash']
-
-package_update: false
-package_upgrade: false
-
-# runcmd:
-#   - [ echo, "Hello, cloud-init!" ]
