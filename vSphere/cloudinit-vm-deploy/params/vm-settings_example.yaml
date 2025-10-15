@@ -19,7 +19,7 @@ dvs_portgroup: PROD_LAN01       # For Distributed Switch
 ##
 cpu: 3
 memory_mb: 4096
-disk_format: Thick    # One of: Thick, Thin, EagerZeroedThick
+disk_format: Thick    # One of: Thick, Thin, EagerZeroedThick, or leave blank (or comment the line) to retain template's format
 disks:
   - name: Hard disk 1
     size_gb: 45
