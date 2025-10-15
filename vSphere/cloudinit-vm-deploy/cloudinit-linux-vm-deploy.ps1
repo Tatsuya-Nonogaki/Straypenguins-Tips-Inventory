@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.19
+  Version: 0.0.20
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -373,6 +373,7 @@ function InitializeClone {
             Write-Log -Error "VMware Tools not ready in VM after $timeoutSec seconds."
             Exit 1
         }
+        Start-Sleep -Seconds 5
         Write-Log "VMware Tools is running in guest."
     } catch {
         Write-Log -Warn "Error waiting for VMware Tools: $_"
@@ -391,8 +392,7 @@ function InitializeClone {
 
     try {
         $result = Invoke-VMScript -VM $vm -ScriptText "chmod +x $dstPath && sudo /bin/bash $dstPath" `
-            -GuestUser $guestUser -GuestPassword $guestPass `
-            -ErrorAction Stop
+            -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
         Write-Log "Executed init script in guest. Output: $($result.ScriptOutput)"
     } catch {
         Write-Log -Error "Failed to execute script in guest: $_"
@@ -401,8 +401,7 @@ function InitializeClone {
 
     try {
         $result = Invoke-VMScript -VM $vm -ScriptText "rm -f $dstPath" `
-            -GuestUser $guestUser -GuestPassword $guestPass `
-            -ErrorAction Stop
+            -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
         Write-Log "Removed init script from guest: $dstPath"
     } catch {
         # Warn but not abort processing if deletion failed
