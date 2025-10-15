@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.18
+  Version: 0.0.19
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -328,7 +328,7 @@ function InitializeClone {
     $guestUser = $params.username
     $guestPassPlain = $params.password
     try {
-        $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force
+        $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
     } catch {
         Write-Log -Error "Failed to convert guest password to SecureString: $_"
         Exit 3
@@ -381,9 +381,8 @@ function InitializeClone {
     # Transfer the script and run on the clone
     try {
         $dstPath = "/tmp/init-vm-cloudinit.sh"
-        Copy-VMGuestFile -Source $scriptSrc -Destination $dstPath `
-            -VM $vm -GuestUser $guestUser -GuestPassword $guestPass `
-            -Force -ErrorAction Stop
+        Copy-VMGuestFile -LocalToGuest -Source $scriptSrc -Destination $dstPath `
+            -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
         Write-Log "Copied init script to guest: $dstPath"
     } catch {
         Write-Log -Error "Failed to copy script to guest: $_"
@@ -391,7 +390,7 @@ function InitializeClone {
     }
 
     try {
-        $result = Invoke-VMScript -VM $vm -ScriptText "chmod +x $dstPath && sudo $dstPath" `
+        $result = Invoke-VMScript -VM $vm -ScriptText "chmod +x $dstPath && sudo /bin/bash $dstPath" `
             -GuestUser $guestUser -GuestPassword $guestPass `
             -ErrorAction Stop
         Write-Log "Executed init script in guest. Output: $($result.ScriptOutput)"
