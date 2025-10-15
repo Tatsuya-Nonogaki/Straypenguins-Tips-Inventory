@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.20
+  Version: 0.0.21
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -458,6 +458,7 @@ function CloudInitKickStart {
 
     foreach ($f in $seedFiles) {
         $tplPath = Join-Path $tplDir $f.tpl
+        $charLF = "`n"
         if (-not (Test-Path $tplPath)) {
             Write-Log -Error "Missing template: $tplPath"
             Exit 2
@@ -466,11 +467,26 @@ function CloudInitKickStart {
             $template = Get-Content $tplPath -Raw
             # Replace: {{KEY}} -> $params.KEY
             $output = $template
-            foreach ($k in $params.PSObject.Properties.Name) {
-                $output = $output -replace "{{\s*$k\s*}}", [string]$params.$k
+
+            foreach ($k in $params.Keys) {
+                $v = $params[$k]
+                if (
+                    $v -is [string] -or 
+                    $v -is [int] -or 
+                    $v -is [bool] -or 
+                    $v -is [double] -or 
+                    $null -eq $v
+                ) {
+                    $output = $output -replace "{{\s*$k\s*}}", [string]$v
+                } else {
+                    Write-Log "Skipped structured key: $k (type: $($v.GetType().FullName))"
+                }
             }
+
+            # Write out the file contents, avoiding Set-Content's default behavior of appending a trailing CRLF
             $seedOut = Join-Path $seedDir $f.out
-            $output | Set-Content -Encoding UTF8 $seedOut
+            $output = $output.TrimEnd("`r", "`n") + $charLF
+            [System.IO.File]::WriteAllText($seedOut, $output, [System.Text.Encoding]::UTF8)
             Write-Log "Generated $($f.out) for cloud-init"
         } catch {
             Write-Log -Error "Failed to render $($f.tpl): $_"
