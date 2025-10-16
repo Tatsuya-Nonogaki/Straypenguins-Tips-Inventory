@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.21
+  Version: 0.0.22
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -44,6 +44,7 @@ param(
     [Alias("c")]
     [string]$Config,
 
+    [Parameter()]
     [switch]$NoRestart
 )
 
@@ -418,6 +419,37 @@ function InitializeClone {
 function CloudInitKickStart {
     Write-Log "=== Phase 3: Cloud-init Seed Generation & Personalization ==="
 
+    function Replace-Placeholders {
+    # Replace each placeholder with a value from YAML key or nested hash key (array keys are not supported for now)
+        Param(
+            [parameter(Mandatory=$true)]
+            [String]$template,
+            [parameter(Mandatory=$true)]
+            [Object]$params,
+            [parameter()]
+            [String]$prefix = ""
+        )
+
+        foreach ($k in $params.Keys) {
+            $v = $params[$k]
+            $keyPath = if ($prefix) { "$prefix.$k" } else { $k }
+            if (
+                $v -is [string] -or
+                $v -is [int] -or
+                $v -is [bool] -or
+                $v -is [double] -or
+                $null -eq $v
+            ) {
+                $template = $template -replace "{{\s*$keyPath\s*}}", [string]$v
+            } elseif ($v -is [hashtable] -or $v -is [PSCustomObject]) {
+                $template = Replace-Placeholders -template $template -params $v -prefix $keyPath
+            } else {
+                Write-Log "Skipped unsupported data structure for this script: $keyPath (type: $($v.GetType().FullName))"
+            }
+        }
+        return $template
+    }
+
     # 1. Get target VM object
     try {
         $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
@@ -430,7 +462,7 @@ function CloudInitKickStart {
     $seedDir = Join-Path $workdir "cloudinit-seed"
     if (Test-Path $seedDir) {
         try {
-            Remove-Item -Recurse -Force $seedDir
+            Remove-Item -Recurse -Force $seedDir -ErrorAction Stop
             Write-Log "Removed old seed dir: $seedDir"
         } catch {
             Write-Log -Warn "Failed to remove previous seed dir: $_"
@@ -465,27 +497,11 @@ function CloudInitKickStart {
         }
         try {
             $template = Get-Content $tplPath -Raw
-            # Replace: {{KEY}} -> $params.KEY
-            $output = $template
-
-            foreach ($k in $params.Keys) {
-                $v = $params[$k]
-                if (
-                    $v -is [string] -or 
-                    $v -is [int] -or 
-                    $v -is [bool] -or 
-                    $v -is [double] -or 
-                    $null -eq $v
-                ) {
-                    $output = $output -replace "{{\s*$k\s*}}", [string]$v
-                } else {
-                    Write-Log "Skipped structured key: $k (type: $($v.GetType().FullName))"
-                }
-            }
+            $output = Replace-Placeholders $template $params
 
             # Write out the file contents, avoiding Set-Content's default behavior of appending a trailing CRLF
-            $seedOut = Join-Path $seedDir $f.out
             $output = $output.TrimEnd("`r", "`n") + $charLF
+            $seedOut = Join-Path $seedDir $f.out
             [System.IO.File]::WriteAllText($seedOut, $output, [System.Text.Encoding]::UTF8)
             Write-Log "Generated $($f.out) for cloud-init"
         } catch {
@@ -513,16 +529,11 @@ function CloudInitKickStart {
     # 5. Attach ISO to VM's CD drive (add if not present)
     $cd = Get-CDDrive -VM $vm
     if (-not $cd) {
-        try {
-            $cd = New-CDDrive -VM $vm -ISOPath $isoPath -StartConnected -Confirm:$false
-            Write-Log "Added CD drive & attached seed ISO to VM"
-        } catch {
-            Write-Log -Error "Failed to add/attach CD drive: $_"
-            Exit 1
-        }
+        Write-Log -Error "This VM has no CD drive; Please give it one and try Phase-3 again"
+        Exit 2
     } else {
         try {
-            Set-CDDrive -CDDrive $cd -ISOPath $isoPath -StartConnected $true -Confirm:$false
+            Set-CDDrive -CD $cd -IsoPath $isoPath -StartConnected $true -Confirm:$false
             Write-Log "Set existing CD drive to attach seed ISO"
         } catch {
             Write-Log -Error "Failed to set CD drive ISO: $_"
