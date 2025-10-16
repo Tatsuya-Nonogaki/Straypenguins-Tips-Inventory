@@ -16,7 +16,7 @@ hostname: {{hostname}}             # e.g. original01.production.local
 
 users:
   - name: {{username}}             # e.g. mainte
-    groups: wheel,adm,systemd-journal
+    groups: {{user_groups}}        # e.g. "wheel,adm,systemd-journal"
     # sudo: ALL=(ALL) NOPASSWD:ALL  # (Optional) Uncomment only if you require passwordless sudo for this user
     lock_passwd: false             # DO NOT set true in this framework (see above)
     passwd: {{password_hash}}      # SHA-512 hashed string (see the main script for hash method)
@@ -61,7 +61,7 @@ write_files:
     content: |
       127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
       ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-      {{ip_addr1}}  {{fqdn}} {{hostname}}
+      {{netif1.ip_addr}}  {{fqdn}} {{hostname}}
     owner: root:root
     permissions: '0644'
 
