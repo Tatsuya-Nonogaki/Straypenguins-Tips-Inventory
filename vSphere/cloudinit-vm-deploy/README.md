@@ -26,6 +26,9 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 
 #### On the Template VM (RHEL9)
 
+- **Ensure the template VM has at least one CD drive:**  
+    Cloud-init deployment requires a CD drive on the cloned VM to load the seed ISO.
+
 - **Ensure VMware Tools (open-vm-tools) is installed:**
     ```sh
     sudo dnf install open-vm-tools
