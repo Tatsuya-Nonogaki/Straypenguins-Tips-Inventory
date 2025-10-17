@@ -55,6 +55,8 @@ growpart:
   devices: ['/', 'swap', '/var/crash']
   ignore_growroot_disabled: false
 
+runcmd:{{RESIZEFS_BLOCK}}
+
 # Customize hosts file (the file gets thoroughly overwritten)
 write_files:
   - path: /etc/hosts
