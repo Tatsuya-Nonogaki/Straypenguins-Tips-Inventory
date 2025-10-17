@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.2324
+  Version: 0.0.25
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -517,6 +517,7 @@ function CloudInitKickStart {
     }
     $isoName = "cloudinit-linux-seed.iso"
     $isoPath = Join-Path $workdir $isoName
+
     $cmd = "`"$mkisofs`" -output `"$isoPath`" -V cidata -r -J `"$seedDir`""
     Write-Log "Executing command: $cmd"
     $mkisofsOut = cmd /c $cmd 2>&1
@@ -535,10 +536,16 @@ function CloudInitKickStart {
     }
 
     $seedIsoCopyStore = $params.seed_iso_copy_store.TrimEnd('/').TrimEnd('\')
+    $datacenterName = $params.datacenter_name
     if (-not $seedIsoCopyStore) {
         Write-Log -Error "Parameter 'seed_iso_copy_store' is not set. Please check your parameter file."
         Exit 2
     }
+    if (-not $datacenterName) {
+        Write-Log -Error "Parameter 'datacenter_name' is not set. Please check your parameter file."
+        Exit 2
+    }
+
     # Datastore full path like [COMMSTORE01] ISO/cloudinit-seed.iso
     $datastoreIsoPath = "$seedIsoCopyStore/$isoName"
 
@@ -551,58 +558,50 @@ function CloudInitKickStart {
         Exit 2
     }
 
-    # Pre-checks for upload
     try {
         $datastore = Get-Datastore -Name $datastoreName -ErrorAction Stop
-
-        # Mount the datastore as ds:
-        # Remove existing drive if present
-        if (Get-PSDrive -Name ds -ErrorAction SilentlyContinue) {
-            Remove-PSDrive -Name ds -Force
-        }
-        New-PSDrive -Location $datastore -Name ds -PSProvider VimDatastore -Root '\' | Out-Null
     } catch {
-        Write-Log -Error "Failed to mount Datastore: '$datastoreName' as PSDrive: $_"
+        Write-Log -Error "Datastore not found: $datastoreName"
         Exit 2
     }
 
-    $isoFolderExists = Get-ChildItem ds:\ | Where-Object { $_.Name -eq $datastoreFolder -and $_.PSIsContainer }
-    if (-not $isoFolderExists) {
-        Write-Log -Error "Target folder does not exist in datastore: ds:\$datastoreFolder ($seedIsoCopyStore)"
-        Remove-PSDrive -Name ds -Force
+    $vmstoreFolderPath = "vmstore:\$datacenterName\$datastoreName\$datastoreFolder"
+    $vmstoreIsoPath = "$vmstoreFolderPath\$isoName"
+
+    # Pre-checks for upload
+    if (-not (Test-Path $vmstoreFolderPath)) {
+        Write-Log -Error "Target folder does not exist in datastore: $vmstoreFolderPath ($seedIsoCopyStore)"
         Exit 2
     }
 
-    $seedIsoPathDS = "ds:\$datastoreFolder\$isoName"
-    if (Test-Path $seedIsoPathDS) {
-        Write-Log -Error "Seed ISO '$datastoreIsoPath' already exists. Please remove it or specify another path."
-        Remove-PSDrive -Name ds -Force
+    if (Test-Path $vmstoreIsoPath) {
+        Write-Log -Error "Seed ISO '$vmstoreIsoPath' ($datastoreIsoPath) already exists. Please remove it or specify another path."
         Exit 2
     }
 
-    # Upload the ISO to the datastore
+    # Upload the ISO to the datastore using vmstore:\ path as destination
     try {
-        Copy-DatastoreItem -Item "$isoPath" -Destination "$datastoreIsoPath" -ErrorAction Stop
-        Write-Log "Seed ISO uploaded to datastore: '$datastoreIsoPath'"
+        Copy-DatastoreItem -Item "$isoPath" -Destination "$vmstoreIsoPath" -ErrorAction Stop
+        Write-Log "Seed ISO uploaded to datastore: '$vmstoreIsoPath' ($datastoreIsoPath)"
     } catch {
         Write-Log -Error "Failed to upload seed ISO to datastore: $_"
-        Remove-PSDrive -Name ds -Force
         Exit 2
     }
 
     # Attach ISO to the VM's CD drive
     try {
-        Set-CDDrive -CD $cdd -IsoPath "$datastoreIsoPath" -StartConnected $true -Confirm:$false -ErrorAction Stop
+        Set-CDDrive -CD $cdd -IsoPath "$datastoreIsoPath" -StartConnected $true -Confirm:$false -ErrorAction Stop |
+          Tee-Object -Variable setCDOut
+          $setCDOut | Select-Object IsoPath | Format-List | Out-File $LogFilePath -Append -Encoding UTF8
         Write-Log "Seed ISO attached to the VM's CD drive."
     } catch {
         Write-Log -Error "Failed to attach the seed ISO to the VM's CD drive: $_"
         try {
-            Remove-DatastoreItem -Path "$datastoreIsoPath" -Confirm:$false -ErrorAction Stop
-            Write-Log "Cleaned up uploaded seed ISO from datastore: '$datastoreIsoPath'"
+            Remove-DatastoreItem -Path $vmstoreIsoPath -Confirm:$false -ErrorAction Stop
+            Write-Log "Cleaned up the uploaded seed ISO from datastore: '$vmstoreIsoPath'"
         } catch {
             Write-Log -Error "Failed to clean up ISO from datastore after attach failure: $_"
         }
-        Remove-PSDrive -Name ds -Force
         Exit 1
     }
 
@@ -618,14 +617,12 @@ function CloudInitKickStart {
     }
     if ($shouldRemoveSeedIso) {
         try {
-            Remove-DatastoreItem -Path $datastoreIsoPath -Confirm:$false -ErrorAction Stop
-            Write-Log "Removed uploaded seed ISO from datastore after attach: $datastoreIsoPath"
+            Remove-DatastoreItem -Path $vmstoreIsoPath -Confirm:$false -ErrorAction Stop
+            Write-Log "Removed uploaded seed ISO from datastore after attach: $vmstoreIsoPath"
         } catch {
             Write-Log -Error "Failed to remove ISO from datastore after attach: $_"
         }
     }
-
-    Remove-PSDrive -Name ds -Force
 
     # 6. Power on VM for personalization
     Start-MyVM $vm
