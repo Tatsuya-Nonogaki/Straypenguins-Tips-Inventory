@@ -12,7 +12,7 @@ new_vm_name: original01
 datacenter_name: VMDATACENTER
 cluster_name: CLST_A
 datastore_name: ProdStore
-seed_iso_copy_store: "[COMMSTORE01] ISO/"   # Datastore and path where seed ISO will be copied temporarily, in a form "[store]<sp>path(/)"
+seed_iso_copy_store: "[COMMSTORE01] cloudinit-iso/"   # Datastore and path where seed ISO will be copied temporarily, in a form "[store]<sp>path(/)"
 remove_seed_iso: false    # ==FOR TEST/DEBUG== If true/True/yes/Yes, uploaded seed ISO is removed from the datastore after successful attach and before final boot
 resource_pool_name: Resources   # If you are not sure, leave as "Resources" or comment out.
 esxi_host: vhost-a01
