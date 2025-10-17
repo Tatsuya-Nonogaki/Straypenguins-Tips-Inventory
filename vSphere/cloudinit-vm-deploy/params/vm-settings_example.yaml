@@ -31,6 +31,10 @@ disks:
   - name: Hard disk 3
     size_gb: 5
 
+# Device paths to run resize2fs on after partition expansion (workaround for unreliable cloud-init builtin function)
+resize_fs:
+  - /dev/sdc1
+
 # == OS/Cloud-init Parameters ==
 hostname: original01
 instance_id: original01-20251001
