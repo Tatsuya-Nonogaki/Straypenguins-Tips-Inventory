@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.25
+  Version: 0.0.2526
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -592,7 +592,7 @@ function CloudInitKickStart {
     try {
         Set-CDDrive -CD $cdd -IsoPath "$datastoreIsoPath" -StartConnected $true -Confirm:$false -ErrorAction Stop |
           Tee-Object -Variable setCDOut
-          $setCDOut | Select-Object IsoPath | Format-List | Out-File $LogFilePath -Append -Encoding UTF8
+          $setCDOut | Select-Object IsoPath,Parent,ConnectionState | Format-List | Out-File $LogFilePath -Append -Encoding UTF8
         Write-Log "Seed ISO attached to the VM's CD drive."
     } catch {
         Write-Log -Error "Failed to attach the seed ISO to the VM's CD drive: $_"
