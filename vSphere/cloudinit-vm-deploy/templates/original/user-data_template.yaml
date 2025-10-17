@@ -40,8 +40,6 @@ chpasswd:
 # 3) SSH-key only (NOT SUPPORTED in this framework): lock_passwd: true, provide ssh_authorized_keys, omit passwd.
 #    DO NOT use this pattern, as Phase 2 management will fail.
 
-ssh_pwauth: true
-
 # Packages to install at first boot (optional)
 # packages:
 #   - vim
