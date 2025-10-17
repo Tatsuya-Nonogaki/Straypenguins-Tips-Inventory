@@ -9,8 +9,11 @@ vcenter_password: "KenFiat50s^"             # SSO password. "" or omit to use cr
 # == VM Hardware/Placement ==
 template_vm_name: rhel9-tpl
 new_vm_name: original01
+datacenter_name: VMDATACENTER
 cluster_name: CLST_A
 datastore_name: ProdStore
+seed_iso_copy_store: "[COMMSTORE01] ISO/"   # Datastore and path where seed ISO will be copied temporarily, in a form "[store]<sp>path(/)"
+remove_seed_iso: false    # ==FOR TEST/DEBUG== If true/True/yes/Yes, uploaded seed ISO is removed from the datastore after successful attach and before final boot
 resource_pool_name: Resources   # If you are not sure, leave as "Resources" or comment out.
 esxi_host: vhost-a01
 ## Network port label; set either of the two (not both)
@@ -33,17 +36,20 @@ hostname: original01
 instance_id: original01-20251001
 fqdn: original01.production.local
 
-ip_addr1: 192.168.0.10
-prefix1: 24
-gateway1: 192.168.0.254
-dns1: 192.168.0.201
-dns2: 192.168.0.202
+netif1:
+  ip_addr: 192.168.0.10
+  prefix: 24
+  gateway: 192.168.0.254
+  dns1: 192.168.0.201
+  dns2: 192.168.0.202
 
 # Additional NIC example (uncomment to use)
-# ip_addr2: 10.10.10.101
-# prefix2: 24
+# netif2:
+#  ip_addr: 10.10.10.101
+#  prefix: 24
 
 username: mainte
+user_groups: "wheel,adm,systemd-journal"
 password: "naks9slewiv"    # As plain string for use with PowerShell logics
 password_hash: "$6$Kc8......"      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
 ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
