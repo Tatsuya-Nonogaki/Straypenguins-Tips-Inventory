@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.252627
+  Version: 0.0.2728
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -54,7 +54,7 @@ param(
 $scriptdir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 $spooldir = Join-Path $scriptdir "spool"
 
-$mkisofs = "C:\work\cdrtfe\tools\cdrtools\mkisofs.exe"
+$mkisofs = "D:\NECWORK\02_tools\cdrtfe\tools\cdrtools\mkisofs.exe"
 
 # vCenter connection variables
 $vcport = 443
@@ -497,6 +497,17 @@ function CloudInitKickStart {
         }
         try {
             $template = Get-Content $tplPath -Raw
+
+            # For user-data only: construct the filesystem resizing runcmd block by substitution
+            if ($f.out -eq "user-data") {
+                if ($params.resize_fs -and $params.resize_fs.Count -gt 0) {
+                    $resizefsBlock = "`n" + ($params.resize_fs | ForEach-Object { "  - resize2fs $_" }) -join "`n"
+                } else {
+                    $resizefsBlock = " []"
+                }
+                $template = $template -replace "{{RESIZEFS_BLOCK}}", $resizefsBlock
+            }
+
             $output = Replace-Placeholders $template $params
 
             # Write out the file contents, avoiding Set-Content's default behavior of appending a trailing CRLF
