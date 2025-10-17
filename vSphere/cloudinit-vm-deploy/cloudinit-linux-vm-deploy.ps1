@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.2526
+  Version: 0.0.252627
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -502,7 +502,8 @@ function CloudInitKickStart {
             # Write out the file contents, avoiding Set-Content's default behavior of appending a trailing CRLF
             $output = $output.TrimEnd("`r", "`n") + $charLF
             $seedOut = Join-Path $seedDir $f.out
-            [System.IO.File]::WriteAllText($seedOut, $output, [System.Text.Encoding]::UTF8)
+            $utf8NoBomEncoding = New-Object System.Text.UTF8Encoding($false)
+            [System.IO.File]::WriteAllText($seedOut, $output, $utf8NoBomEncoding)
             Write-Log "Generated $($f.out) for cloud-init"
         } catch {
             Write-Log -Error "Failed to render $($f.tpl): $_"
