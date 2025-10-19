@@ -26,10 +26,17 @@ disk_format: Thick    # One of: Thick, Thin, EagerZeroedThick, or leave blank (o
 disks:
   - name: Hard disk 1
     size_gb: 50
-  #- name: Hard disk 2
-  #  size_gb: 6
+  - name: Hard disk 2
+    size_gb: 8
   - name: Hard disk 3
     size_gb: 5
+  #- name: Hard disk 4
+  #  size_gb: 3
+
+# Map device file paths to swap dictionary keys for convenient placeholder substitution in YAML templates (e.g., for growpart devices).
+swaps:
+  1: /dev/sdb1
+ #2: /dev/sdd1
 
 # Device paths to run resize2fs on after partition expansion (workaround for unreliable cloud-init builtin function)
 resize_fs:
