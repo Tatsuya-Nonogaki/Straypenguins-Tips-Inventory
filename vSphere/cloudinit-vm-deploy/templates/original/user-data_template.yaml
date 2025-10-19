@@ -51,8 +51,8 @@ package_upgrade: false
 growpart:
   mode: auto
   # List all mount points to be auto-expanded if their backing disk was enlarged in Phase 1.
-  # For example: ['/', 'swap', '/var/crash']
-  devices: ['/', 'swap', '/var/crash']
+  # For example: ['/', '/dev/sdb1', '/var/crash']
+  devices: ['/', '{{swaps.1}}', '/var/crash']
   ignore_growroot_disabled: false
 
 runcmd:{{RESIZEFS_BLOCK}}
