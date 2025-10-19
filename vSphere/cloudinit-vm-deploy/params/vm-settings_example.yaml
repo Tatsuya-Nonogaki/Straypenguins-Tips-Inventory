@@ -25,7 +25,7 @@ memory_mb: 4096
 disk_format: Thick    # One of: Thick, Thin, EagerZeroedThick, or leave blank (or comment the line) to retain template's format
 disks:
   - name: Hard disk 1
-    size_gb: 45
+    size_gb: 50
   #- name: Hard disk 2
   #  size_gb: 6
   - name: Hard disk 3
