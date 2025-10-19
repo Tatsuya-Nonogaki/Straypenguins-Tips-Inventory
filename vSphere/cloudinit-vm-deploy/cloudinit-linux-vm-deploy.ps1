@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.2728
+  Version: 0.0.28
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -54,7 +54,7 @@ param(
 $scriptdir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 $spooldir = Join-Path $scriptdir "spool"
 
-$mkisofs = "D:\NECWORK\02_tools\cdrtfe\tools\cdrtools\mkisofs.exe"
+$mkisofs = "C:\work\cdrtfe\tools\cdrtools\mkisofs.exe"
 
 # vCenter connection variables
 $vcport = 443
@@ -346,7 +346,7 @@ function InitializeClone {
     if ($NoRestart) {
         if ($vm.PowerState -ne "PoweredOn") {
             Write-Host "'-NoRestart' is specified, but VM must be powered on for initialization."
-            $resp = Read-Host "Start VM anyway? [Y]/n (If you answer N, the entire script will abort here.)"
+            $resp = Read-Host "Start VM anyway? [Y]/n (If you answer N, the entire script will abort here)"
             if ($resp -eq "" -or $resp -eq "Y" -or $resp -eq "y") {
                 Start-MyVM $vm -Force
             } else {
@@ -501,11 +501,11 @@ function CloudInitKickStart {
             # For user-data only: construct the filesystem resizing runcmd block by substitution
             if ($f.out -eq "user-data") {
                 if ($params.resize_fs -and $params.resize_fs.Count -gt 0) {
-                    $resizefsBlock = "`n" + ($params.resize_fs | ForEach-Object { "  - resize2fs $_" }) -join "`n"
+                    $resizefsBlock = ($params.resize_fs | ForEach-Object { "  - [ resize2fs, $_ ]" }) -join "`n"
+                    $template = $template -replace "{{RESIZEFS_BLOCK}}", "`n$resizefsBlock"
                 } else {
-                    $resizefsBlock = " []"
+                    $template = $template -replace "{{RESIZEFS_BLOCK}}", " []"
                 }
-                $template = $template -replace "{{RESIZEFS_BLOCK}}", $resizefsBlock
             }
 
             $output = Replace-Placeholders $template $params
