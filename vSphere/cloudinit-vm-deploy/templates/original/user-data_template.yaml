@@ -57,6 +57,8 @@ growpart:
 
 runcmd:{{RESIZEFS_BLOCK}}
 
+runcmd:{{RESIZESWAP_BLOCK}}
+
 # Customize hosts file (the file gets thoroughly overwritten)
 write_files:
   - path: /etc/hosts
