@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.28
+  Version: 0.0.2829
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -444,7 +444,7 @@ function CloudInitKickStart {
             } elseif ($v -is [hashtable] -or $v -is [PSCustomObject]) {
                 $template = Replace-Placeholders -template $template -params $v -prefix $keyPath
             } else {
-                Write-Log "Skipped unsupported data structure for this script: $keyPath (type: $($v.GetType().FullName))"
+                Write-Log "Placeholder replacement skipped unsupported data structure for this script: $keyPath (type: $($v.GetType().FullName))"
             }
         }
         return $template
@@ -498,13 +498,61 @@ function CloudInitKickStart {
         try {
             $template = Get-Content $tplPath -Raw
 
-            # For user-data only: construct the filesystem resizing runcmd block by substitution
+            # For user-data only: construct the filesystem resizing runcmd blocks by substitution
             if ($f.out -eq "user-data") {
+                # 1. Ext2/3/4 filesystems expansion ===
                 if ($params.resize_fs -and $params.resize_fs.Count -gt 0) {
                     $resizefsBlock = ($params.resize_fs | ForEach-Object { "  - [ resize2fs, $_ ]" }) -join "`n"
                     $template = $template -replace "{{RESIZEFS_BLOCK}}", "`n$resizefsBlock"
                 } else {
                     $template = $template -replace "{{RESIZEFS_BLOCK}}", " []"
+                }
+
+                # 2. Swap devices expansion ===
+                if ($params.resize_swap -and $params.resize_swap.Count -gt 0) {
+                    $swapdevs = $params.resize_swap -join " "
+
+                    # Bash script body (dividing into parts to avoid PowerShell variable expansion)
+                    $shBodyPart = @'
+
+#!/bin/bash
+set -eux
+for swapdev in 
+'@
+
+    $shBodyTail = @'
+; do
+  OLDUUID=$(blkid -s UUID -o value "$swapdev")
+  OLDSWAPUNIT=$(systemd-escape "dev/disk/by-uuid/$OLDUUID").swap
+  systemctl mask "$OLDSWAPUNIT"
+  swapoff "$swapdev"
+  mkswap "$swapdev"
+  NEWUUID=$(blkid -s UUID -o value "$swapdev")
+  sed -i "s|UUID=$OLDUUID|UUID=$NEWUUID|" /etc/fstab
+  systemctl daemon-reload
+  systemctl unmask "$OLDSWAPUNIT"
+  swapon "$swapdev"
+done
+dracut -f
+'@
+
+                    $shBody = $shBodyPart + "$swapdevs" + $shBodyTail
+
+                    # By packaging the generated shell script as a here-document for cloud-init runcmd,
+                    # complex tasks are delegated to the target VM for reliable execution, avoiding extensive escaping.
+                    $resizeswapBlock = @'
+
+  - [ bash, -c, 'cat <<"EOF" >/tmp/resize_swap.sh
+'@ + $shBody + @'
+
+EOF
+' ]
+  - [ bash, /tmp/resize_swap.sh ]
+'@
+
+                    $template = $template -replace "{{RESIZESWAP_BLOCK}}", $resizeswapBlock
+                } else {
+                    $template = $template -replace "{{RESIZESWAP_BLOCK}}", " []"
                 }
             }
 
