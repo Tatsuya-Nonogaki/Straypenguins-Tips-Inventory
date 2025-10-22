@@ -392,11 +392,13 @@ function InitializeClone {
         $phase2Cmd = @"
 sudo /bin/bash -c "mkdir -p $workDirOnVM"
 "@
-        Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+        $result = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
+            -ScriptType Bash -ErrorAction Stop
         $phase2Cmd = @"
 sudo /bin/bash -c "chown $guestUser $workDirOnVM"
 "@
-        Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+        $result = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
+            -ScriptType Bash -ErrorAction Stop
          Write-Log "Ensured work directory exists on guest: $workDirOnVM"
     } catch {
         Write-Log -Error "Failed to create work directory on guest: $_"
