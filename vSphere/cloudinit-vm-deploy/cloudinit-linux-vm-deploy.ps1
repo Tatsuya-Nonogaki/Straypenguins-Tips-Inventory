@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3031
+  Version: 0.0.31
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
@@ -269,6 +269,11 @@ function AutoClone {
     }
     elseif ($params.network_name) {
         # For standard switch
+        $pg = Get-VirtualPortGroup -Name $params.network_name
+        if (-not $pg) {
+            Write-Log -Error "Specified Standard Portgroup not found: $($params.network_name)"
+            Exit 3
+        }
         $vmParams['NetworkName'] = $params.network_name
     }
 
@@ -301,9 +306,9 @@ function AutoClone {
                         Set-HardDisk -HardDisk $disk -CapacityGB $d['size_gb'] -Confirm:$false |
                           Tee-Object -Variable setHDOut | Out-File $LogFilePath -Append -Encoding UTF8
                         Start-Sleep -Seconds 2
-                        Write-Log "Resized disk $($disk.Name) to $($d['size_gb']) GB"
+                        Write-Log "Resized disk `"$($disk.Name)`" to $($d['size_gb']) GB"
                     } catch {
-                        Write-Log -Error "Error resizing disk $($d['name']): $_"
+                        Write-Log -Error "Error resizing disk `"$($d['name'])`": $_"
                         Exit 1
                     }
                 }
@@ -509,6 +514,8 @@ function CloudInitKickStart {
         $seedFiles += @{tpl="network-config_template.yaml"; out="network-config"}
     }
 
+    $guestUser = $params.username
+
     foreach ($f in $seedFiles) {
         $tplPath = Join-Path $tplDir $f.tpl
         $charLF = "`n"
@@ -562,14 +569,16 @@ function CloudInitKickStart {
                     # complex tasks are delegated to the target VM for reliable execution, avoiding extensive escaping.
                     $swapScriptCmd = @"
 |
-      bash -c 'cat <<"EOF" >/tmp/resize_swap.sh
+      bash -c 'cat <<"EOF" >$workDirOnVM/resize_swap.sh
 $shBody
       EOF
       '
 "@
 
+                    $runcmdList += @("[ mkdir, -p, $workDirOnVM ]")
+                    $runcmdList += @("[ chown, $guestUser, $workDirOnVM ]")
                     $runcmdList += @($swapScriptCmd)
-                    $runcmdList += @("[ bash, /tmp/resize_swap.sh ]")
+                    $runcmdList += @("[ bash, $workDirOnVM/resize_swap.sh ]")
                 }
 
                 # Compose final USER_RUNCMD_BLOCK for template
