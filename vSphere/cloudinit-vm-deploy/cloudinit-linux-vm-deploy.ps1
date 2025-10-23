@@ -815,8 +815,11 @@ function CloseDeploy {
             Exit 3
         }
         try {
-            $result = Invoke-VMScript -VM $vm -ScriptText "install -m 644 /dev/null /etc/cloud/cloud-init.disabled" `
-                -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
+            $phase4Cmd = @'
+sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
+'@
+            $result = Invoke-VMScript -VM $vm -ScriptText $phase4Cmd -GuestUser $guestUser `
+                -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
             Write-Log "Created /etc/cloud/cloud-init.disabled"
         } catch {
             Write-Log -Error "Failed to create cloud-init.disabled file: $_"
@@ -839,3 +842,4 @@ foreach ($p in $phaseSorted) {
 }
 
 Write-Log "Deployment script completed."
+
