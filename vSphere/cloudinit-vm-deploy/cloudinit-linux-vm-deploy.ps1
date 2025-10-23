@@ -1,20 +1,23 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3132
+  Version: 0.0.3233
 
 .DESCRIPTION
-  Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 3 phases:
-  (1) Automatic Cloning, (2) Clone Initialization, (3) Kick Cloud-init Start
+  Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
+    (1) Automatic Cloning
+    (2) Clone Initialization
+    (3) Kick Cloud-init Start
+    (4) Close & Clean up (detach ISO, remove seed ISO on DataStore, and optionally disable cloud-init)
   Uses a YAML parameter file (see vm-settings_example.yaml).
-  
+
   **Requirements:**
   * vSphere virtual machine environment (8+ recommended)
   * VMware PowerCLI
   * powershell-yaml module
-  * mkisofs: ISO builder command; Redefine the variable in "Global variables"
+  * mkisofs: ISO creator command; Redefine the variable in "Global variables"
     section if you want to use an alternative (with appropriate option flags).
-  
+
   **Exit codes:**
     0: Success
     1: General runtime error (VM operations, PowerCLI, etc)
@@ -22,7 +25,7 @@
     3: Bad arguments or parameter/config input
 
 .PARAMETER Phase
-  (Alias -p) List of steps (1,2,3) to execute. e.g. -Phase 1,2,3 or -Phase 2
+  (Alias -p) List of steps (1,2,3,4) to execute. e.g. -Phase 1,2,3,4 or -Phase 2
 
 .PARAMETER Config
   (Alias -c) Path to YAML parameter file for the VM deployment.
@@ -30,13 +33,17 @@
 .PARAMETER NoRestart
   If set, disables auto-poweron/shutdown except when multi-phase is needed.
 
+.PARAMETER NoCloudReset
+  (Alias -noreset) If set, disables creation of /etc/cloud/cloud-init.disabled in Phase 4.
+  ISO detachment and ISO file removal are always performed in Phase 4.
+
 .EXAMPLE
-  .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings.yaml
+  .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3,4 -Config .\params\vm-settings.yaml
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [ValidateSet(1,2,3)]
+    [ValidateSet(1,2,3,4)]
     [Alias("p")]
     [int[]]$Phase,
 
@@ -45,7 +52,11 @@ param(
     [string]$Config,
 
     [Parameter()]
-    [switch]$NoRestart
+    [switch]$NoRestart,
+
+    [Parameter()]
+    [Alias("noreset")]
+    [switch]$NoCloudReset
 )
 
 #
@@ -55,6 +66,7 @@ $scriptdir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 $spooldir = Join-Path $scriptdir "spool"
 
 $mkisofs = "C:\work\cdrtfe\tools\cdrtools\mkisofs.exe"
+$seedIsoName = "cloudinit-linux-seed.iso"
 $workDirOnVM = "/run/cloudinit-vm-deploy"
 
 # vCenter connection variables
@@ -614,8 +626,7 @@ $shBody
         Write-Log -Error "ISO creation tool not found: $mkisofs"
         Exit 2
     }
-    $isoName = "cloudinit-linux-seed.iso"
-    $isoPath = Join-Path $workdir $isoName
+    $isoPath = Join-Path $workdir $seedIsoName
 
     $cmd = "`"$mkisofs`" -output `"$isoPath`" -V cidata -r -J `"$seedDir`""
     Write-Log "Executing command: $cmd"
@@ -646,7 +657,7 @@ $shBody
     }
 
     # Datastore full path like [COMMSTORE01] ISO/cloudinit-seed.iso
-    $datastoreIsoPath = "$seedIsoCopyStore/$isoName"
+    $datastoreIsoPath = "$seedIsoCopyStore/$seedIsoName"
 
     # Split into datastore name and folder path
     if ($seedIsoCopyStore -match "^\[(.+?)\]\s*(.+)$") {
@@ -665,7 +676,7 @@ $shBody
     }
 
     $vmstoreFolderPath = "vmstore:\$datacenterName\$datastoreName\$datastoreFolder"
-    $vmstoreIsoPath = "$vmstoreFolderPath\$isoName"
+    $vmstoreIsoPath = "$vmstoreFolderPath\$seedIsoName"
 
     # Pre-checks for upload
     if (-not (Test-Path $vmstoreFolderPath)) {
@@ -729,12 +740,101 @@ $shBody
     Write-Log "Phase 3 complete"
 }
 
+# ---- Phase 4: Close & Clean up the deployed VM ----
+function CloseDeploy {
+    Write-Log "=== Phase 4: Close & Clean up ==="
+
+    # 1. Get VM object
+    try {
+        $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
+    } catch {
+        Write-Log -Error "Target VM not found for CloseDeploy: $($params.new_vm_name)"
+        Exit 1
+    }
+
+    # 2. Get datacenter, datastore, and seed ISO path (same logic as Phase 3)
+    $seedIsoCopyStore = $params.seed_iso_copy_store.TrimEnd('/').TrimEnd('\')
+    $datacenterName = $params.datacenter_name
+
+    if (-not $seedIsoCopyStore) {
+        Write-Log -Error "Parameter 'seed_iso_copy_store' is not set. Please check your parameter file."
+        Exit 2
+    }
+    if (-not $datacenterName) {
+        Write-Log -Error "Parameter 'datacenter_name' is not set. Please check your parameter file."
+        Exit 2
+    }
+
+    # Split into datastore name and folder path (same as Phase 3)
+    if ($seedIsoCopyStore -match "^\[(.+?)\]\s*(.+)$") {
+        $datastoreName = $matches[1]
+        $datastoreFolder = $matches[2].Trim('/')
+    } else {
+        Write-Log -Error "Invalid format for parameter 'seed_iso_copy_store': $seedIsoCopyStore"
+        Exit 2
+    }
+
+    $vmstoreFolderPath = "vmstore:\$datacenterName\$datastoreName\$datastoreFolder"
+    $vmstoreIsoPath = "$vmstoreFolderPath\$seedIsoName"
+
+    # 3. Detach seed ISO from VM's CD drive
+    $cdd = Get-CDDrive -VM $vm
+    if (-not $cdd) {
+        Write-Log -Warn "No CD/DVD drive found on this VM."
+    }
+    else {
+        try {
+            $outNull = Set-CDDrive -CD $cdd -NoMedia -Confirm:$false -ErrorAction Stop
+            Write-Log "Seed ISO media is detached from the VM: $($vm.Name)"
+        } catch {
+            # Not fatal, continue, as the cmdlet returns true if it is already detached
+            Write-Log -Warn "Failed to detach CD/DVD drive from VM: $_"
+        }
+    }
+
+    # 4. Remove seed ISO file from datastore (use Remove-Item on vmstore: path)
+    if (Test-Path "$vmstoreIsoPath") {
+        try {
+            Remove-Item -Path $vmstoreIsoPath -Force
+            Write-Log "Removed seed ISO from datastore: $vmstoreIsoPath"
+        } catch {
+            Write-Log -Warn "Failed to remove seed ISO '$vmstoreIsoPath' from datastore: $_"
+        }
+    } else {
+        Write-Log "Seed ISO file not found in datastore for removal: $vmstoreIsoPath"
+    }
+
+    # 5. Disable cloud-init for future boots (unless -NoCloudReset switch is specified)
+    if (-not $NoCloudReset) {
+        $guestUser = $params.username
+        $guestPassPlain = $params.password
+        try {
+            $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
+        } catch {
+            Write-Log -Error "Failed to convert guest password to SecureString: $_"
+            Exit 3
+        }
+        try {
+            $result = Invoke-VMScript -VM $vm -ScriptText "install -m 644 /dev/null /etc/cloud/cloud-init.disabled" `
+                -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
+            Write-Log "Created /etc/cloud/cloud-init.disabled"
+        } catch {
+            Write-Log -Error "Failed to create cloud-init.disabled file: $_"
+        }
+    } else {
+        Write-Log "Skipped cloud-init disable due to -NoCloudReset switch."
+    }
+
+    Write-Log "Phase 4 (CloseDeploy) complete"
+}
+
 # ---- Phase dispatcher (add phase 3) ----
 foreach ($p in $phaseSorted) {
     switch ($p) {
         1 { AutoClone }
         2 { InitializeClone }
         3 { CloudInitKickStart }
+        4 { CloseDeploy }
     }
 }
 
