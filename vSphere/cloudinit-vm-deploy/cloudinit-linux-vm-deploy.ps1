@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3233
+  Version: 0.0.33
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -842,4 +842,3 @@ foreach ($p in $phaseSorted) {
 }
 
 Write-Log "Deployment script completed."
-
