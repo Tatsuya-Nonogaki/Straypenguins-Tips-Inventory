@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.33
+  Version: 0.0.34
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -159,7 +159,8 @@ function VIConnect {
 function Start-MyVM {
     param(
         [Parameter(Mandatory)][object]$VM,
-        [switch]$Force
+        [switch]$Force,
+        [int]$WaitToolsSec = 120
     )
     if ($Force -or -not $NoRestart) {
         if ($VM.PowerState -ne "PoweredOn") {
@@ -168,13 +169,21 @@ function Start-MyVM {
                 Write-Log "Started VM: $($VM.Name)"
             } catch {
                 Write-Log -Error "Failed to start VM: $_"
-                Exit 1
+                return "start-failed"
             }
         } else {
             Write-Log "VM already powered on: $($VM.Name)"
         }
+
+        $toolsOk = Wait-ForVMwareTools -VM $VM -TimeoutSec $WaitToolsSec
+        if ($toolsOk) {
+            return "success"
+        } else {
+            return "timeout"
+        }
     } else {
         Write-Log "NoRestart specified: VM remains powered off."
+        return "skipped"
     }
 }
 
@@ -189,6 +198,38 @@ function Stop-MyVM {
         }
     } else {
         Write-Log "NoRestart specified: VM remains powered on."
+    }
+}
+
+# Wait for VMware Tools to become ready inside the guest
+function Wait-ForVMwareTools {
+    param(
+        [Parameter(Mandatory)][object]$VM,
+        [int]$TimeoutSec = 120,
+        [int]$PollIntervalSec = 5
+    )
+
+    # refresh VM object
+    try {
+        $vm = Get-VM -Name $VM.Name -ErrorAction Stop
+    } catch {
+        Write-Log -Warn "Wait-ForVMwareTools: cannot refresh VM object: $_"
+        return $false
+    }
+
+    $waited = 0
+    while ($vm.ExtensionData.Guest.ToolsStatus -ne "toolsOk" -and $waited -lt $TimeoutSec) {
+        Start-Sleep -Seconds $PollIntervalSec
+        $waited += $PollIntervalSec
+        try { $vm = Get-VM -Name $vm.Name -ErrorAction Stop } catch {}
+    }
+
+    if ($vm.ExtensionData.Guest.ToolsStatus -eq "toolsOk") {
+        Write-Log "VMware Tools is running on VM: $($vm.Name) (waited ${waited}s)."
+        return $true
+    } else {
+        Write-Log -Warn "Timed out waiting for VMware Tools on VM: $($vm.Name) after ${TimeoutSec}s."
+        return $false
     }
 }
 
@@ -366,36 +407,54 @@ function InitializeClone {
             Write-Host "'-NoRestart' is specified, but VM must be powered on for initialization."
             $resp = Read-Host "Start VM anyway? [Y]/n (If you answer N, the entire script will abort here)"
             if ($resp -eq "" -or $resp -eq "Y" -or $resp -eq "y") {
-                Start-MyVM $vm -Force
+                $vmStartStatus = Start-MyVM $vm -Force
             } else {
                 Write-Log -Error "User aborted due to NoRestart restriction."
                 Exit 1
             }
         } else {
             # No prompt; delegate further processing and messaging to Start-MyVM
-            Start-MyVM $vm -Force
+            $vmStartStatus = Start-MyVM $vm -Force
         }
     } else {
-        Start-MyVM $vm
+        $vmStartStatus = Start-MyVM $vm
     }
 
-    # Wait until the VM starts
-    try {
-        $timeoutSec = 120
-        $waited = 0
-        while ($vm.ExtensionData.Guest.ToolsStatus -ne "toolsOk" -and $waited -lt $timeoutSec) {
-            Start-Sleep -Seconds 5
-            $waited += 5
-            $vm = Get-VM -Name $params.new_vm_name
+    Write-Log "VM boot/init status: `"$vmStartStatus`""
+
+    switch ($vmStartStatus) {
+        "success" {
+            Write-Log "VM powered on and VMware Tools is ready for initialization."
         }
-        if ($vm.ExtensionData.Guest.ToolsStatus -ne "toolsOk") {
-            Write-Log -Error "VMware Tools not ready in VM after $timeoutSec seconds."
+        "timeout" {
+            Write-Log -Warn "VMware Tools did not become ready after waiting. Guest operations may fail."
+        }
+        "skipped" {
+            Write-Log "VM was not started due to -NoRestart option. Checking current VM state and VMware Tools status..."
+
+            $vm = Get-VM -Name $vm.Name -ErrorAction SilentlyContinue
+            Write-Log "VM power state: $($vm.PowerState)"
+            $toolsOk = $false
+            $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 5
+            if ($toolsOk) {
+                Write-Log "VMware Tools is running."
+            } else {
+                Write-Log "VMware Tools is NOT running."
+            }
+        }
+        "start-failed" {
+            Write-Log -Warn "VM could not be started. Initialization aborted."
+        }
+        default {
+            Write-Log -Warn "VM start status is unknown: `"$vmStartStatus`""
+        }
+    }
+
+    if ($vmStartStatus -ne "success") {
+        if (-not ($vmStartStatus -eq "skipped" -and $toolsOk)) {
+            Write-Log -Error "Script aborted since VM is not ready for online activities."
             Exit 1
         }
-        Start-Sleep -Seconds 5
-        Write-Log "VMware Tools is running in guest."
-    } catch {
-        Write-Log -Warn "Error waiting for VMware Tools: $_"
     }
 
     # Transfer the script and run on the clone
@@ -735,9 +794,42 @@ $shBody
     }
 
     # 6. Power on VM for personalization
-    Start-MyVM $vm
+    $vmStartStatus = Start-MyVM $vm
 
     Write-Log "Phase 3 complete"
+
+    switch ($vmStartStatus) {
+        "success" {
+            Write-Log "VM powered on and VMware Tools is ready."
+        }
+        "timeout" {
+            Write-Log -Warn "But VMware Tools did not become ready after waiting."
+        }
+        "skipped" {
+            Write-Log "VM was not started due to -NoRestart option. Checking current VM state and VMware Tools status..."
+
+            $vm = Get-VM -Name $vm.Name -ErrorAction SilentlyContinue
+            Write-Log "VM power state: $($vm.PowerState)"
+            $toolsOk = $false
+            $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 5
+            if ($toolsOk) {
+                Write-Log "VMware Tools is running."
+            } else {
+                Write-Log "VMware Tools is NOT running."
+            }
+        }
+        "start-failed" {
+            Write-Log -Warn "But VM could not be started."
+        }
+        default {
+            Write-Log -Warn "VM start status is unknown: `"$vmStartStatus`""
+        }
+    }
+
+    if ($vmStartStatus -ne "success" -and $Phase -contains 4 -and -not $NoCloudReset) {
+        Write-Log -Error "Script aborted since VM is not ready for the online activities in Phase 4."
+        Exit 2
+    }
 }
 
 # ---- Phase 4: Close & Clean up the deployed VM ----
@@ -806,6 +898,14 @@ function CloseDeploy {
 
     # 5. Disable cloud-init for future boots (unless -NoCloudReset switch is specified)
     if (-not $NoCloudReset) {
+        $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 5
+        if ($toolsOk) {
+            Write-Log "VMware Tools is running."
+        } else {
+            Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on."
+            exit 1
+        }
+
         $guestUser = $params.username
         $guestPassPlain = $params.password
         try {
@@ -828,7 +928,7 @@ sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
         Write-Log "Skipped cloud-init disable due to -NoCloudReset switch."
     }
 
-    Write-Log "Phase 4 (CloseDeploy) complete"
+    Write-Log "Phase 4 complete"
 }
 
 # ---- Phase dispatcher (add phase 3) ----
