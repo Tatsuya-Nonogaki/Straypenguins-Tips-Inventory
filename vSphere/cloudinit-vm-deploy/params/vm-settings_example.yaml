@@ -56,16 +56,21 @@ instance_id: original01-20251001
 fqdn: original01.production.local
 
 netif1:
+  netdev: ens192
   ip_addr: 192.168.0.10
   prefix: 24
   gateway: 192.168.0.254
   dns1: 192.168.0.201
   dns2: 192.168.0.202
+  ignore-auto-routes: yes
+  ignore-auto-dns: yes
 
 # Additional NIC example (uncomment to use)
 # netif2:
 #  ip_addr: 10.10.10.101
 #  prefix: 24
+#  ignore-auto-routes: yes
+#  ignore-auto-dns: yes
 
 username: mainte
 user_groups: "wheel,adm,systemd-journal"
