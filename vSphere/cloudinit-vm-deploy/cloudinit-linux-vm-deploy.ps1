@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.35
+  Version: 0.0.3536
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -188,17 +188,62 @@ function Start-MyVM {
 }
 
 function Stop-MyVM {
-    param([Parameter(Mandatory)][object]$VM)
-    if (-not $NoRestart) {
-        try {
-            $outNull = Stop-VM -VM $VM -Confirm:$false -ErrorAction Stop
-            Write-Log "Stopped VM: $($VM.Name)"
-        } catch {
-            Write-Log -Warn "Failed to stop VM: $_"
-        }
-    } else {
-        Write-Log "NoRestart specified: VM remains powered on."
+    param(
+        [Parameter(Mandatory)][object]$VM,
+        [int]$TimeoutSeconds = 180
+    )
+
+    $vmName = $VM.Name
+
+    if ($NoRestart) {
+       Write-Log "NoRestart specified: VM remains powered on."
+       return "skipped"
     }
+
+    $vmObj = $VM
+
+    # Refresh current state
+    try {
+        $vmObj = Get-VM -Id $vmObj.Id -ErrorAction Stop
+    } catch {
+        Write-Log -Error "Stop-MyVM: failed to refresh VM object for '$vmName': $_"
+        return "stop-failed"
+    }
+
+    if ($vmObj.PowerState -eq "PoweredOff") {
+        Write-Log "VM already powered off: $vmName"
+        return "success"
+    }
+
+    Write-Log "Shutting down VM: $vmName"
+    try {
+        $null = Stop-VM -VM $vmObj -Confirm:$false -ErrorAction Stop
+    } catch {
+        Write-Log -Warn "Failed to stop VM '$vmName': $_"
+        return "stop-failed"
+    }
+
+    # Wait for powered off
+    $elapsed = 0
+    $interval = 5
+    while ($elapsed -lt $TimeoutSeconds) {
+        Start-Sleep -Seconds $interval
+        $elapsed += $interval
+        try {
+            $vmObj = Get-VM -Id $vmObj.Id -ErrorAction Stop
+        } catch {
+            Write-Log -Warn "Stop-MyVM: cannot refresh VM object for '$vmName' while waiting: $_"
+            return "stop-failed"
+        }
+        if ($vmObj.PowerState -eq "PoweredOff") {
+            Write-Log "VM is now powered off: $vmName"
+            return "success"
+        }
+        Write-Host "Waiting for VM '$vmName' to power off... ($elapsed/$TimeoutSeconds s)"
+    }
+
+    Write-Log -Error "Timeout waiting for VM '$vmName' to reach PoweredOff after $TimeoutSeconds seconds."
+    return "timeout"
 }
 
 # Wait for VMware Tools to become ready inside the guest
