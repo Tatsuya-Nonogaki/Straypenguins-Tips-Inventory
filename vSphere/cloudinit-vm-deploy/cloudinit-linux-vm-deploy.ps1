@@ -792,25 +792,6 @@ $shBody
         Exit 1
     }
 
-    # ==== ONLY FOR TEST/DEBUG ====
-    # Optionally remove the seed ISO from the datastore after successful attach IF AND ONLY IF requested in parameters.
-    # WARNING: In production, the ISO must remain until the VM boots and cloud-init completes.
-    $shouldRemoveSeedIso = $false
-    if ($params.remove_seed_iso) {
-        $val = $params.remove_seed_iso.ToString().ToLower()
-        if ($val -eq "true" -or $val -eq "yes") {
-            $shouldRemoveSeedIso = $true
-        }
-    }
-    if ($shouldRemoveSeedIso) {
-        try {
-            $outNull = Remove-DatastoreItem -Path $vmstoreIsoPath -Confirm:$false -ErrorAction Stop
-            Write-Log "Removed uploaded seed ISO from datastore after attach: $vmstoreIsoPath"
-        } catch {
-            Write-Log -Error "Failed to remove ISO from datastore after attach: $_"
-        }
-    }
-
     # 6. Power on VM for personalization
     $vmStartStatus = Start-MyVM $vm
 
