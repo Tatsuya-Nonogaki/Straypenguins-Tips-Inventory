@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.34
+  Version: 0.0.35
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -652,6 +652,24 @@ $shBody
                     $runcmdList += @("[ chown, $guestUser, $workDirOnVM ]")
                     $runcmdList += @($swapScriptCmd)
                     $runcmdList += @("[ bash, $workDirOnVM/resize_swap.sh ]")
+
+                    $dev = $params.netif1["netdev"]
+                    if ($params.netif1["ignore-auto-routes"]) {         # Not set if the key does not exist or the value is false/no/$null
+                        $cmd = @"
+[ nmcli, connection, modify, "System $dev", ipv4.ignore-auto-routes, yes ]
+"@
+                        $runcmdList += @($cmd)
+                    }
+                    if ($params.netif1["ignore-auto-dns"]) {
+                        $cmd = @"
+[ nmcli, connection, modify, "System $dev", ipv4.ignore-auto-dns, yes ]
+"@
+                        $runcmdList += @($cmd)
+                    }
+                    $cmd = @"
+[ nmcli, device, reapply, $dev ]
+"@
+                    $runcmdList += @($cmd)
                 }
 
                 # Compose final USER_RUNCMD_BLOCK for template
@@ -920,12 +938,12 @@ sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
 '@
             $result = Invoke-VMScript -VM $vm -ScriptText $phase4Cmd -GuestUser $guestUser `
                 -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-            Write-Log "Created /etc/cloud/cloud-init.disabled"
+            Write-Log "Created /etc/cloud/cloud-init.disabled to prevent cloud-init invocation."
         } catch {
             Write-Log -Error "Failed to create cloud-init.disabled file: $_"
         }
     } else {
-        Write-Log "Skipped cloud-init disable due to -NoCloudReset switch."
+        Write-Log "Skipped deactivation of cloud-init due to -NoCloudReset switch."
     }
 
     Write-Log "Phase 4 complete"
