@@ -36,24 +36,58 @@
 
 ---
 
-## ⚡️ 最初の実装段階で意識すると良いこと
+## 🛠️ TODO
 
-- まずは「Phase1だけ」「Phase3だけ」など**部分実装→動作確認**でもOK
-- テンプレファイルやシェルスクリプトは**最初はシンプルな形から**作り、後でバリエーション・分岐を増やす
-- PowerShellスクリプトは**骨組み・ロギング・エラー制御**から作っておくと後が楽
-- 「実ファイル・ログ出力先」などは**ディレクトリパス可変化**も考慮しておくと大規模展開時も安心  
-   ⇒ 現段階ではとりあえず、
-   ```powershell
-   $scriptdir = Split-Path -Path $myInvocation.MyCommand.Path -Parent
-   $logdir = "$scriptdir/$VMName"
-   ```
-   という感じ。
+- ✅ growpart & resizefs はext4である / と sdc1:/var/crash では成功した。cc_resizefs モジュールはどうやらルートデバイスしかファイルシステム拡張しないようだ。ネットで色々調べるとこのモジュールには調整項目が `resize_rootfs:True/False/noblock` しかなさそうだからだ。sdc1は別途の`runcmd`でresize2fs を実行するブロックをuser-data YAML内に生成する仕掛けで対処した。  
+しかし、sdb1:swap の場合、(growpartは問題ないはずだが) フォーマットがswapであるため、更に工夫が必要。swapファイルシステムのリサイズはext2系ファイルシステムのようにオンラインではできず、「再フォーマット」するしかない。困るのは、boot init ramにもgrubパラメータにもswapのUUIDが`resume=`パラメータとして書かれていて、再フォーマットするとそれらの再処理も必要となること ーsystemdの自動生成.mountユニットを一旦maskしたりunmaskしたり`grubby --update-kernel ALL --args "resume=UUID=..."`で新しいUUIDに置き換えたりしないと、ブートエラーでブートさえできなくなる。
 
----
+  ⇒  
+  ✅ grubエントリの `resume` パラメータは、ハイバネートでしか使用されないとのこと。よって、以後は、特にテンプレートでは、grubエントリから`resume`パラメータを必ず削除する運用とすることにする。それにより、ロジックの複雑さがかなり軽減される。Copilotとのディスカッションにより、方向性が決まった:
+  - PowerShellで複雑な一連の処理を1つのshスクリプトとして組み立てて、それを runcmd でVM内に配置し、実行する方式にする。変数記号`$`をはじめとした特殊文字のエスケープに悩まされるケースが格段に減り、コードが堅牢になる。
 
-## 🛠️ 以降の進め方
+- ✅ Note: on [https://cloudinit.readthedocs.io/en/latest/reference/modules.html#runcmd](https://cloudinit.readthedocs.io/en/latest/reference/modules.html#runcmd)  
+  When writing files, do not use /tmp dir as it races with systemd-tmpfiles-clean (LP: #1707222). Use /run/somedir instead.
 
-- **最初は雛形・サンプルを1セット作り、README/Planと突き合わせて検証**
-- 動作確認しながら**フェーズごとに細部を詰めていく**
-- フィードバックや追加要望が出たらPlan.mdやREADMEに都度反映
+- ✅ スクリプトで準備が完了し最終ブートさせcloud-init処置が適用された後も、ブートする度にcloud-init処理が走っている。seed ISOがアタッチされていようがなかろうが。アタッチされていない時が最悪 ー"system ens192" connectionが空で作られる。少なくとも、
+  - ネットワーク
+  - ssh keyの再生成  
+  は間違いなく起きている。cloud_init_modules, cloud_config_modules, cloud_final_modules のすべてなのか、一部なのか？ 何かが frequency=`always` になっているため、cloud.cfg か user-data seed YAMLので強制上書きが必要？ 当キットは新規デプロイだけを目的としていて、それ以降の将来の変更の自動化 (例えばディスクサイズ変更など) は考察外なので、すべて「初initブートの際のみ」でよい。
 
+  ⇒  
+  cloud.cfgでfrequencyをセットする方法で試した。seed ISOがアタッチされた状態なら、何も起こっていない？ように見える。対して、アタッチぜずにブートすると、seed ISOを待っているような待ち時間（NetworkManager-wait-online service起動の箇所で）が発生し、やはりens192はautoとなりDHCPサーバのない当環境ではIPアドレス無しになり、sshkeyは更新され、hostnameはFQDNになってしまう。cloud-init.disabled を置くしかないか。オプショナルな第4フェーズでISOのデタッチ、削除、といっしょにやるのが良いかもしれない。  
+
+  **⇒ ⭐結論:**  
+  CDアタッチなしの際には、cloud-initが新たなinstance-id "iid-datasource-none" を生成してしまうことが判明した。よって、デプロイ完了後に /etc/cloud/cloud-init.disabled ファイルの設置によってcloud-init発動を無効化するしか手はない。第4"Close"フェーズ(後述)を新設し、そこでVM OS上に /etc/cloud/cloud-init.disabled ファイルを置く方式とする。多重防御として、cloud.cfgでのFrequencyの明示はしたままにする。
+
+- ❎ NetworkManagerのconnectionプロファイル(例えば"ens192")が、Template VMからクローンされたVMに残っている状態でcloud-init付きブートがキックされると、"System ens192"という新たなプロファイルが作られてしまう。もし、既存のプロファイルが"System ens192"と同名だった場合には、ユーザの作成時の挙動のように、余計なプロファイルは作られないのか？ あるいは、cloud-init YAML で、プロファイル名まで指定することは可能？  
+  ネットワーク設定は、NetworkManager直接でなく、レガシーな /etc/sysconfig/network-scripts/ifcfg-ens192 経由でNMへ設定が反映されるようだ (仮にもし netplan経由だった場合はどのファイルが証拠になる？): cloud.cfgの  
+  ```  network:
+    renderers: ['sysconfig', 'eni', 'netplan', 'network-manager', 'networkd']
+  ```
+  から 'sysconfig'など無用レンダラーを削除しておくのも手？
+
+  ⇒  
+  抑止する確実な方法はない。
+
+- ✅ NetworkManagerのコネクション設定で、"Ignore automatically obtained routes" と "Ignore automatically obtained DNS param" を true/yes にしたいが方法は？
+
+- 📌 ネットワークconnectionプロファイルの削除を、クローン後の初期化(Phase-2)に盛り込む。  
+  ユーザは、Phase-3でのcloud-init発動ブート時に user-data の中で実処理に使われているので Phase-2 での削除は不可。唯一の保守ユーザであり、同じユーザがuser-dataに定義されていてもネットワークと違って重複作成や上書きされることはないので、事前削除は行わない。
+
+- 📌 現在は Phase-2 の最後でVMをシャットダウンしているが、それを Phase-3の頭に移したほうが良いのではないか。  
+  - Phase-2 で、起動したまま終われば、スクリプト実行がPhase-2単体指定だった場合、手動調整の機会が与えられる。この時点では cloud-init.disbled は削除されているので手動での再ブートはリスク。
+  - その際、「起動したままになっている。調整したければここでするとよい。作業が終わったらシャットダウンしてもよいし、しなければ次のフェーズ(Phase 3)の最初で自動的にシャットダウンされる」とメッセージを出す。
+  - Phase-3 の初めのシャットダウンは、既に起動していれば行われないし、-NoRestart で避けることもできるものとする。NoRestart指定の場合、同フェーズの最後のブートもまた抑止されるから問題はなく、かえって使用者に都合が良い(調整・デバグ用)。
+
+- ✅ cloudinit-linux-vm-deploy.ps1 のPhase-3末尾に仮で作ったオプション処理セクション  
+  ```powershell
+    # Optionally remove the seed ISO from the datastore after successful attach IF AND ONLY IF requested in parameters.
+  ```
+  は、そこに存在する意味がない。この時点では、ISOはVMにアタッチされているため、おそらく削除自体できないか問題が起こる。可能な方針の選択肢:  
+  - 単純にこの処理ブロックを抹消。
+  - VMからデタッチする処理を前置する。
+  - ⭐ 第4の"Close"フェーズとして独立させる(デタッチ付きで)。デプロイ完結以後のcloud-initの発動を無効化する /etc/cloud/cloud-init.disabled の設置も含める。
+
+- 📌 VMが起動している状態でPhase-4でのISOデタッチ処理を走らせると、vSphere ClientまたはVMRC上で「使用中の可能性があるがでタッチするか」のプロンプトが出て、答えるまででタッチ処理がブロックされて進まない、という注意をREADMEに書く。
+
+- 📌 クローズ以後に、パーティションとファイルシステム/swapの拡大だけをさせたい時は？
