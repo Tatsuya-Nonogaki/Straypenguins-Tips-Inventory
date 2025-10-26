@@ -196,7 +196,7 @@ function Stop-MyVM {
     $vmName = $VM.Name
 
     if ($NoRestart) {
-       Write-Log "NoRestart specified: VM remains powered on."
+       Write-Log "NoRestart specified: Shutdown was skipped."
        return "skipped"
     }
 
@@ -212,7 +212,7 @@ function Stop-MyVM {
 
     if ($vmObj.PowerState -eq "PoweredOff") {
         Write-Log "VM already powered off: $vmName"
-        return "success"
+        return "already-stopped"
     }
 
     Write-Log "Shutting down VM: $vmName"
@@ -548,9 +548,6 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
         Write-Log -Warn "Failed to remove script from guest: $_"
     }
 
-    # Shutdown the VM (skipped automatically if applicable)
-    Stop-MyVM $vm
-
     Write-Log "Phase 2 complete"
 }
 
@@ -602,7 +599,49 @@ function CloudInitKickStart {
         Exit 1
     }
 
-    # 2. Prepare seed working dir
+    # 2. Shutdown the VM (skipped automatically if applicable)
+    if (-not $NoRestart) {
+        Write-Log "The target VM is going to be shut down to attach cloud-config seed ISO and boot for actual personalization to take effect."
+        Write-Log "Shutting down in 5 seconds..."
+        Start-Sleep -Seconds 5
+    }
+
+    # Call Stop-MyVM and branch on result
+    $stopResult = Stop-MyVM $vm
+
+    switch ($stopResult) {
+        "success" {
+            Write-Log "Proceeding with Phase-3 operations."
+            # Refresh VM object to ensure we have current PowerState for later steps
+            try { $vm = Get-VM -Id $vm.Id -ErrorAction Stop } catch {}
+        }
+        "already-stopped" {
+            Write-Log "Proceeding with Phase-3 operations."
+            try { $vm = Get-VM -Id $vm.Id -ErrorAction Stop } catch {}
+        }
+        "skipped" {
+            Write-Log "Continuing without shutdown."
+            try {
+                $vm = Get-VM -Id $vm.Id -ErrorAction SilentlyContinue
+                if ($vm) { Write-Log "VM power state: $($vm.PowerState)" }
+            } catch {}
+            Write-Log "Note: ensure the VM power state is appropriate for your needs in this run of Phase-3."
+        }
+        "timeout" {
+            Write-Log -Error "Script aborted."
+            Exit 1
+        }
+        "stop-failed" {
+            Write-Log -Error "Script aborted."
+            Exit 1
+        }
+        default {
+            Write-Log -Error "Unknown result from Stop-MyVM: '$stopResult'. Script aborted."
+            Exit 1
+        }
+    }
+
+    # 3. Prepare seed working dir
     $seedDir = Join-Path $workdir "cloudinit-seed"
     if (Test-Path $seedDir) {
         try {
