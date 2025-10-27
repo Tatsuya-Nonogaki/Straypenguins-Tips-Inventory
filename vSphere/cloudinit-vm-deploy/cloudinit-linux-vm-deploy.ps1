@@ -606,7 +606,6 @@ function CloudInitKickStart {
         Start-Sleep -Seconds 5
     }
 
-    # Call Stop-MyVM and branch on result
     $stopResult = Stop-MyVM $vm
 
     switch ($stopResult) {
