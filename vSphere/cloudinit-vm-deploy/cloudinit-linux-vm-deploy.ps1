@@ -155,36 +155,138 @@ function VIConnect {
     }
 }
 
+
+# ---- Get-VM with short retries to tolerate transient vCenter/API glitches ----
+function TryGet-VMObject {
+    param(
+        [Parameter(Mandatory=$true)][object]$VM,
+        [int]$MaxAttempts = 3,
+        [int]$IntervalSec = 2
+    )
+
+    if ($VM -is [string]) {
+        $vmName = $VM
+    } elseif ($VM -and $VM.PSObject.Properties.Match('Name')) {
+        $vmName = $VM.Name
+    } else {
+        $vmName = $VM.ToString()
+    }
+
+    $attempt = 0
+    while ($attempt -lt $MaxAttempts) {
+        try {
+            if ($VM -is [string]) {
+                $vmObject = Get-VM -Name $VM -ErrorAction Stop
+            } else {
+                if ($VM.PSObject.Properties.Match('Id')) {
+                    $vmObject = Get-VM -Id $VM.Id -ErrorAction Stop
+                } elseif ($VM.PSObject.Properties.Match('Name')) {
+                    $vmObject = Get-VM -Name $VM.Name -ErrorAction Stop
+                } else {
+                    throw "Invalid VM object: missing Id/Name property"
+                }
+            }
+            return $vmObject
+        } catch {
+            $attempt++
+            Write-Verbose "TryGet-VMObject: attempt #$attempt failed for '$vmName': $_"
+            if ($attempt -lt $MaxAttempts) { Start-Sleep -Seconds $IntervalSec }
+        }
+    }
+    Write-Log -Error "TryGet-VMObject: failed to obtain VM object after $MaxAttempts attempts for input '$vmName'."
+    return $null
+}
+
 # ---- VM Power On/Off Functions ----
 function Start-MyVM {
     param(
         [Parameter(Mandatory)][object]$VM,
         [switch]$Force,
+        [int]$WaitPowerSec = 60,
         [int]$WaitToolsSec = 120
     )
-    if ($Force -or -not $NoRestart) {
-        if ($VM.PowerState -ne "PoweredOn") {
-            try {
-                $outNull = Start-VM -VM $VM -ErrorAction Stop | Out-Null
-                Write-Log "Started VM: $($VM.Name)"
-            } catch {
-                Write-Log -Error "Failed to start VM: $_"
-                return "start-failed"
-            }
-        } else {
-            Write-Log "VM already powered on: $($VM.Name)"
-        }
 
-        $toolsOk = Wait-ForVMwareTools -VM $VM -TimeoutSec $WaitToolsSec
-        if ($toolsOk) {
-            return "success"
+    # Basic validation
+    if (-not $VM -or -not $VM.PSObject.Properties.Match('Id') -or -not $VM.PSObject.Properties.Match('Name')) {
+        Write-Log -Error "Start-MyVM: invalid VM object passed."
+        return "start-failed"
+    }
+    $vmName = $VM.Name
+
+    # Refresh VM object
+    $vmObj = TryGet-VMObject $VM
+    if (-not $vmObj) {
+        Write-Log -Error "Start-MyVM: unable to refresh VM object for '$vmName' after retries."
+        return "stat-unknown"
+    }
+
+    # Respect NoRestart unless Force overrides
+    if (-not $Force -and $NoRestart) {
+        if ($vmObj.PowerState -eq "PoweredOn") {
+            Write-Log "NoRestart specified but VM is already powered on: $vmName"
+            return "already-started"
         } else {
+            Write-Log "NoRestart specified: VM remains powered off."
+            return "skipped"
+        }
+    }
+
+    # If already on, check tools
+    if ($vmObj.PowerState -eq "PoweredOn") {
+        Write-Log "VM already powered on: $vmName"
+        $toolsOk = Wait-ForVMwareTools -VM $vmObj -TimeoutSec $WaitToolsSec
+        if ($toolsOk) {
+            return "already-started"
+        } else {
+            Write-Log -Warn "But VMware Tools did not become ready on already-on VM: $vmName"
             return "timeout"
         }
-    } else {
-        Write-Log "NoRestart specified: VM remains powered off."
-        return "skipped"
     }
+
+    # Start the VM
+    Write-Log "Starting VM '$vmName'..."
+    try {
+        $null = Start-VM -VM $vmObj -Confirm:$false -ErrorAction Stop
+    } catch {
+        Write-Log -Error "Failed to start VM '$vmName': $_"
+        return "start-failed"
+    }
+
+    # Wait for PoweredOn and VMware Tools readiness
+    $elapsed = 0
+    $interval = 5
+    $refreshFailCount = 0
+    $maxRefreshConsecutiveFails = 3
+    while ($elapsed -lt $WaitPowerSec) {
+        Start-Sleep -Seconds $interval
+        $elapsed += $interval
+        $vmObj = TryGet-VMObject $vmObj 1 0
+        if (-not $vmObj) {
+            $refreshFailCount++
+            Write-Verbose "Start-MyVM: transient refresh failure for '$vmName' while waiting (#$refreshFailCount)."
+            if ($refreshFailCount -ge $maxRefreshConsecutiveFails) {
+                Write-Log -Warn "Start-MyVM: repeated failures refreshing VM object for '$vmName' while waiting; aborting."
+                return "start-failed"
+            }
+            continue
+        } else {
+            $refreshFailCount = 0
+        }
+
+        # Wait for VMware Tools
+        if ($vmObj.PowerState -eq "PoweredOn") {
+            Write-Log "VM '$vmName' is now PoweredOn. Waiting for VMware Tools..."
+            $toolsOk = Wait-ForVMwareTools -VM $vmObj -TimeoutSec $WaitToolsSec
+            if ($toolsOk) {
+                return "success"
+            } else {
+                return "timeout"
+            }
+        }
+        Write-Verbose "Waiting for VM '$vmName' to reach PoweredOn... ($elapsed/$WaitPowerSec s)"
+    }
+    Write-Log -Error "Timeout waiting for VM '$vmName' to reach PoweredOn after $WaitPowerSec s."
+    return "start-failed"
 }
 
 function Stop-MyVM {
@@ -193,6 +295,10 @@ function Stop-MyVM {
         [int]$TimeoutSeconds = 180
     )
 
+    if (-not $VM -or -not $VM.PSObject.Properties.Match('Id') -or -not $VM.PSObject.Properties.Match('Name')) {
+        Write-Log -Error "Stop-MyVM: invalid VM object passed."
+        return "stop-failed"
+    }
     $vmName = $VM.Name
 
     if ($NoRestart) {
@@ -200,14 +306,11 @@ function Stop-MyVM {
        return "skipped"
     }
 
-    $vmObj = $VM
-
-    # Refresh current state
-    try {
-        $vmObj = Get-VM -Id $vmObj.Id -ErrorAction Stop
-    } catch {
-        Write-Log -Error "Stop-MyVM: failed to refresh VM object for '$vmName': $_"
-        return "stop-failed"
+    # Refresh current state to get current PowerState
+    $vmObj = TryGet-VMObject $VM
+    if (-not $vmObj) {
+        Write-Log -Error "Stop-MyVM: failed to refresh VM object for '$vmName' after retries."
+        return "stat-unknown"
     }
 
     if ($vmObj.PowerState -eq "PoweredOff") {
@@ -226,20 +329,29 @@ function Stop-MyVM {
     # Wait for powered off
     $elapsed = 0
     $interval = 5
+    $refreshFailCount = 0
+    $maxRefreshConsecutiveFails = 3
     while ($elapsed -lt $TimeoutSeconds) {
         Start-Sleep -Seconds $interval
         $elapsed += $interval
-        try {
-            $vmObj = Get-VM -Id $vmObj.Id -ErrorAction Stop
-        } catch {
-            Write-Log -Warn "Stop-MyVM: cannot refresh VM object for '$vmName' while waiting: $_"
-            return "stop-failed"
+        $vmObj = TryGet-VMObject $vmObj 1 0
+        if (-not $vmObj) {
+            $refreshFailCount++
+            Write-Verbose "Stop-MyVM: transient refresh failure for '$vmName' while waiting (#$refreshFailCount)."
+            if ($refreshFailCount -ge $maxRefreshConsecutiveFails) {
+                Write-Log -Warn "Stop-MyVM: repeated failures refreshing VM object for '$vmName' while waiting; aborting."
+                return "stop-failed"
+            }
+            continue
+        } else {
+            $refreshFailCount = 0
         }
+
         if ($vmObj.PowerState -eq "PoweredOff") {
             Write-Log "VM is now powered off: $vmName"
             return "success"
         }
-        Write-Host "Waiting for VM '$vmName' to power off... ($elapsed/$TimeoutSeconds s)"
+        Write-Verbose "Waiting for VM '$vmName' to power off... ($elapsed/$TimeoutSeconds s)"
     }
 
     Write-Log -Error "Timeout waiting for VM '$vmName' to reach PoweredOff after $TimeoutSeconds seconds."
@@ -601,7 +713,7 @@ function CloudInitKickStart {
 
     # 2. Shutdown the VM (skipped automatically if applicable)
     if (-not $NoRestart) {
-        Write-Log "The target VM is going to be shut down to attach cloud-config seed ISO and boot for actual personalization to take effect."
+        Write-Log "The target VM is going to shut down to attach cloud-config seed ISO and boot for actual personalization to take effect."
         Write-Log "Shutting down in 5 seconds..."
         Start-Sleep -Seconds 5
     }
