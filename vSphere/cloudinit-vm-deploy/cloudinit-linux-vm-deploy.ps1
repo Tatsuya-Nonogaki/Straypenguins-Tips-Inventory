@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3536
+  Version: 0.0.3536-02
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -579,39 +579,56 @@ function InitializeClone {
 
     Write-Log "VM boot/init status: `"$vmStartStatus`""
 
+    # Use a pass/fail sentinel ($toolsOk) to decide whether we continue.
+    # Only explicit "passing" cases set $toolsOk = $true; everything else will remain false and be treated as failure.
+    $toolsOk = $false
+
     switch ($vmStartStatus) {
         "success" {
-            Write-Log "VM powered on and VMware Tools is ready for initialization."
+            # Start-MyVM guarantees VMware Tools readiness before returning success.
+            Write-Log "VM is powered on and VMware Tools reported ready."
+            $toolsOk = $true
         }
-        "timeout" {
-            Write-Log -Warn "VMware Tools did not become ready after waiting. Guest operations may fail."
+        "already-started" {
+            # Start-MyVM returned this when VM was already on and Tools were ready.
+            Write-Log "VM already powered on; VMware Tools is ready."
+            $toolsOk = $true
         }
-        "skipped" {
-            Write-Log "VM was not started due to -NoRestart option. Checking current VM state and VMware Tools status..."
 
-            $vm = Get-VM -Name $vm.Name -ErrorAction SilentlyContinue
-            Write-Log "VM power state: $($vm.PowerState)"
-            $toolsOk = $false
-            $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 5
-            if ($toolsOk) {
-                Write-Log "VMware Tools is running."
-            } else {
-                Write-Log "VMware Tools is NOT running."
-            }
+        <#
+        "skipped" {
+            # NOTE: This case is intentionally commented out because, in the current InitializeClone flow,
+            # Start-MyVM is invoked with -Force whenever -NoRestart is set (or the user explicitly agreed to start).
+            # Therefore Start-MyVM should not return "skipped" from this call path; the "skipped" return value
+            # is reachable in other phases/call-sites (e.g., Phase-3 Stop/Start operations) and is therefore
+            # left implemented in Start-MyVM itself. We keep this commented block here for documentation / future
+            # reference and to make it easy to re-enable handling if the calling logic changes later.
+            #
+            # If you prefer a non-comment approach, you could leave a small explanatory comment and not include
+            # the case at all. Using a block comment makes the original recommended handling visible while
+            # preventing accidental execution.
+            Write-Log "VM was not started due to -NoRestart option. Check current status of the VM and VMware Tools."
+        }
+        #>
+
+        "timeout" {
+            Write-Log -Warn "VMware Tools did not become ready within expected timeframe. Initialization cannot proceed reliably."
         }
         "start-failed" {
-            Write-Log -Warn "VM could not be started. Initialization aborted."
+            Write-Log -Error "VM could not be started. Initialization aborted."
+        }
+        "stat-unknown" {
+            Write-Log -Error "Unable to determine VM state (stat-unknown). Initialization aborted."
         }
         default {
-            Write-Log -Warn "VM start status is unknown: `"$vmStartStatus`""
+            Write-Log -Warn "Unrecognized VM start status: `"$vmStartStatus`". Aborting to avoid undefined behaviour."
         }
     }
 
-    if ($vmStartStatus -ne "success") {
-        if (-not ($vmStartStatus -eq "skipped" -and $toolsOk)) {
-            Write-Log -Error "Script aborted since VM is not ready for online activities."
-            Exit 1
-        }
+    # Final gating logic: proceed only when $toolsOk was set by an accepted success case.
+    if (-not $toolsOk) {
+        Write-Log -Error "Script aborted since VM is not ready for online activities."
+        Exit 1
     }
 
     # Transfer the script and run on the clone
