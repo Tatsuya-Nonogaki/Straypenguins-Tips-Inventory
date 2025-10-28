@@ -745,7 +745,7 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
     Write-Log "Phase 2 complete"
 
     if ($Phase -notcontains 3) {
-        Write-Log "Note: The VM has been left powered on. When you are finished, you may shut it down manually; otherwise it will be shut down automatically when Phase 3 begins."
+        Write-Log "Note: The VM has been left powered on. When you are finished, you may shut it down manually; otherwise it will be shut down automatically when Phase-3 begins."
     }
 }
 
