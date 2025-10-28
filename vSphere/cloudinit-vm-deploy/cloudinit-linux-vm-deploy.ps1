@@ -1076,40 +1076,71 @@ $shBody
     # 6. Power on VM for personalization
     $vmStartStatus = Start-MyVM $vm
 
-    Write-Log "Phase 3 complete"
+    Write-Verbose "Phase-3: Start-MyVM returned status: '$vmStartStatus'"
+
+    # Use a pass/fail sentinel ($toolsOk) to decide whether we continue.
+    $toolsOk = $false
 
     switch ($vmStartStatus) {
         "success" {
-            Write-Log "VM powered on and VMware Tools is ready."
+            $toolsOk = $true
         }
-        "timeout" {
-            Write-Log -Warn "But VMware Tools did not become ready after waiting."
+        "already-started" {
+            $toolsOk = $true
         }
         "skipped" {
-            Write-Log "VM was not started due to -NoRestart option. Checking current VM state and VMware Tools status..."
-
-            $vm = Get-VM -Name $vm.Name -ErrorAction SilentlyContinue
-            Write-Log "VM power state: $($vm.PowerState)"
-            $toolsOk = $false
-            $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 5
-            if ($toolsOk) {
-                Write-Log "VMware Tools is running."
-            } else {
-                Write-Log "VMware Tools is NOT running."
-            }
+            Write-Log -Warn "VM was NOT started due to -NoRestart option. Seed ISO was attached to the VM's CD drive."
+            Write-Log -Warn "Because the VM was not booted, cloud-init-based personalization will NOT be applied in this run."
+            Write-Log -Warn "Powering-on the VM later will apply the planned changes; this is now operator responsibility."
+        }
+        "timeout" {
+            Write-Log -Warn "VMware Tools did not become ready within expected timeframe. Personalization may fail; aborting."
         }
         "start-failed" {
-            Write-Log -Warn "But VM could not be started."
+            Write-Log -Error "VM could not be started. Aborting Phase-3."
+        }
+        "stat-unknown" {
+            Write-Log -Error "Unable to determine VM state (stat-unknown). Aborting Phase-3."
         }
         default {
-            Write-Log -Warn "VM start status is unknown: `"$vmStartStatus`""
+            Write-Log -Warn "Unknown result from Start-MyVM: `"$vmStartStatus`". Aborting to avoid undefined behaviour."
         }
     }
 
-    if ($vmStartStatus -ne "success" -and $Phase -contains 4 -and -not $NoCloudReset) {
-        Write-Log -Error "Script aborted since VM is not ready for the online activities in Phase 4."
+    # Final gating logic: proceed only when $toolsOk was set by an accepted success case.
+    if (-not $toolsOk) {
+        if ($vmStartStatus -eq "skipped") {
+            # If the user requested Phase-4 in the same run and cloud-reset is expected,
+            # we must not continue to Phase-4 when the VM hasn't actually been booted here.
+            if ($Phase -contains 4 -and -not $NoCloudReset) {
+                Write-Log -Error "Script aborted since VM is not ready for the online activities in Phase 4 (seed ISO attached but VM not started due to -NoRestart)."
+                Exit 2
+            }
+
+            Write-Log "Phase 3 complete with -NoRestart (seed ISO created and attached; VM not started due to the option)."
+            return
+        } else {
+            Write-Log -Error "Script aborted since VM is not ready for online activities."
+            Exit 1
+        }
+    }
+
+    # When VM was not started by this phase since it was already running 
+    if ($vmStartStatus -eq "already-started" -and $Phase -contains 4 -and -not $NoCloudReset) {
+        Write-Log -Warn "VM was already powered on before seed ISO attach; cloud-init was NOT applied in this run."
+        Write-Log -Warn "Phase-4 would remove the seed without applying changes. Aborting."
         Exit 2
     }
+
+    # Refresh VM object for reliable operations before any (light) post-start checks
+    $vm = TryGet-VMObject $vm
+    if (-not $vm) {
+        Write-Log -Error "Unable to refresh VM object after VM start; aborting."
+        Exit 1
+    }
+    Write-Verbose "Phase-3: VM object refreshed successfully: $($vm.Name)"
+
+    Write-Log "Phase 3 complete"
 }
 
 # ---- Phase 4: Close & Clean up the deployed VM ----
