@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3537
+  Version: 0.0.38
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -382,33 +382,76 @@ function Stop-MyVM {
 # Wait for VMware Tools to become ready inside the guest
 function Wait-ForVMwareTools {
     param(
-        [Parameter(Mandatory)][object]$VM,
+        [Parameter()]$VM,
         [int]$TimeoutSec = 120,
         [int]$PollIntervalSec = 5
     )
 
-    # refresh VM object
-    try {
-        $vm = Get-VM -Name $VM.Name -ErrorAction Stop
-    } catch {
-        Write-Log -Warn "Wait-ForVMwareTools: cannot refresh VM object: $_"
+    if (-not $VM) {
+        Write-Log -Warn "Wait-ForVMwareTools: VM parameter is null or empty."
+        return $false
+    }
+    if ($TimeoutSec -le 0) { $TimeoutSec = 5 }
+    if ($PollIntervalSec -le 0) { $PollIntervalSec = 1 }
+
+    if ($VM -is [string]) {
+        $vmName = $VM
+    } elseif ($VM -and $VM.PSObject.Properties.Match('Name')) {
+        $vmName = $VM.Name
+    } else {
+        $vmName = $VM.ToString()
+    }
+
+    # Refresh VM object
+    $vmObj = TryGet-VMObject $VM
+    if (-not $vmObj) {
+        Write-Log -Warn "Wait-ForVMwareTools: cannot refresh VM object for '$vmName'."
         return $false
     }
 
     $waited = 0
-    while ($vm.ExtensionData.Guest.ToolsStatus -ne "toolsOk" -and $waited -lt $TimeoutSec) {
+    while ($waited -lt $TimeoutSec) {
+        # Access ToolsStatus safely
+        try {
+            $toolsStatus = $vmObj.ExtensionData.Guest.ToolsStatus
+        } catch {
+            # transient failure reading ExtensionData; attempt to refresh and continue
+            Write-Verbose "Wait-ForVMwareTools: failed to read ToolsStatus for '$vmName': $_"
+            $vmObj = TryGet-VMObject $vmObj 1 0
+            if (-not $vmObj) {
+                Write-Verbose "Wait-ForVMwareTools: transient refresh failed for '$vmName'."
+            }
+            Start-Sleep -Seconds $PollIntervalSec
+            $waited += $PollIntervalSec
+            continue
+        }
+
+        if ($toolsStatus -eq "toolsOk") {
+            Write-Log "VMware Tools is running on VM: '$vmName' (waited ${waited}s)."
+            return $true
+        }
+
         Start-Sleep -Seconds $PollIntervalSec
         $waited += $PollIntervalSec
-        try { $vm = Get-VM -Name $vm.Name -ErrorAction Stop } catch {}
+
+        # Refresh VM object with minimal retries to keep status current
+        $vmObj = TryGet-VMObject $vmObj 1 0
+        if (-not $vmObj) {
+            Write-Verbose "Wait-ForVMwareTools: transient refresh failure for '$vmName' while waiting (waited ${waited}s)."
+        }
     }
 
-    if ($vm.ExtensionData.Guest.ToolsStatus -eq "toolsOk") {
-        Write-Log "VMware Tools is running on VM: $($vm.Name) (waited ${waited}s)."
-        return $true
-    } else {
-        Write-Log -Warn "Timed out waiting for VMware Tools on VM: $($vm.Name) after ${TimeoutSec}s."
-        return $false
+    # Final status read attempt
+    try {
+        $finalName = $vmObj.Name
+        $finalStatus = $vmObj.ExtensionData.Guest.ToolsStatus
+    } catch {
+        $finalName = $vmName
+        $finalStatus = $null
     }
+
+    Write-Log -Warn "Timed out waiting for VMware Tools on VM: '$vmName' after ${TimeoutSec}s. Last known status:: Name: $($finalName), ToolsStatus: $($finalStatus)"
+    return $false
 }
 
 # ---- Load parameter file ----
@@ -647,6 +690,13 @@ function InitializeClone {
     # Final gating logic: proceed only when $toolsOk was set by an accepted success case.
     if (-not $toolsOk) {
         Write-Log -Error "Script aborted since VM is not ready for online activities."
+        Exit 1
+    }
+
+    # Refresh VM object for reliable operations
+    $vm = TryGet-VMObject $vm
+    if (-not $vm) {
+        Write-Log -Error "Unable to refresh VM object after retries."
         Exit 1
     }
 
