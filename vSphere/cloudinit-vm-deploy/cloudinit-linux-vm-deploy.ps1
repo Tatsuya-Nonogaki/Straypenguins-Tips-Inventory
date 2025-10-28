@@ -665,10 +665,6 @@ function InitializeClone {
             # is reachable in other phases/call-sites (e.g., Phase-3 Stop/Start operations) and is therefore
             # left implemented in Start-MyVM itself. We keep this commented block here for documentation / future
             # reference and to make it easy to re-enable handling if the calling logic changes later.
-            #
-            # If you prefer a non-comment approach, you could leave a small explanatory comment and not include
-            # the case at all. Using a block comment makes the original recommended handling visible while
-            # preventing accidental execution.
             Write-Log "VM was not started due to -NoRestart option. Check current status of the VM and VMware Tools."
         }
         #>
