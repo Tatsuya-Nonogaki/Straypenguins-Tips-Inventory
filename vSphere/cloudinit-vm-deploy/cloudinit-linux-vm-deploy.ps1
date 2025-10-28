@@ -743,6 +743,10 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
     }
 
     Write-Log "Phase 2 complete"
+
+    if ($Phase -notcontains 3) {
+        Write-Log "Note: The VM has been left powered on. When you are finished, you may shut it down manually; otherwise it will be shut down automatically when Phase 3 begins."
+    }
 }
 
 # ---- Generate cloud-init seed ISO and personalize VM ----
@@ -818,7 +822,7 @@ function CloudInitKickStart {
                 $vm = Get-VM -Id $vm.Id -ErrorAction SilentlyContinue
                 if ($vm) { Write-Log "VM power state: $($vm.PowerState)" }
             } catch {}
-            Write-Log "Note: ensure the VM power state is appropriate for your needs in this run of Phase-3."
+            Write-Log "Note: Ensure the VM power state is appropriate for your needs in this run of Phase-3."
         }
         "timeout" {
             Write-Log -Error "Script aborted."
