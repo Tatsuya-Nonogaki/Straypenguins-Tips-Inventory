@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.38
+  Version: 0.0.39
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -720,7 +720,7 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
     }
 
     try {
-        $outNull = Copy-VMGuestFile -LocalToGuest -Source $scriptSrc -Destination $dstPath `
+        $null = Copy-VMGuestFile -LocalToGuest -Source $scriptSrc -Destination $dstPath `
             -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
         Write-Log "Copied init script to guest: $dstPath"
     } catch {
@@ -1049,7 +1049,7 @@ $shBody
 
     # Upload the ISO to the datastore using vmstore:\ path as destination
     try {
-        $outNull = Copy-DatastoreItem -Item "$isoPath" -Destination "$vmstoreIsoPath" -ErrorAction Stop
+        $null = Copy-DatastoreItem -Item "$isoPath" -Destination "$vmstoreIsoPath" -ErrorAction Stop
         Write-Log "Seed ISO uploaded to datastore: '$vmstoreIsoPath' ($datastoreIsoPath)"
     } catch {
         Write-Log -Error "Failed to upload seed ISO to datastore: $_"
@@ -1058,14 +1058,14 @@ $shBody
 
     # Attach ISO to the VM's CD drive
     try {
-        $outNull = Set-CDDrive -CD $cdd -IsoPath "$datastoreIsoPath" -StartConnected $true -Confirm:$false -ErrorAction Stop |
+        $null = Set-CDDrive -CD $cdd -IsoPath "$datastoreIsoPath" -StartConnected $true -Confirm:$false -ErrorAction Stop |
           Tee-Object -Variable setCDOut
           $setCDOut | Select-Object IsoPath,Parent,ConnectionState | Format-List | Out-File $LogFilePath -Append -Encoding UTF8
         Write-Log "Seed ISO attached to the VM's CD drive."
     } catch {
         Write-Log -Error "Failed to attach the seed ISO to the VM's CD drive: $_"
         try {
-            $outNull = Remove-DatastoreItem -Path $vmstoreIsoPath -Confirm:$false -ErrorAction Stop
+            $null = Remove-DatastoreItem -Path $vmstoreIsoPath -Confirm:$false -ErrorAction Stop
             Write-Log "Cleaned up the uploaded seed ISO from datastore: '$vmstoreIsoPath'"
         } catch {
             Write-Log -Error "Failed to clean up ISO from datastore after attach failure: $_"
@@ -1187,7 +1187,7 @@ function CloseDeploy {
     }
     else {
         try {
-            $outNull = Set-CDDrive -CD $cdd -NoMedia -Confirm:$false -ErrorAction Stop
+            $null = Set-CDDrive -CD $cdd -NoMedia -Confirm:$false -ErrorAction Stop
             Write-Log "Seed ISO media is detached from the VM: $($vm.Name)"
         } catch {
             # Not fatal, continue, as the cmdlet returns true if it is already detached
