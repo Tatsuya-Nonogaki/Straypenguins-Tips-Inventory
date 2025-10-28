@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3536-02
+  Version: 0.0.3537
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -158,11 +158,17 @@ function VIConnect {
 
 # ---- Get-VM with short retries to tolerate transient vCenter/API glitches ----
 function TryGet-VMObject {
+    # VM argument may be either object or name
     param(
-        [Parameter(Mandatory=$true)][object]$VM,
+        [Parameter()]$VM,
         [int]$MaxAttempts = 3,
         [int]$IntervalSec = 2
     )
+
+    if (-not $VM) {
+        Write-Log -Error "TryGet-VMObject: invalid VM object passed."
+        return $null
+    }
 
     if ($VM -is [string]) {
         $vmName = $VM
@@ -200,18 +206,25 @@ function TryGet-VMObject {
 # ---- VM Power On/Off Functions ----
 function Start-MyVM {
     param(
-        [Parameter(Mandatory)][object]$VM,
+        [Parameter()]$VM,
         [switch]$Force,
         [int]$WaitPowerSec = 60,
         [int]$WaitToolsSec = 120
     )
 
-    # Basic validation
-    if (-not $VM -or -not $VM.PSObject.Properties.Match('Id') -or -not $VM.PSObject.Properties.Match('Name')) {
+    if (-not $VM) {
         Write-Log -Error "Start-MyVM: invalid VM object passed."
         return "start-failed"
     }
-    $vmName = $VM.Name
+
+    # VM argument may be either object or name as TryGet-VMObject resolves it
+    if ($VM -is [string]) {
+        $vmName = $VM
+    } elseif ($VM -and $VM.PSObject.Properties.Match('Name')) {
+        $vmName = $VM.Name
+    } else {
+        $vmName = $VM.ToString()
+    }
 
     # Refresh VM object
     $vmObj = TryGet-VMObject $VM
@@ -291,15 +304,23 @@ function Start-MyVM {
 
 function Stop-MyVM {
     param(
-        [Parameter(Mandatory)][object]$VM,
+        [Parameter()]$VM,
         [int]$TimeoutSeconds = 180
     )
 
-    if (-not $VM -or -not $VM.PSObject.Properties.Match('Id') -or -not $VM.PSObject.Properties.Match('Name')) {
+    if (-not $VM) {
         Write-Log -Error "Stop-MyVM: invalid VM object passed."
         return "stop-failed"
     }
-    $vmName = $VM.Name
+
+    # VM argument may be either object or name as TryGet-VMObject resolves it
+    if ($VM -is [string]) {
+        $vmName = $VM
+    } elseif ($VM -and $VM.PSObject.Properties.Match('Name')) {
+        $vmName = $VM.Name
+    } else {
+        $vmName = $VM.ToString()
+    }
 
     if ($NoRestart) {
        Write-Log "NoRestart specified: Shutdown was skipped."
@@ -586,12 +607,10 @@ function InitializeClone {
     switch ($vmStartStatus) {
         "success" {
             # Start-MyVM guarantees VMware Tools readiness before returning success.
-            Write-Log "VM is powered on and VMware Tools reported ready."
             $toolsOk = $true
         }
         "already-started" {
             # Start-MyVM returned this when VM was already on and Tools were ready.
-            Write-Log "VM already powered on; VMware Tools is ready."
             $toolsOk = $true
         }
 
