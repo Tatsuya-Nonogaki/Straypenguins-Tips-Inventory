@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.39
+  Version: 0.0.3940
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -229,14 +229,14 @@ function Start-MyVM {
     # Refresh VM object
     $vmObj = TryGet-VMObject $VM
     if (-not $vmObj) {
-        Write-Log -Error "Start-MyVM: unable to refresh VM object for '$vmName' after retries."
+        Write-Log -Error "Start-MyVM: unable to refresh VM object: '$vmName'"
         return "stat-unknown"
     }
 
     # Respect NoRestart unless Force overrides
     if (-not $Force -and $NoRestart) {
         if ($vmObj.PowerState -eq "PoweredOn") {
-            Write-Log "NoRestart specified but VM is already powered on: $vmName"
+            Write-Log "NoRestart specified but VM is already powered on: '$vmName'"
             return "already-started"
         } else {
             Write-Log "NoRestart specified: VM remains powered off."
@@ -246,12 +246,12 @@ function Start-MyVM {
 
     # If already on, check tools
     if ($vmObj.PowerState -eq "PoweredOn") {
-        Write-Log "VM already powered on: $vmName"
+        Write-Log "VM already powered on: '$vmName'"
         $toolsOk = Wait-ForVMwareTools -VM $vmObj -TimeoutSec $WaitToolsSec
         if ($toolsOk) {
             return "already-started"
         } else {
-            Write-Log -Warn "But VMware Tools did not become ready on already-on VM: $vmName"
+            Write-Log -Warn "But VMware Tools did not become ready on already-on VM: '$vmName'"
             return "timeout"
         }
     }
@@ -276,7 +276,7 @@ function Start-MyVM {
         $vmObj = TryGet-VMObject $vmObj 1 0
         if (-not $vmObj) {
             $refreshFailCount++
-            Write-Verbose "Start-MyVM: transient refresh failure for '$vmName' while waiting (#$refreshFailCount)."
+            Write-Verbose "Start-MyVM: transient refresh failure for '$vmName' while waiting (#$refreshFailCount)"
             if ($refreshFailCount -ge $maxRefreshConsecutiveFails) {
                 Write-Log -Warn "Start-MyVM: repeated failures refreshing VM object for '$vmName' while waiting; aborting."
                 return "start-failed"
@@ -335,11 +335,11 @@ function Stop-MyVM {
     }
 
     if ($vmObj.PowerState -eq "PoweredOff") {
-        Write-Log "VM already powered off: $vmName"
+        Write-Log "VM already powered off: '$vmName'"
         return "already-stopped"
     }
 
-    Write-Log "Shutting down VM: $vmName"
+    Write-Log "Shutting down VM: '$vmName'"
     try {
         $null = Stop-VM -VM $vmObj -Confirm:$false -ErrorAction Stop
     } catch {
@@ -358,7 +358,7 @@ function Stop-MyVM {
         $vmObj = TryGet-VMObject $vmObj 1 0
         if (-not $vmObj) {
             $refreshFailCount++
-            Write-Verbose "Stop-MyVM: transient refresh failure for '$vmName' while waiting (#$refreshFailCount)."
+            Write-Verbose "Stop-MyVM: transient refresh failure for '$vmName' while waiting (#$refreshFailCount)"
             if ($refreshFailCount -ge $maxRefreshConsecutiveFails) {
                 Write-Log -Warn "Stop-MyVM: repeated failures refreshing VM object for '$vmName' while waiting; aborting."
                 return "stop-failed"
@@ -405,7 +405,7 @@ function Wait-ForVMwareTools {
     # Refresh VM object
     $vmObj = TryGet-VMObject $VM
     if (-not $vmObj) {
-        Write-Log -Warn "Wait-ForVMwareTools: cannot refresh VM object for '$vmName'."
+        Write-Log -Warn "Wait-ForVMwareTools: cannot refresh VM object: '$vmName'"
         return $false
     }
 
@@ -419,7 +419,7 @@ function Wait-ForVMwareTools {
             Write-Verbose "Wait-ForVMwareTools: failed to read ToolsStatus for '$vmName': $_"
             $vmObj = TryGet-VMObject $vmObj 1 0
             if (-not $vmObj) {
-                Write-Verbose "Wait-ForVMwareTools: transient refresh failed for '$vmName'."
+                Write-Verbose "Wait-ForVMwareTools: transient refresh failed for '$vmName'"
             }
             Start-Sleep -Seconds $PollIntervalSec
             $waited += $PollIntervalSec
@@ -427,7 +427,7 @@ function Wait-ForVMwareTools {
         }
 
         if ($toolsStatus -eq "toolsOk") {
-            Write-Log "VMware Tools is running on VM: '$vmName' (waited ${waited}s)."
+            Write-Log "VMware Tools is running on VM: '$vmName' (waited ${waited}s)"
             return $true
         }
 
@@ -437,7 +437,7 @@ function Wait-ForVMwareTools {
         # Refresh VM object with minimal retries to keep status current
         $vmObj = TryGet-VMObject $vmObj 1 0
         if (-not $vmObj) {
-            Write-Verbose "Wait-ForVMwareTools: transient refresh failure for '$vmName' while waiting (waited ${waited}s)."
+            Write-Verbose "Wait-ForVMwareTools: transient refresh failure for '$vmName' while waiting (waited ${waited}s)"
         }
     }
 
@@ -496,9 +496,9 @@ function AutoClone {
     Write-Log "=== Phase 1: Automatic Cloning ==="
 
     # Check if a VM with the same name already exists
-    $existingVM = Get-VM -Name $params.new_vm_name -ErrorAction SilentlyContinue
+    $existingVM = TryGet-VMObject $new_vm_name
     if ($existingVM) {
-        Write-Log -Error "A VM with the same name '$($params.new_vm_name)' already exists. Aborting deployment."
+        Write-Log -Error "A VM with the same name '$new_vm_name' already exists. Aborting deployment."
         Exit 2
     }
 
@@ -520,7 +520,7 @@ function AutoClone {
     }
 
     $vmParams = @{
-        Name         = $params.new_vm_name
+        Name         = $new_vm_name
         Template     = $templateVM
         ResourcePool = $resourcePool
         Datastore    = $params.datastore_name
@@ -556,7 +556,7 @@ function AutoClone {
         $newVMOut | Out-File $LogFilePath -Append -Encoding UTF8
         Write-Log "Deployed new VM: $($newVM.Name) from template: $($newVM.Name) in $($params.datastore_name)"
     } catch {
-        Write-Log -Error "Error occurred while deploying VM: $($params.new_vm_name): $_"
+        Write-Log -Error "Error occurred while deploying VM: '$new_vm_name': $_"
         Exit 1
     }
 
@@ -599,10 +599,9 @@ function AutoClone {
 function InitializeClone {
     Write-Log "=== Phase 2: Guest Initialization ==="
 
-    try {
-        $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
-    } catch {
-        Write-Log -Error "VM not found for initialization: $($params.new_vm_name)"
+    $vm = TryGet-VMObject $new_vm_name
+    if (-not $vm) {
+        Write-Log -Error "VM not found: '$new_vm_name'"
         Exit 1
     }
 
@@ -692,7 +691,7 @@ function InitializeClone {
     # Refresh VM object for reliable operations
     $vm = TryGet-VMObject $vm
     if (-not $vm) {
-        Write-Log -Error "Unable to refresh VM object after retries."
+        Write-Log -Error "Unable to refresh VM object: '$($vm.Name)'"
         Exit 1
     }
 
@@ -790,10 +789,9 @@ function CloudInitKickStart {
     }
 
     # 1. Get target VM object
-    try {
-        $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
-    } catch {
-        Write-Log -Error "Target VM not found: $($params.new_vm_name)"
+    $vm = TryGet-VMObject $new_vm_name
+    if (-not $vm) {
+        Write-Log -Error "Target VM not found: '$new_vm_name'"
         Exit 1
     }
 
@@ -810,18 +808,16 @@ function CloudInitKickStart {
         "success" {
             Write-Log "Proceeding with Phase-3 operations."
             # Refresh VM object to ensure we have current PowerState for later steps
-            try { $vm = Get-VM -Id $vm.Id -ErrorAction Stop } catch {}
+            $vm = TryGet-VMObject $vm
         }
         "already-stopped" {
             Write-Log "Proceeding with Phase-3 operations."
-            try { $vm = Get-VM -Id $vm.Id -ErrorAction Stop } catch {}
+            $vm = TryGet-VMObject $vm
         }
         "skipped" {
             Write-Log "Continuing without shutdown."
-            try {
-                $vm = Get-VM -Id $vm.Id -ErrorAction SilentlyContinue
-                if ($vm) { Write-Log "VM power state: $($vm.PowerState)" }
-            } catch {}
+            $vm = TryGet-VMObject $vm
+            if ($vm) { Write-Log "VM power state: $($vm.PowerState)" }
             Write-Log "Note: Ensure the VM power state is appropriate for your needs in this run of Phase-3."
         }
         "timeout" {
@@ -1113,11 +1109,11 @@ $shBody
             # If the user requested Phase-4 in the same run and cloud-reset is expected,
             # we must not continue to Phase-4 when the VM hasn't actually been booted here.
             if ($Phase -contains 4 -and -not $NoCloudReset) {
-                Write-Log -Error "Script aborted since VM is not ready for the online activities in Phase 4 (seed ISO attached but VM not started due to -NoRestart)."
+                Write-Log -Error "Script aborted since VM is not ready for the online activities in Phase 4 (seed ISO attached but VM not started due to -NoRestart)"
                 Exit 2
             }
 
-            Write-Log "Phase 3 complete with -NoRestart (seed ISO created and attached; VM not started due to the option)."
+            Write-Log "Phase 3 complete with -NoRestart (seed ISO created and attached; VM not started due to the option)"
             return
         } else {
             Write-Log -Error "Script aborted since VM is not ready for online activities."
@@ -1138,7 +1134,7 @@ $shBody
         Write-Log -Error "Unable to refresh VM object after VM start; aborting."
         Exit 1
     }
-    Write-Verbose "Phase-3: VM object refreshed successfully: $($vm.Name)"
+    Write-Verbose "Phase-3: VM object refreshed successfully: '$($vm.Name)'"
 
     Write-Log "Phase 3 complete"
 }
@@ -1148,10 +1144,9 @@ function CloseDeploy {
     Write-Log "=== Phase 4: Close & Clean up ==="
 
     # 1. Get VM object
-    try {
-        $vm = Get-VM -Name $params.new_vm_name -ErrorAction Stop
-    } catch {
-        Write-Log -Error "Target VM not found for CloseDeploy: $($params.new_vm_name)"
+    $vm = TryGet-VMObject $new_vm_name
+    if (-not $vm) {
+        Write-Log -Error "Target VM not found: '$new_vm_name'"
         Exit 1
     }
 
@@ -1188,7 +1183,7 @@ function CloseDeploy {
     else {
         try {
             $null = Set-CDDrive -CD $cdd -NoMedia -Confirm:$false -ErrorAction Stop
-            Write-Log "Seed ISO media is detached from the VM: $($vm.Name)"
+            Write-Log "Seed ISO media is detached from the VM: '$new_vm_name'"
         } catch {
             # Not fatal, continue, as the cmdlet returns true if it is already detached
             Write-Log -Warn "Failed to detach CD/DVD drive from VM: $_"
@@ -1213,7 +1208,7 @@ function CloseDeploy {
         if ($toolsOk) {
             Write-Log "VMware Tools is running."
         } else {
-            Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on and rerun phase-4."
+            Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on and rerun Phase-4."
             exit 1
         }
 
