@@ -162,7 +162,8 @@ function TryGet-VMObject {
     param(
         [Parameter()]$VM,
         [int]$MaxAttempts = 3,
-        [int]$IntervalSec = 2
+        [int]$IntervalSec = 2,
+        [switch]$Quiet
     )
 
     if (-not $VM) {
@@ -199,7 +200,9 @@ function TryGet-VMObject {
             if ($attempt -lt $MaxAttempts) { Start-Sleep -Seconds $IntervalSec }
         }
     }
-    Write-Log -Error "TryGet-VMObject: failed to obtain VM object after $MaxAttempts attempts for input '$vmName'."
+    if (-not $Quiet) {
+        Write-Log -Error "TryGet-VMObject: failed to obtain VM object after $MaxAttempts attempts for input '$vmName'"
+    }
     return $null
 }
 
@@ -496,7 +499,7 @@ function AutoClone {
     Write-Log "=== Phase 1: Automatic Cloning ==="
 
     # Check if a VM with the same name already exists
-    $existingVM = TryGet-VMObject $new_vm_name
+    $existingVM = TryGet-VMObject $new_vm_name -Quiet
     if ($existingVM) {
         Write-Log -Error "A VM with the same name '$new_vm_name' already exists. Aborting deployment."
         Exit 2
@@ -554,7 +557,7 @@ function AutoClone {
     try {
         $newVM = New-VM @vmParams | Tee-Object -Variable newVMOut
         $newVMOut | Out-File $LogFilePath -Append -Encoding UTF8
-        Write-Log "Deployed new VM: $($newVM.Name) from template: $($newVM.Name) in $($params.datastore_name)"
+        Write-Log "Deployed new VM: $($newVM.Name) from template: $($params.template_vm_name) in $($params.datastore_name)"
     } catch {
         Write-Log -Error "Error occurred while deploying VM: '$new_vm_name': $_"
         Exit 1
@@ -1205,9 +1208,7 @@ function CloseDeploy {
     # 5. Disable cloud-init for future boots (unless -NoCloudReset switch is specified)
     if (-not $NoCloudReset) {
         $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 5
-        if ($toolsOk) {
-            Write-Log "VMware Tools is running."
-        } else {
+        if (-not $toolsOk) {
             Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on and rerun Phase-4."
             exit 1
         }
