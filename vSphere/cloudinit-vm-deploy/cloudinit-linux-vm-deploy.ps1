@@ -1213,7 +1213,7 @@ function CloseDeploy {
         if ($toolsOk) {
             Write-Log "VMware Tools is running."
         } else {
-            Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on."
+            Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on and rerun phase-4."
             exit 1
         }
 
