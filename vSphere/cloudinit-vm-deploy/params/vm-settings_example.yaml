@@ -1,4 +1,5 @@
 # Example vm-settings.yaml for cloudinit-linux-vm-deploy.ps1
+
 # == Infrastructure (vCenter Connection) ==
 # If vcenter_user/vcenter_password are blank or omitted,
 # the script will look for cached credentials via New-VICredentialStoreItem.
@@ -13,7 +14,6 @@ datacenter_name: VMDATACENTER
 cluster_name: CLST_A
 datastore_name: ProdStore
 seed_iso_copy_store: "[COMMSTORE01] cloudinit-iso/"   # Datastore and path where seed ISO will be copied temporarily, in a form "[store]<sp>path(/)"
-remove_seed_iso: false    # ==FOR TEST/DEBUG== If true/True/yes/Yes, uploaded seed ISO is removed from the datastore after successful attach and before final boot
 resource_pool_name: Resources   # If you are not sure, leave as "Resources" or comment out.
 esxi_host: vhost-a01
 ## Network port label; set either of the two (not both)
@@ -78,3 +78,8 @@ password: "naks9slewiv"    # As plain string for use with PowerShell logics
 password_hash: "$6$Kc8......"      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
 ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
 # ssh_key2: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
+
+# == Script tuning parameters ==
+# How long the script wait for cloud-init completion at the finalization Phase
+cloudinit_wait_sec: 600
+cloudinit_poll_sec: 10
