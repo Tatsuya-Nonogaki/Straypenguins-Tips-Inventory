@@ -704,12 +704,12 @@ function InitializeClone {
         $phase2Cmd = @"
 sudo /bin/bash -c "mkdir -p $workDirOnVM"
 "@
-        $result = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
             -ScriptType Bash -ErrorAction Stop
         $phase2Cmd = @"
 sudo /bin/bash -c "chown $guestUser $workDirOnVM"
 "@
-        $result = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
             -ScriptType Bash -ErrorAction Stop
          Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
     } catch {
@@ -736,7 +736,7 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
     }
 
     try {
-        $result = Invoke-VMScript -VM $vm -ScriptText "rm -f $dstPath" `
+        $null = Invoke-VMScript -VM $vm -ScriptText "rm -f $dstPath" `
             -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
         Write-Log "Removed init script from the VM: $dstPath"
     } catch {
@@ -1411,7 +1411,7 @@ function CloseDeploy {
             $phase4Cmd = @'
 sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
 '@
-            $result = Invoke-VMScript -VM $vm -ScriptText $phase4Cmd -GuestUser $guestUser `
+            $null = Invoke-VMScript -VM $vm -ScriptText $phase4Cmd -GuestUser $guestUser `
                 -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
             Write-Log "Created /etc/cloud/cloud-init.disabled to prevent cloud-init invocation."
         } catch {
