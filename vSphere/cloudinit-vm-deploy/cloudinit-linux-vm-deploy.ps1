@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3940
+  Version: 0.0.3943
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -382,7 +382,7 @@ function Stop-MyVM {
     return "timeout"
 }
 
-# Wait for VMware Tools to become ready inside the guest
+# Wait for VMware Tools to become ready inside the VM
 function Wait-ForVMwareTools {
     param(
         [Parameter()]$VM,
@@ -711,37 +711,37 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
 "@
         $result = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
             -ScriptType Bash -ErrorAction Stop
-         Write-Log "Ensured work directory exists on guest: $workDirOnVM"
+         Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
     } catch {
-        Write-Log -Error "Failed to create work directory on guest: $_"
+        Write-Log -Error "Failed to create work directory on the VM: $_"
         Exit 1
     }
 
     try {
         $null = Copy-VMGuestFile -LocalToGuest -Source $scriptSrc -Destination $dstPath `
             -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
-        Write-Log "Copied init script to guest: $dstPath"
+        Write-Log "Copied init script to the VM: $dstPath"
     } catch {
-        Write-Log -Error "Failed to copy script to guest: $_"
+        Write-Log -Error "Failed to copy script to the VM: $_"
         Exit 1
     }
 
     try {
         $result = Invoke-VMScript -VM $vm -ScriptText "chmod +x $dstPath && sudo /bin/bash $dstPath" `
             -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-        Write-Log "Executed init script in guest. Output: $($result.ScriptOutput)"
+        Write-Log "Executed init script in the VM. Output: $($result.ScriptOutput)"
     } catch {
-        Write-Log -Error "Failed to execute script in guest: $_"
+        Write-Log -Error "Failed to execute script in the VM: $_"
         Exit 1
     }
 
     try {
         $result = Invoke-VMScript -VM $vm -ScriptText "rm -f $dstPath" `
             -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-        Write-Log "Removed init script from guest: $dstPath"
+        Write-Log "Removed init script from the VM: $dstPath"
     } catch {
         # Warn but not abort processing if deletion failed
-        Write-Log -Warn "Failed to remove script from guest: $_"
+        Write-Log -Warn "Failed to remove script from the VM: $_"
     }
 
     Write-Log "Phase 2 complete"
@@ -1072,6 +1072,10 @@ $shBody
         Exit 1
     }
 
+    # Record epoch seconds right after attaching the seed ISO to reference later in determination of cloud-init completion.
+    $seedAttachEpoch = [int][double]((Get-Date).ToUniversalTime() - (Get-Date "1970-01-01T00:00:00Z")).TotalSeconds
+    Write-Verbose "Recorded seed attach epoch '$seedAttachEpoch' for later cloud-init completion checks."
+
     # 6. Power on VM for personalization
     $vmStartStatus = Start-MyVM $vm
 
@@ -1124,20 +1128,202 @@ $shBody
         }
     }
 
-    # When VM was not started by this phase since it was already running 
+    # When VM was not started by this phase since it was already running
     if ($vmStartStatus -eq "already-started" -and $Phase -contains 4 -and -not $NoCloudReset) {
         Write-Log -Warn "VM was already powered on before seed ISO attach; cloud-init was NOT applied in this run."
         Write-Log -Warn "Phase-4 would remove the seed without applying changes. Aborting."
         Exit 2
     }
 
-    # Refresh VM object for reliable operations before any (light) post-start checks
+    # 7. Wait for cloud-init to complete personalization on the VM
+
+    # Refresh VM object for reliable operations.
     $vm = TryGet-VMObject $vm
     if (-not $vm) {
         Write-Log -Error "Unable to refresh VM object after VM start; aborting."
         Exit 1
     }
     Write-Verbose "Phase-3: VM object refreshed successfully: '$($vm.Name)'"
+
+    # Begin preparation to upload a check script onto the VM and run.
+
+    $localScriptPath = Join-Path $workdir "check-cloud-init.sh"
+    $guestScriptPath = "$workDirOnVM/check-cloud-init.sh"
+
+    # Template for guest checker. Use {{SEED_TS}} placeholder and replace locally.
+    $cloudInitCheckScript = @'
+#!/bin/bash
+# check-cloud-init.sh - return READY if cloud-init started by this run has finished
+if command -v cloud-init >/dev/null 2>&1; then
+  if cloud-init status --wait >/dev/null 2>&1; then
+    echo READY
+    exit 0
+  else
+    echo NOTREADY
+    exit 1
+  fi
+elif [ -f /var/lib/cloud/instance/boot-finished ]; then
+  file_ts=$(stat -c %Y /var/lib/cloud/instance/boot-finished 2>/dev/null || echo 0)
+  if [ "$file_ts" -gt {{SEED_TS}} ]; then
+    echo READY
+    exit 0
+  else
+    echo NOTREADY
+    exit 1
+  fi
+elif systemctl show -p SubState --value cloud-final 2>/dev/null | grep -q ^exited$; then
+  echo READY
+  exit 0
+else
+  echo NOTREADY
+  exit 1
+fi
+'@
+
+    # Replace placeholder with the seed attach epoch
+    $cloudInitCheckScript = $cloudInitCheckScript.Replace('{{SEED_TS}}', [string]$seedAttachEpoch)
+
+    # Write local script file
+    Set-Content -Path $localScriptPath -Value $cloudInitCheckScript -Encoding UTF8 -Force
+
+    # normalize CRLF -> LF and write as UTF-8 without BOM
+    $txt = Get-Content -Raw -Path $localScriptPath -Encoding UTF8
+    $txt = $txt -replace "`r`n", "`n"
+    $txt = $txt -replace "`r", "`n"
+    [System.IO.File]::WriteAllText($localScriptPath, $txt, (New-Object System.Text.UTF8Encoding($false)))
+
+    Write-Verbose "Wrote local check script: $localScriptPath"
+
+    # Prepare username and password for VM commands
+    $guestUser = $params.username
+    $guestPassPlain = $params.password
+    try {
+        $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
+    } catch {
+        Write-Log -Error "Failed to convert guest password to SecureString: $_"
+        Write-Log -Error "cloud-init was triggered at VM startup, but it could not be confirmed whether the VM has completed applying the system changes."
+        Exit 3
+    }
+
+    # Ensure guest workdir
+    try {
+        $phase3cmd = @"
+sudo /bin/bash -c "mkdir -p $workDirOnVM"
+"@
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase3cmd -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
+
+        $phase3cmd = @"
+sudo /bin/bash -c "chown $guestUser $workDirOnVM"
+"@
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase3cmd -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
+        Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
+    } catch {
+        Write-Log -Error "Failed to ensure work directory on the VM: $_"
+        Remove-Item -Path $localScriptPath -ErrorAction SilentlyContinue
+        Exit 1
+    }
+
+    # Wait for VMware Tools then stabilize to avoid transient early Tools
+    $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 120
+    if (-not $toolsOk) {
+        Write-Log -Warn "VMware Tools did not report ready within 120s; will still attempt copy with retries."
+    }
+    Write-Log "Pausing 30s to allow guest services to stabilize..."
+    Start-Sleep -Seconds 30
+    
+    # Copy the local script to the VM with retries (tools may still be flaky)
+    $maxAttempts = 4
+    $attempt = 0
+    $copied = $false
+
+    while (-not $copied -and $attempt -lt $maxAttempts) {
+        $attempt++
+        try {
+            $null = Copy-VMGuestFile -LocalToGuest -Source $localScriptPath -Destination $guestScriptPath `
+                -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
+            $copied = $true
+            Write-Verbose "Copied script to the VM ($guestScriptPath) (attempt $attempt)"
+        } catch {
+            Write-Verbose "Copy-VMGuestFile failed (attempt $attempt): $_"
+            # try waiting for tools briefly and retry
+            $toolsOk2 = Wait-ForVMwareTools -VM $vm -TimeoutSec 30
+            if (-not $toolsOk2) {
+                Write-Verbose "VMware Tools still unavailable; sleeping before next copy attempt..."
+                Start-Sleep -Seconds 10
+            } else {
+                Write-Verbose "VMware Tools recovered; retrying copy..."
+            }
+        }
+    }
+
+    # cleanup local temp script
+    Remove-Item -Path $localScriptPath -ErrorAction SilentlyContinue
+
+    if (-not $copied) {
+        Write-Log -Error "Failed to upload check script to the VM after $maxAttempts attempts."
+        Exit 2
+    }
+
+    try {
+        $phase3cmd = @"
+sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScriptPath'"
+"@
+        $null = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -ScriptText $phase3cmd -ScriptType Bash -ErrorAction Stopthe
+        Write-Verbose "Set owner/mode for $guestScriptPath on the VM"
+    } catch {
+        Write-Log -Error "Failed to set permissions on uploaded script: $_"
+        Exit 2
+    }
+
+    # Poll the script until it returns READY or timeout
+    $cloudInitWaitTotalSec = if (-not $params.cloudinit_wait_sec) { [int]$params.cloudinit_wait_sec } else { 600 }
+    $cloudInitPollSec = if (-not $params.cloudinit_poll_sec) { [int]$params.cloudinit_poll_sec } else { 10 }
+    $elapsed = 0
+    $cloudInitDone = $false
+
+    Write-Log "Waiting for cloud-init to finish inside the VM (polling $guestScriptPath, max ${cloudInitWaitTotalSec}s)..."
+
+    while ($elapsed -lt $cloudInitWaitTotalSec) {
+        try {
+            $execCmd = "sudo /bin/bash '$guestScriptPath'"
+            $res = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -ScriptText $execCmd -ScriptType Bash -ErrorAction Stop
+
+            Write-Verbose ("Invoke-VMScript result: " + ($res | Format-List * | Out-String))
+
+            $out = ""
+            if ($res.ScriptOutput) { $out = ($res.ScriptOutput -join "`n").Trim() }
+            if (-not $out -and $res.ScriptError) { $out = ($res.ScriptError -join "`n").Trim() }
+
+            if ($out -match "READY") {
+                Write-Log "Detected cloud-init completion on the VM (waited ${elapsed}s)."
+                $cloudInitDone = $true
+                break
+            } else {
+                Write-Verbose "cloud-init not yet finished (guest reports: '$out')."
+            }
+        } catch {
+            Write-Verbose "Invoke-VMScript execution failed while checking cloud-init: $_"
+            # vmtoolsd may be transiently down; wait briefly and retry
+            $toolsBack = Wait-ForVMwareTools -VM $vm -TimeoutSec 30
+            if (-not $toolsBack) {
+                Write-Verbose "VMware Tools did not recover within brief wait; will retry after sleep."
+            } else {
+                Write-Verbose "VMware Tools recovered; retrying guest check."
+            }
+        }
+
+        Start-Sleep -Seconds $cloudInitPollSec
+        $elapsed += $cloudInitPollSec
+    }
+
+    if (-not $cloudInitDone) {
+        Write-Log -Error "cloud-init was triggered at VM startup, but it could not be confirmed whether the VM has completed applying the system changes."
+        Write-Log -Error "Timed out waiting for cloud-init to finish after ${cloudInitWaitTotalSec}s."
+        if ($Phase -contains 4) {
+            Write-Log -Error "Aborting without proceeding to Phase-4 to avoid detaching the seed ISO before cloud-init completion."
+        }
+        Exit 2
+    }
 
     Write-Log "Phase 3 complete"
 }
