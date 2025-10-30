@@ -1276,8 +1276,8 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
     }
 
     # Poll the script until it returns READY or timeout
-    $cloudInitWaitTotalSec = if (-not $params.cloudinit_wait_sec) { [int]$params.cloudinit_wait_sec } else { 600 }
-    $cloudInitPollSec = if (-not $params.cloudinit_poll_sec) { [int]$params.cloudinit_poll_sec } else { 10 }
+    $cloudInitWaitTotalSec = if ($params.cloudinit_wait_sec) { [int]$params.cloudinit_wait_sec } else { 600 }
+    $cloudInitPollSec = if ($params.cloudinit_poll_sec) { [int]$params.cloudinit_poll_sec } else { 10 }
     $elapsed = 0
     $cloudInitDone = $false
 
