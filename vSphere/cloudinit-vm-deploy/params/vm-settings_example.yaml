@@ -83,4 +83,6 @@ ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
 # How long the script wait for cloud-init completion at the finalization Phase
 cloudinit_wait_sec: 600
 cloudinit_poll_sec: 10
-cloudinit_backoff_sec: 60      # Pause before the polling above starts
+cloudinit_tools_wait_sec: 60   # VMwareTools wait time in each poll failure; default:60 in the script
+cloudinit_tools_poll_sec: 10   # Default:10
+cloudinit_backoff_sec: 60      # Pause before the polling above starts; default:60
