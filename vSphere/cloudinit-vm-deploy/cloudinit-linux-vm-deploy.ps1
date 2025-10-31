@@ -1316,7 +1316,7 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
                 Write-Log -Warn "Guest reports terminal state: $stdout"
                 if ($Phase -contains 4) {
                     Write-Log -Error "Detected terminal cloud-init state on guest (i.e. /etc/cloud/cloud-init.disabled exists). Continuing into Phase-4 would be meaningless and could produce unpredictable results; aborting the entire script."
-                fi
+                }
                 Exit 2
             } else {
                 # NOTREADY (ExitCode != 0)
