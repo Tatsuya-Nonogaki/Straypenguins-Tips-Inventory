@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.43
+  Version: 0.0.4344
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -1276,7 +1276,9 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
 
     # Poll the script until it returns READY or timeout
     $cloudInitWaitTotalSec = if ($params.cloudinit_wait_sec) { [int]$params.cloudinit_wait_sec } else { 600 }
-    $cloudInitPollSec = if ($params.cloudinit_poll_sec) { [int]$params.cloudinit_poll_sec } else { 10 }
+    $cloudInitPollSec =      if ($params.cloudinit_poll_sec) { [int]$params.cloudinit_poll_sec } else { 10 }
+    $toolsWaitSec = if ($params.cloudinit_tools_wait_sec) { [int]$params.cloudinit_tools_wait_sec } else { 60 }
+    $toolsPollSec = if ($params.cloudinit_tools_poll_sec) { [int]$params.cloudinit_tools_poll_sec } else { 10 }
     $elapsed = 0
     $cloudInitDone = $false
 
@@ -1301,13 +1303,16 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
                 Write-Verbose "cloud-init not yet finished (guest reports: '$out')."
             }
         } catch {
-            Write-Verbose "Invoke-VMScript execution failed while checking cloud-init: $_"
             # vmtoolsd may be transiently down; wait briefly and retry
-            $toolsBack = Wait-ForVMwareTools -VM $vm -TimeoutSec 30
+            Write-Verbose "Invoke-VMScript failed while checking cloud-init: $_"
+            Write-Verbose "Waiting up to ${toolsWaitSec}s for VMware Tools to recover (poll interval ${toolsPollSec}s)..."
+
+            $toolsBack = Wait-ForVMwareTools -VM $vm -TimeoutSec $toolsWaitSec -PollIntervalSec $toolsPollSec
             if (-not $toolsBack) {
-                Write-Verbose "VMware Tools did not recover within brief wait; will retry after sleep."
+                Write-Verbose "VMware Tools did not recover within ${toolsWaitSec}s; will retry guest check after the normal poll sleep."
             } else {
-                Write-Verbose "VMware Tools recovered; retrying guest check."
+                Write-Verbose "VMware Tools recovered; retrying guest check immediately."
+                # Optionally continue to next loop iteration without extra sleep to re-attempt quickly
             }
         }
 
