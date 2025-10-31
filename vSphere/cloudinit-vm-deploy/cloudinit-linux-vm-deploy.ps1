@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.3943
+  Version: 0.0.43
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -414,7 +414,6 @@ function Wait-ForVMwareTools {
 
     $waited = 0
     while ($waited -lt $TimeoutSec) {
-        # Access ToolsStatus safely
         try {
             $toolsStatus = $vmObj.ExtensionData.Guest.ToolsStatus
         } catch {
@@ -791,14 +790,13 @@ function CloudInitKickStart {
         return $template
     }
 
-    # 1. Get target VM object
     $vm = TryGet-VMObject $new_vm_name
     if (-not $vm) {
         Write-Log -Error "Target VM not found: '$new_vm_name'"
         Exit 1
     }
 
-    # 2. Shutdown the VM (skipped automatically if applicable)
+    # 1. Shutdown the VM (skipped automatically if applicable)
     if (-not $NoRestart) {
         Write-Log "The target VM is going to shut down to attach cloud-config seed ISO and boot for actual personalization to take effect."
         Write-Log "Shutting down in 5 seconds..."
@@ -837,7 +835,7 @@ function CloudInitKickStart {
         }
     }
 
-    # 3. Prepare seed working dir
+    # 2. Prepare seed working dir
     $seedDir = Join-Path $workdir "cloudinit-seed"
     if (Test-Path $seedDir) {
         try {
@@ -1224,12 +1222,13 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
     }
 
     # Wait for VMware Tools then stabilize to avoid transient early Tools
+    $backoffSec = if ($params.cloudinit_backoff_sec) { [int]$params.cloudinit_backoff_sec } else { 60 }
     $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 120
     if (-not $toolsOk) {
         Write-Log -Warn "VMware Tools did not report ready within 120s; will still attempt copy with retries."
     }
-    Write-Log "Pausing 30s to allow guest services to stabilize..."
-    Start-Sleep -Seconds 30
+    Write-Log "Pausing ${backoffSec}s to allow guest services to stabilize..."
+    Start-Sleep -Seconds $backoffSec
     
     # Copy the local script to the VM with retries (tools may still be flaky)
     $maxAttempts = 4
@@ -1268,7 +1267,7 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
         $phase3cmd = @"
 sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScriptPath'"
 "@
-        $null = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -ScriptText $phase3cmd -ScriptType Bash -ErrorAction Stopthe
+        $null = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -ScriptText $phase3cmd -ScriptType Bash -ErrorAction SilentlyContinue
         Write-Verbose "Set owner/mode for $guestScriptPath on the VM"
     } catch {
         Write-Log -Error "Failed to set permissions on uploaded script: $_"
