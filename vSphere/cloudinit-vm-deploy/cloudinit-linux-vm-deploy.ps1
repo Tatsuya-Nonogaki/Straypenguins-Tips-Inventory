@@ -1151,31 +1151,34 @@ $shBody
     # Template for guest checker. Use {{SEED_TS}} placeholder and replace locally.
     $cloudInitCheckScript = @'
 #!/bin/bash
-# check-cloud-init.sh - return READY if cloud-init started by this run has finished
+# check-cloud-init.sh - return READY:reason when cloud-init for this seed attach is finished
+# Exit codes:
+#   0 = READY (success for one of tests)
+#   1 = NOTREADY (not finished)
+#   2 = TERMINAL (cloud-init disabled or other terminal condition)
+if [ -f /etc/cloud/cloud-init.disabled ]; then
+  echo "TERMINAL:cloud-init-disabled"
+  exit 2
+fi
 if command -v cloud-init >/dev/null 2>&1; then
   if cloud-init status --wait >/dev/null 2>&1; then
-    echo READY
+    echo "READY:cloud-init-status"
     exit 0
-  else
-    echo NOTREADY
-    exit 1
   fi
-elif [ -f /var/lib/cloud/instance/boot-finished ]; then
+fi
+if systemctl show -p SubState --value cloud-final 2>/dev/null | grep -q ^exited$; then
+  echo "READY:systemd-cloud-final-exited"
+  exit 0
+fi
+if [ -f /var/lib/cloud/instance/boot-finished ]; then
   file_ts=$(stat -c %Y /var/lib/cloud/instance/boot-finished 2>/dev/null || echo 0)
   if [ "$file_ts" -gt {{SEED_TS}} ]; then
-    echo READY
+    echo "READY:boot-finished-after-seed"
     exit 0
-  else
-    echo NOTREADY
-    exit 1
   fi
-elif systemctl show -p SubState --value cloud-final 2>/dev/null | grep -q ^exited$; then
-  echo READY
-  exit 0
-else
-  echo NOTREADY
-  exit 1
 fi
+echo "NOTREADY"
+exit 1
 '@
 
     # Replace placeholder with the seed attach epoch
@@ -1287,24 +1290,40 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
     while ($elapsed -lt $cloudInitWaitTotalSec) {
         try {
             $execCmd = "sudo /bin/bash '$guestScriptPath'"
-            $res = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -ScriptText $execCmd -ScriptType Bash -ErrorAction Stop
+            $res = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass `
+                -ScriptText $execCmd -ScriptType Bash -ErrorAction Stop
 
             Write-Verbose ("Invoke-VMScript result: " + ($res | Format-List * | Out-String))
 
-            $out = ""
-            if ($res.ScriptOutput) { $out = ($res.ScriptOutput -join "`n").Trim() }
-            if (-not $out -and $res.ScriptError) { $out = ($res.ScriptError -join "`n").Trim() }
+            # Collate stdout
+            $stdout = ""
+            if ($res.ScriptOutput) {
+                $stdout = ($res.ScriptOutput -join "`r`n").Trim()
+            }
+            elseif ($res.ScriptError) {
+                $stdout = ($res.ScriptError -join "`r`n").Trim()
+            }
+            else {
+                $stdout = ""
+            }
 
-            if ($out -match "READY") {
-                Write-Log "Detected cloud-init completion on the VM (waited ${elapsed}s)."
+            if ($res.ExitCode -eq 0) {
+                if ($stdout -match '^READY:([^\r\n]+)') { $reason = $matches[1] } else { $reason = 'unknown' }
+                Write-Log "Detected cloud-init completion on guest (reason: $reason)."
                 $cloudInitDone = $true
                 break
+            } elseif ($res.ExitCode -eq 2) {
+                Write-Log -Warn "Guest reports terminal state: $stdout"
+                if ($Phase -contains 4) {
+                    Write-Log -Error "Detected terminal cloud-init state on guest (i.e. /etc/cloud/cloud-init.disabled exists). Continuing into Phase-4 would be meaningless and could produce unpredictable results; aborting the entire script."
+                fi
+                Exit 2
             } else {
-                Write-Verbose "cloud-init not yet finished (guest reports: '$out')."
+                # NOTREADY (ExitCode != 0)
+                Write-Verbose "cloud-init not yet finished; continue polling..."
             }
         } catch {
-            # vmtoolsd may be transiently down; wait briefly and retry
-            Write-Verbose "Invoke-VMScript failed while checking cloud-init: $_"
+            Write-Verbose "Invoke-VMScript execution failed while checking cloud-init: $_"
             Write-Verbose "Waiting up to ${toolsWaitSec}s for VMware Tools to recover (poll interval ${toolsPollSec}s)..."
 
             $toolsBack = Wait-ForVMwareTools -VM $vm -TimeoutSec $toolsWaitSec -PollIntervalSec $toolsPollSec
@@ -1312,7 +1331,6 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
                 Write-Verbose "VMware Tools did not recover within ${toolsWaitSec}s; will retry guest check after the normal poll sleep."
             } else {
                 Write-Verbose "VMware Tools recovered; retrying guest check immediately."
-                # Optionally continue to next loop iteration without extra sleep to re-attempt quickly
             }
         }
 
