@@ -83,3 +83,4 @@ ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
 # How long the script wait for cloud-init completion at the finalization Phase
 cloudinit_wait_sec: 600
 cloudinit_poll_sec: 10
+cloudinit_backoff_sec: 60      # Pause before the polling above starts
