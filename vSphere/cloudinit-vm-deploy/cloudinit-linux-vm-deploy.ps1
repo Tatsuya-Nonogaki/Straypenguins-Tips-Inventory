@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.4345
+  Version: 0.0.4345A
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -126,6 +126,26 @@ function Write-Log {
         Write-Host $Message -ForegroundColor Yellow
     } else {
         Write-Host $Message
+    }
+}
+
+function ConvertToSecureStringFromPlain {
+    param(
+        [Parameter()]
+        [string]$PlainText
+    )
+
+    if (-not $PlainText -or $PlainText.Trim().Length -eq 0) {
+        Write-Verbose "ConvertToSecureStringFromPlain: no password supplied."
+        return $null
+    }
+
+    try {
+        $secure = $PlainText | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
+        return $secure
+    } catch {
+        Write-Log -Error "ConvertToSecureStringFromPlain: ConvertTo-SecureString failed: $_"
+        return $null
     }
 }
 
@@ -607,12 +627,12 @@ function InitializeClone {
         Exit 1
     }
 
+    # Prepare username and password for VM commands
     $guestUser = $params.username
     $guestPassPlain = $params.password
-    try {
-        $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
-    } catch {
-        Write-Log -Error "Failed to convert guest password to SecureString: $_"
+    $guestPass = ConvertToSecureStringFromPlain $guestPassPlain
+    if (-not $guestPass) {
+        Write-Log -Error "Failed to convert guest password to SecureString. Aborting in Phase-2."
         Exit 3
     }
 
@@ -794,6 +814,50 @@ function CloudInitKickStart {
     if (-not $vm) {
         Write-Log -Error "Target VM not found: '$new_vm_name'"
         Exit 1
+    }
+
+    # Prepare username and password for VM commands
+    $guestUser = $params.username
+    $guestPassPlain = $params.password
+    $guestPass = ConvertToSecureStringFromPlain $guestPassPlain
+    if (-not $guestPass) {
+        Write-Log -Error "Failed to convert guest password to SecureString. Aborting in Phase-3."
+        Exit 3
+    }
+
+    # --- Early check for /etc/cloud/cloud-init.disabled; if the file exists Phase-3 is meaningless
+    $vm = TryGet-VMObject $vm
+
+    if ($vm -and $vm.PowerState -eq 'PoweredOn') {
+        $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 20 -PollIntervalSec 2
+
+        if (-not $toolsOk) {
+            Write-Log -Warn "VMware Tools not available to perform early cloud-init.disabled check; proceeding with Phase-3 anyway."
+        } else {
+            # One-line guest command to check for /etc/cloud/cloud-init.disabled
+            $checkCmd = "sudo /bin/bash -c 'if [ -f /etc/cloud/cloud-init.disabled ]; then echo CLOUDINIT_DISABLED; exit 0; else echo CLOUDINIT_ENABLED; exit 1; fi'"
+
+            try {
+                $res = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass `
+                    -ScriptText $checkCmd -ScriptType Bash -ErrorAction Stop
+
+                $out = if ($res.ScriptOutput) { ($res.ScriptOutput -join [Environment]::NewLine).Trim() } `
+                       elseif ($res.ScriptError) { ($res.ScriptError -join [Environment]::NewLine).Trim() } `
+                       else { "" }
+
+                if ($res.ExitCode -eq 0 -and $out -match 'CLOUDINIT_DISABLED') {
+                    Write-Log -Warn "VM has /etc/cloud/cloud-init.disabled; Phase-3 (seed attach and kickstart) is unnecessary and may be harmful. Aborting Phase-3."
+                    Exit 2
+                } else {
+                    Write-Log "Early check: no /etc/cloud/cloud-init.disabled found on the VM; proceeding with Phase-3."
+                }
+            } catch {
+                Write-Log -Warn "Early check for cloud-init.disabled failed (Invoke-VMScript error): $_"
+                Write-Log -Warn "Proceeding with Phase-3 anyway; note if the VM actually has cloud-init disabled, Phase-3 may be ineffective."
+            }
+        }
+    } else {
+        Write-Log -Warn "VM is not powered on; unable to check /etc/cloud/cloud-init.disabled. Proceeding with Phase-3."
     }
 
     # 1. Shutdown the VM (skipped automatically if applicable)
@@ -1143,6 +1207,15 @@ $shBody
     }
     Write-Verbose "Phase-3: VM object refreshed successfully: '$($vm.Name)'"
 
+    # Wait for VMware Tools then stabilize to avoid transient early Tools
+    $backoffSec = if ($params.cloudinit_backoff_sec) { [int]$params.cloudinit_backoff_sec } else { 60 }
+    $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 120
+    if (-not $toolsOk) {
+        Write-Log -Warn "VMware Tools did not report ready within 120s; will still attempt copy with retries."
+    }
+    Write-Log "Pausing ${backoffSec}s to allow guest services to stabilize..."
+    Start-Sleep -Seconds $backoffSec
+    
     # Begin preparation to upload a check script onto the VM and run.
 
     $localScriptPath = Join-Path $workdir "check-cloud-init.sh"
@@ -1195,17 +1268,6 @@ exit 1
 
     Write-Verbose "Wrote local check script: $localScriptPath"
 
-    # Prepare username and password for VM commands
-    $guestUser = $params.username
-    $guestPassPlain = $params.password
-    try {
-        $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
-    } catch {
-        Write-Log -Error "Failed to convert guest password to SecureString: $_"
-        Write-Log -Error "cloud-init was triggered at VM startup, but it could not be confirmed whether the VM has completed applying the system changes."
-        Exit 3
-    }
-
     # Ensure guest workdir
     try {
         $phase3cmd = @"
@@ -1224,15 +1286,6 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
         Exit 1
     }
 
-    # Wait for VMware Tools then stabilize to avoid transient early Tools
-    $backoffSec = if ($params.cloudinit_backoff_sec) { [int]$params.cloudinit_backoff_sec } else { 60 }
-    $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 120
-    if (-not $toolsOk) {
-        Write-Log -Warn "VMware Tools did not report ready within 120s; will still attempt copy with retries."
-    }
-    Write-Log "Pausing ${backoffSec}s to allow guest services to stabilize..."
-    Start-Sleep -Seconds $backoffSec
-    
     # Copy the local script to the VM with retries (tools may still be flaky)
     $maxAttempts = 4
     $attempt = 0
@@ -1295,7 +1348,6 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
 
             Write-Verbose ("Invoke-VMScript result: " + ($res | Format-List * | Out-String))
 
-            # Collate stdout
             $stdout = ""
             if ($res.ScriptOutput) {
                 $stdout = ($res.ScriptOutput -join "`r`n").Trim()
@@ -1314,8 +1366,11 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
                 break
             } elseif ($res.ExitCode -eq 2) {
                 Write-Log -Warn "Guest reports terminal state: $stdout"
+                Write-Log -Warn "Detected terminal cloud-init state on guest (i.e. /etc/cloud/cloud-init.disabled exists)"
                 if ($Phase -contains 4) {
-                    Write-Log -Error "Detected terminal cloud-init state on guest (i.e. /etc/cloud/cloud-init.disabled exists). Continuing into Phase-4 would be meaningless and could produce unpredictable results; aborting the entire script."
+                    Write-Log -Error "Continuing into Phase-4 would be meaningless and could produce unpredictable results; aborting the entire script."
+                } else {
+                    Write-Log -Warn "Phase-3 (seed attach and boot) may have been ineffective."
                 }
                 Exit 2
             } else {
@@ -1415,20 +1470,21 @@ function CloseDeploy {
 
     # 5. Disable cloud-init for future boots (unless -NoCloudReset switch is specified)
     if (-not $NoCloudReset) {
-        $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 5
+        $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 30
         if (-not $toolsOk) {
             Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on and rerun Phase-4."
             exit 1
         }
 
+        # Prepare username and password for VM commands
         $guestUser = $params.username
         $guestPassPlain = $params.password
-        try {
-            $guestPass = $guestPassPlain | ConvertTo-SecureString -AsPlainText -Force -ErrorAction Stop
-        } catch {
-            Write-Log -Error "Failed to convert guest password to SecureString: $_"
+        $guestPass = ConvertToSecureStringFromPlain $guestPassPlain
+        if (-not $guestPass) {
+            Write-Log -Error "Failed to convert guest password to SecureString. Aborting in Phase-4."
             Exit 3
         }
+
         try {
             $phase4Cmd = @'
 sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
