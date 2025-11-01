@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.4345A
+  Version: 0.0.45
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -637,9 +637,9 @@ function InitializeClone {
     }
 
     # Prepare the initialization script
-    $scriptSrc = Join-Path $scriptdir "scripts/init-vm-cloudinit.sh"
-    if (-not (Test-Path $scriptSrc)) {
-        Write-Log -Error "Required script not found: $scriptSrc"
+    $localInitPath = Join-Path $scriptdir "scripts/init-vm-cloudinit.sh"
+    if (-not (Test-Path $localInitPath)) {
+        Write-Log -Error "Required script not found: $localInitPath"
         Exit 2
     }
 
@@ -717,50 +717,48 @@ function InitializeClone {
         Exit 1
     }
 
-    # Transfer the script and run on the clone
-    $dstPath = "$workDirOnVM/init-vm-cloudinit.sh"
+    # Ensure guest workdir
+    $guestInitPath = "$workDirOnVM/init-vm-cloudinit.sh"
     try {
-        $phase2Cmd = @"
-sudo /bin/bash -c "mkdir -p $workDirOnVM"
+        $phase2cmd = @"
+sudo /bin/bash -c "mkdir -p $workDirOnVM && chown $guestUser $workDirOnVM"
 "@
-        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
-            -ScriptType Bash -ErrorAction Stop
-        $phase2Cmd = @"
-sudo /bin/bash -c "chown $guestUser $workDirOnVM"
-"@
-        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -GuestUser $guestUser -GuestPassword $guestPass `
-            -ScriptType Bash -ErrorAction Stop
-         Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -ScriptType Bash `
+            -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+        Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
     } catch {
         Write-Log -Error "Failed to create work directory on the VM: $_"
         Exit 1
     }
 
+    # Transfer the script and run on the clone
     try {
-        $null = Copy-VMGuestFile -LocalToGuest -Source $scriptSrc -Destination $dstPath `
+        $null = Copy-VMGuestFile -LocalToGuest -Source $localInitPath -Destination $guestInitPath `
             -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
-        Write-Log "Copied init script to the VM: $dstPath"
+        Write-Log "Copied init script to the VM: $guestInitPath"
     } catch {
         Write-Log -Error "Failed to copy script to the VM: $_"
         Exit 1
     }
 
     try {
-        $result = Invoke-VMScript -VM $vm -ScriptText "chmod +x $dstPath && sudo /bin/bash $dstPath" `
-            -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-        Write-Log "Executed init script in the VM. Output: $($result.ScriptOutput)"
+        $phase2cmd = @"
+chmod +x $guestInitPath && sudo /bin/bash $guestInitPath
+"@
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -ScriptType Bash `
+            -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+        Write-Log "Executed init script on the VM. Output: $($result.ScriptOutput)"
     } catch {
-        Write-Log -Error "Failed to execute script in the VM: $_"
+        Write-Log -Error "Failed to execute init script on the VM: $_"
         Exit 1
     }
 
     try {
-        $null = Invoke-VMScript -VM $vm -ScriptText "rm -f $dstPath" `
-            -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-        Write-Log "Removed init script from the VM: $dstPath"
+        $null = Invoke-VMScript -VM $vm -ScriptText "rm -f $guestInitPath" -ScriptType Bash `
+            -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+        Write-Log "Removed init script from the VM: $guestInitPath"
     } catch {
-        # Warn but not abort processing if deletion failed
-        Write-Log -Warn "Failed to remove script from the VM: $_"
+        Write-Log -Warn "Failed to remove init script from the VM: $_"
     }
 
     Write-Log "Phase 2 complete"
@@ -1215,11 +1213,217 @@ $shBody
     }
     Write-Log "Pausing ${backoffSec}s to allow guest services to stabilize..."
     Start-Sleep -Seconds $backoffSec
-    
-    # Begin preparation to upload a check script onto the VM and run.
 
-    $localScriptPath = Join-Path $workdir "check-cloud-init.sh"
-    $guestScriptPath = "$workDirOnVM/check-cloud-init.sh"
+    #--- Quick check before the real cloud-init completion polling, in order to avoid pointless wait in case cloud-init was not invoked on this boot.
+
+    # Build Quick-check script locally then transfer to the VM and utilize.
+    $localQuickPath = Join-Path $workdir "quick-check.sh"
+    $guestQuickPath = "$workDirOnVM/quick-check.sh"
+
+    # quick-check guest script template (inspect several files and return evidence)
+    $quickCheckTpl = @'
+#!/bin/bash
+SEED_TS="{{SEED_TS}}"
+
+# Validate SEED_TS is numeric; if not, emit terminal token on stdout and exit 2
+if ! [[ "$SEED_TS" =~ ^[0-9]+$ ]]; then
+  echo "TERMINAL:INVALID_SEED_TS:'$SEED_TS'"
+  exit 2
+fi
+
+# Terminal: cloud-init explicitly disabled
+if [ -f /etc/cloud/cloud-init.disabled ]; then
+  echo "TERMINAL:cloud-init-disabled"
+  exit 2
+fi
+
+# helper: check file mtime > seed; label is second arg
+check_mtime_after() {
+  path="$1"
+  label="$2"
+  for f in $path; do
+    [ -e "$f" ] || continue
+    file_ts=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+    if [ "$file_ts" -gt "$SEED_TS" ]; then
+      echo "${label}:$f"
+      exit 0
+    fi
+  done
+}
+
+# 1) strong evidence: instance-id
+check_mtime_after /var/lib/cloud/instance/instance-id RAN
+
+# 2) very strong: sem files (module-level evidence)
+inst=$(cat /var/lib/cloud/instance/instance-id 2>/dev/null || echo "")
+if [ -n "$inst" ] && [ -d "/var/lib/cloud/instances/$inst/sem" ]; then
+  for s in /var/lib/cloud/instances/$inst/sem/*; do
+    [ -e "$s" ] || continue
+    file_ts=$(stat -c %Y "$s" 2>/dev/null || echo 0)
+    if [ "$file_ts" -gt "$SEED_TS" ]; then
+      echo "RAN-SEM:$s"
+      exit 0
+    fi
+  done
+fi
+
+# 3) strong evidence: cloud-init logs
+check_mtime_after /var/log/cloud-init.log RAN
+check_mtime_after /var/log/cloud-init-output.log RAN
+
+# 4) boot-finished (fallback)
+check_mtime_after /var/lib/cloud/instance/boot-finished RAN
+
+# 5) supporting evidence: network config artifacts
+check_mtime_after '/etc/sysconfig/network-scripts/ifcfg-*' RAN-NET
+check_mtime_after '/etc/NetworkManager/system-connections/*' RAN-NET
+check_mtime_after '/etc/netplan/*.yaml' RAN-NET
+check_mtime_after '/etc/systemd/network/*.network' RAN-NET
+check_mtime_after '/etc/network/interfaces' RAN-NET
+
+# nothing found
+echo "NOTRAN"
+exit 1
+'@
+
+    # Confirm VMware Tools availability first
+    $toolsAvailableForQuickCheck = Wait-ForVMwareTools -VM $vm -TimeoutSec 20 -PollIntervalSec 5
+
+    # Ensure guest workdir
+    try {
+        $phase3cmd = @"
+sudo /bin/bash -c "mkdir -p $workDirOnVM && chown $guestUser $workDirOnVM"
+"@
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase3cmd -GuestUser $guestUser -GuestPassword $guestPass `
+            -ScriptType Bash -ErrorAction Stop
+        Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
+    } catch {
+        Write-Log -Error "Failed to ensure work directory on the VM: $_"
+        Remove-Item -Path $localQuickPath -ErrorAction SilentlyContinue
+        Exit 1
+    }
+
+    if (-not $toolsAvailableForQuickCheck) {
+        Write-Log -Warn "VMware Tools not available for quick-check; cannot reliably detect whether cloud-init ran for this attach. Proceeding to polling as a fallback."
+    } else {
+        # Replace placeholder and write local script (guest expects LF line endings)
+        $qcContent = $quickCheckTpl.Replace('{{SEED_TS}}', [string]$seedAttachEpoch)
+        Set-Content -Path $localQuickPath -Value $qcContent -Encoding UTF8 -Force
+        # normalize CRLF -> LF and write as UTF-8 without BOM
+        $txt = Get-Content -Raw -Path $localQuickPath -Encoding UTF8
+        $txt = $txt -replace "`r`n", "`n"
+        $txt = $txt -replace "`r", "`n"
+        [System.IO.File]::WriteAllText($localQuickPath, $txt, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Verbose "Wrote local quick-check script: $localQuickPath"
+
+        # Copy quick-check script to the VM
+        $maxQCAttempts = 3
+        $qcAttempt = 0
+        $qcCopied = $false
+        while (-not $qcCopied -and $qcAttempt -lt $maxQCAttempts) {
+            $qcAttempt++
+            try {
+                $null = Copy-VMGuestFile -LocalToGuest -Source $localQuickPath -Destination $guestQuickPath `
+                    -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
+                $phase3cmd = @"
+sudo /bin/bash -c "chmod +x $guestQuickPath"
+"@
+                $null = Invoke-VMScript -VM $vm -ScriptText $phase3cmd -ScriptType Bash `
+                    -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+                $qcCopied = $true
+                Write-Verbose "Copied quick-check script to the VM ($guestQuickPath) (attempt $qcAttempt)"
+            } catch {
+                Write-Verbose "Copy-VMGuestFile for quick-check failed (attempt $qcAttempt): $_"
+                # try waiting for tools briefly and retry
+                $toolsOk2 = Wait-ForVMwareTools -VM $vm -TimeoutSec 10 -PollIntervalSec 2
+                if (-not $toolsOk2) {
+                    Write-Verbose "VMware Tools still unavailable; sleeping before next quick-check copy attempt..."
+                    Start-Sleep -Seconds 5
+                } else {
+                    Write-Verbose "VMware Tools recovered; retrying quick-check copy..."
+                }
+            }
+        }
+
+        # Remove local quick script regardless, while keeping guest copy for execution
+        Remove-Item -Path $localQuickPath -ErrorAction SilentlyContinue
+
+        if (-not $qcCopied) {
+            Write-Log -Warn "Failed to upload quick-check script to the VM after $maxQCAttempts attempts; as a fallback, proceeding to normal polling without quick-check."
+        } else {
+            # Execute quick-check on guest and collect output
+            try {
+                $qcExecCmd = "sudo /bin/bash '$guestQuickPath'"
+                $qcRes = Invoke-VMScript -VM $vm -ScriptText $qcExecCmd -ScriptType Bash `
+                    -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+
+                # Collect stdout primarily and use stderr as fallback; optionally log stderr.
+                $qcStdout = ""
+                $qcStderr = ""
+                if ($qcRes.ScriptOutput -and $qcRes.ScriptOutput.Count -gt 0) {
+                    $qcStdout = ($qcRes.ScriptOutput -join [Environment]::NewLine).Trim()
+                } elseif ($qcRes.ScriptError -and $qcRes.ScriptError.Count -gt 0) {
+                    $qcStderr = ($qcRes.ScriptError -join [Environment]::NewLine).Trim()
+                    Write-Log -Verbose "quick-check stderr: $qcStderr"
+                    $qcStdout = $qcStderr
+                }
+
+                try {
+                    $null = Invoke-VMScript -VM $vm -ScriptText "rm -f $guestQuickPath" -ScriptType Bash `
+                        -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+                    Write-Log "Removed quick-check script from the VM: $guestQuickPath"
+                } catch {
+                    Write-Verbose "Failed to remove quick-check script from the VM: $_"
+                }
+
+                switch ($qcRes.ExitCode) {
+                    2 {
+                        # Terminal condition from guest (invalid seed ts, cloud-init.disabled, etc.)
+                        Write-Log -Error "Quick-check reported TERMINAL (exit code 2). stdout: '$qcStdout' stderr: '$qcStderr'"
+                        Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
+                        Exit 2
+                    }
+                    1 {
+                        # NOTRAN: guest determined no sign of cloud-init run after seed attach
+                        Write-Log -Warn "Quick-check: guest returned NOTRAN (exit code 1). stdout: '$qcStdout' stderr: '$qcStderr'"
+                        Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
+                        Exit 2
+                    }
+                    0 {
+                        # Success: now parse stdout tokens (robustness: ensure stdout contains expected token)
+                        if ($qcStdout -match '^RAN-SEM:(.+)$') {
+                            $evidence = $matches[1]
+                            Write-Log "Quick-check: module sem evidence: $evidence. Proceeding to polling."
+                        } elseif ($qcStdout -match '^RAN:(.+)$') {
+                            $evidence = $matches[1]
+                            Write-Log "Quick-check: cloud-init evidence: $evidence. Proceeding to polling."
+                        } elseif ($qcStdout -match '^RAN-NET:(.+)$') {
+                            $evidence = $matches[1]
+                            Write-Log "Quick-check: network-config evidence: $evidence. Treating as supporting evidence and reducing wait to 60s."
+                            $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
+                        } else {
+                            # ExitCode 0 but no structured stdout — unexpected; treat conservatively as environment error
+                            Write-Log -Warn "Quick-check: ExitCode 0 but stdout missing/unexpected (qcStdout='$qcStdout', qcStderr='$qcStderr')"
+                            Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
+                            Exit 2
+                        }
+                    }
+                    default {
+                        # Unexpected exit code — be conservative
+                        Write-Log -Error "Quick-check: unexpected exit code $($qcRes.ExitCode). stdout: '$qcStdout' stderr: '$qcStderr'. Aborting Phase-3."
+                        Exit 2
+                    }
+                }
+            } catch {
+                Write-Log -Warn "Quick-check execution failed (Invoke-VMScript error): $_. Proceeding with normal polling."
+            }
+        }
+    }
+
+    #--- The real cloud-init completion check.
+
+    $localCheckPath = Join-Path $workdir "check-cloud-init.sh"
+    $guestCheckPath = "$workDirOnVM/check-cloud-init.sh"
 
     # Template for guest checker. Use {{SEED_TS}} placeholder and replace locally.
     $cloudInitCheckScript = @'
@@ -1258,33 +1462,15 @@ exit 1
     $cloudInitCheckScript = $cloudInitCheckScript.Replace('{{SEED_TS}}', [string]$seedAttachEpoch)
 
     # Write local script file
-    Set-Content -Path $localScriptPath -Value $cloudInitCheckScript -Encoding UTF8 -Force
+    Set-Content -Path $localCheckPath -Value $cloudInitCheckScript -Encoding UTF8 -Force
 
     # normalize CRLF -> LF and write as UTF-8 without BOM
-    $txt = Get-Content -Raw -Path $localScriptPath -Encoding UTF8
+    $txt = Get-Content -Raw -Path $localCheckPath -Encoding UTF8
     $txt = $txt -replace "`r`n", "`n"
     $txt = $txt -replace "`r", "`n"
-    [System.IO.File]::WriteAllText($localScriptPath, $txt, (New-Object System.Text.UTF8Encoding($false)))
+    [System.IO.File]::WriteAllText($localCheckPath, $txt, (New-Object System.Text.UTF8Encoding($false)))
 
-    Write-Verbose "Wrote local check script: $localScriptPath"
-
-    # Ensure guest workdir
-    try {
-        $phase3cmd = @"
-sudo /bin/bash -c "mkdir -p $workDirOnVM"
-"@
-        $null = Invoke-VMScript -VM $vm -ScriptText $phase3cmd -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-
-        $phase3cmd = @"
-sudo /bin/bash -c "chown $guestUser $workDirOnVM"
-"@
-        $null = Invoke-VMScript -VM $vm -ScriptText $phase3cmd -GuestUser $guestUser -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-        Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
-    } catch {
-        Write-Log -Error "Failed to ensure work directory on the VM: $_"
-        Remove-Item -Path $localScriptPath -ErrorAction SilentlyContinue
-        Exit 1
-    }
+    Write-Verbose "Wrote local check script: $localCheckPath"
 
     # Copy the local script to the VM with retries (tools may still be flaky)
     $maxAttempts = 4
@@ -1294,10 +1480,10 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
     while (-not $copied -and $attempt -lt $maxAttempts) {
         $attempt++
         try {
-            $null = Copy-VMGuestFile -LocalToGuest -Source $localScriptPath -Destination $guestScriptPath `
+            $null = Copy-VMGuestFile -LocalToGuest -Source $localCheckPath -Destination $guestCheckPath `
                 -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
             $copied = $true
-            Write-Verbose "Copied script to the VM ($guestScriptPath) (attempt $attempt)"
+            Write-Verbose "Copied script to the VM ($guestCheckPath) (attempt $attempt)"
         } catch {
             Write-Verbose "Copy-VMGuestFile failed (attempt $attempt): $_"
             # try waiting for tools briefly and retry
@@ -1312,7 +1498,7 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
     }
 
     # cleanup local temp script
-    Remove-Item -Path $localScriptPath -ErrorAction SilentlyContinue
+    Remove-Item -Path $localCheckPath -ErrorAction SilentlyContinue
 
     if (-not $copied) {
         Write-Log -Error "Failed to upload check script to the VM after $maxAttempts attempts."
@@ -1321,13 +1507,13 @@ sudo /bin/bash -c "chown $guestUser $workDirOnVM"
 
     try {
         $phase3cmd = @"
-sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScriptPath'"
+sudo /bin/bash -c "chmod +x $guestCheckPath"
 "@
-        $null = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -ScriptText $phase3cmd -ScriptType Bash -ErrorAction SilentlyContinue
-        Write-Verbose "Set owner/mode for $guestScriptPath on the VM"
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase3cmd -ScriptType Bash `
+            -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction stop
+        Write-Verbose "Set permissions on check script on the VM: $guestCheckPath"
     } catch {
-        Write-Log -Error "Failed to set permissions on uploaded script: $_"
-        Exit 2
+        Write-Log -Error "Failed to set permissions on check script on the VM: $_"
     }
 
     # Poll the script until it returns READY or timeout
@@ -1338,11 +1524,11 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
     $elapsed = 0
     $cloudInitDone = $false
 
-    Write-Log "Waiting for cloud-init to finish inside the VM (polling $guestScriptPath, max ${cloudInitWaitTotalSec}s)..."
+    Write-Log "Waiting for cloud-init to finish inside the VM (polling $guestCheckPath, max ${cloudInitWaitTotalSec}s)..."
 
     while ($elapsed -lt $cloudInitWaitTotalSec) {
         try {
-            $execCmd = "sudo /bin/bash '$guestScriptPath'"
+            $execCmd = "sudo /bin/bash '$guestCheckPath'"
             $res = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass `
                 -ScriptText $execCmd -ScriptType Bash -ErrorAction Stop
 
@@ -1391,6 +1577,14 @@ sudo /bin/bash -c "chown $guestUser '$guestScriptPath' && chmod 0755 '$guestScri
 
         Start-Sleep -Seconds $cloudInitPollSec
         $elapsed += $cloudInitPollSec
+    }
+
+    try {
+        $null = Invoke-VMScript -VM $vm -ScriptText "rm -f $guestCheckPath" -ScriptType Bash `
+            -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+        Write-Log "Removed check script from the VM: $guestCheckPath"
+    } catch {
+        Write-Verbose "Failed to remove check script from the VM: $_"
     }
 
     if (-not $cloudInitDone) {
