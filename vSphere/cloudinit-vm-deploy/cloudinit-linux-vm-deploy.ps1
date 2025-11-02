@@ -1231,20 +1231,6 @@ if ! [[ "$SEED_TS" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-# Function to check file mtime > seed; label is second arg
-check_mtime_after() {
-  paths="$1"
-  label="$2"
-  for f in $paths; do
-    [ -e "$f" ] || continue
-    file_ts=$(stat -c %Y "$f" 2>/dev/null || echo 0)
-    if [ "$file_ts" -gt "$SEED_TS" ]; then
-      echo "${label}:$f"
-      exit 0
-    fi
-  done
-}
-
 # Function to determine current instance-id trying multiple methods in order
 get_instance_id() {
   local res ins target latest
@@ -1299,11 +1285,36 @@ get_instance_id() {
   return 1
 }
 
+# Function to check file mtime > seed; label is second arg
+check_mtime_after() {
+  paths="$1"
+  label="$2"
+  for f in $paths; do
+    [ -e "$f" ] || continue
+    file_ts=$(stat -c %Y "$f" 2>/dev/null || echo 0)
+    if [ "$file_ts" -gt "$SEED_TS" ]; then
+      # Always try to get current instance-id and append to token
+      inst=$(get_instance_id 2>/dev/null || echo "")
+      if [ -n "$inst" ]; then
+        echo "${label}:$f;instance-id:${inst}"
+      else
+        echo "${label}:$f;instance-id:unknown"
+      fi
+      exit 0
+    fi
+  done
+}
+
 ##--- Start validation ---
 
 # 0) Terminal: cloud-init explicitly disabled
 if [ -f /etc/cloud/cloud-init.disabled ]; then
-  echo "TERMINAL:cloud-init-disabled"
+  inst=$(get_instance_id 2>/dev/null || echo "")
+  if [ -n "$inst" ]; then
+    echo "TERMINAL:cloud-init-disabled;instance-id:${inst}"
+  else
+    echo "TERMINAL:cloud-init-disabled;instance-id:unknown"
+  fi
   exit 2
 fi
 
@@ -1329,7 +1340,7 @@ if [ -n "$inst" ]; then
       [ -e "$s" ] || continue
       file_ts=$(stat -c %Y "$s" 2>/dev/null || echo 0)
       if [ "$file_ts" -gt "$SEED_TS" ]; then
-        echo "RAN-SEM:$s"
+        echo "RAN-SEM:$s;instance-id:${inst}"
         exit 0
       fi
     done
@@ -1351,7 +1362,12 @@ check_mtime_after '/etc/systemd/network/*.network' RAN-NET
 check_mtime_after '/etc/network/interfaces' RAN-NET
 
 # nothing found
-echo "NOTRAN"
+inst=$(get_instance_id 2>/dev/null || echo "")
+if [ -n "$inst" ]; then
+  echo "NOTRAN;instance-id:${inst}"
+else
+  echo "NOTRAN;instance-id:unknown"
+fi
 exit 1
 '@
 
@@ -1448,25 +1464,40 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                 switch ($qcRes.ExitCode) {
                     2 {
                         # Terminal condition from guest (invalid seed ts, cloud-init.disabled, etc.)
+                        # Extract and log instance-id if present
+                        if ($qcStdout -match ';instance-id:([^;]+)') {
+                            $instanceId = $matches[1]
+                            Write-Log "Quick-check: detected instance-id: $instanceId"
+                        }
                         Write-Log -Error "Quick-check reported TERMINAL (exit code 2). stdout: '$qcStdout' stderr: '$qcStderr'"
                         Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
                         Exit 2
                     }
                     1 {
                         # NOTRAN: guest determined no sign of cloud-init run after seed attach
+                        # Extract and log instance-id if present
+                        if ($qcStdout -match ';instance-id:([^;]+)') {
+                            $instanceId = $matches[1]
+                            Write-Log "Quick-check: detected instance-id: $instanceId"
+                        }
                         Write-Log -Warn "Quick-check: guest returned NOTRAN (exit code 1). stdout: '$qcStdout' stderr: '$qcStderr'"
                         Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
                         Exit 2
                     }
                     0 {
                         # Success: now parse stdout tokens (robustness: ensure stdout contains expected token)
-                        if ($qcStdout -match '^RAN-SEM:(.+)$') {
+                        # Extract and log instance-id if present
+                        if ($qcStdout -match ';instance-id:([^;]+)') {
+                            $instanceId = $matches[1]
+                            Write-Log "Quick-check: detected instance-id: $instanceId"
+                        }
+                        if ($qcStdout -match '^RAN-SEM:(.+?)(;|$)') {
                             $evidence = $matches[1]
                             Write-Log "Quick-check: module sem evidence: $evidence. Proceeding to polling."
-                        } elseif ($qcStdout -match '^RAN:(.+)$') {
+                        } elseif ($qcStdout -match '^RAN:(.+?)(;|$)') {
                             $evidence = $matches[1]
                             Write-Log "Quick-check: cloud-init evidence: $evidence. Proceeding to polling."
-                        } elseif ($qcStdout -match '^RAN-NET:(.+)$') {
+                        } elseif ($qcStdout -match '^RAN-NET:(.+?)(;|$)') {
                             $evidence = $matches[1]
                             Write-Log "Quick-check: network-config evidence: $evidence. Treating as supporting evidence and reducing wait to 60s."
                             $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
