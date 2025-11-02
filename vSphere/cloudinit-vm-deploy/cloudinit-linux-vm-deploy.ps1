@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.45
+  Version: 0.0.4546
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -1225,23 +1225,17 @@ $shBody
 #!/bin/bash
 SEED_TS="{{SEED_TS}}"
 
-# Validate SEED_TS is numeric; if not, emit terminal token on stdout and exit 2
+# Argument SEED_TS must be numeric
 if ! [[ "$SEED_TS" =~ ^[0-9]+$ ]]; then
   echo "TERMINAL:INVALID_SEED_TS:'$SEED_TS'"
   exit 2
 fi
 
-# Terminal: cloud-init explicitly disabled
-if [ -f /etc/cloud/cloud-init.disabled ]; then
-  echo "TERMINAL:cloud-init-disabled"
-  exit 2
-fi
-
-# helper: check file mtime > seed; label is second arg
+# Function to check file mtime > seed; label is second arg
 check_mtime_after() {
-  path="$1"
+  paths="$1"
   label="$2"
-  for f in $path; do
+  for f in $paths; do
     [ -e "$f" ] || continue
     file_ts=$(stat -c %Y "$f" 2>/dev/null || echo 0)
     if [ "$file_ts" -gt "$SEED_TS" ]; then
@@ -1251,20 +1245,95 @@ check_mtime_after() {
   done
 }
 
-# 1) strong evidence: instance-id
-check_mtime_after /var/lib/cloud/instance/instance-id RAN
+# Function to determine current instance-id trying multiple methods in order
+get_instance_id() {
+  local res ins target latest
+
+  # 1) cloud-init query
+  if command -v cloud-init >/dev/null 2>&1; then
+    res=$(cloud-init query instance_id 2>/dev/null || cloud-init query instance-id 2>/dev/null || echo "")
+    if [ -n "$res" ]; then
+      # remove surrounding quotes and trim
+      ins=$(printf "%s" "$res" | tr -d '"' | tr -d "'" | xargs)
+      if [ -n "$ins" ]; then
+        echo "$ins"
+        return 0
+      fi
+    fi
+  fi
+
+  # 2) /run cloud-init runtime location
+  if [ -f /run/cloud-init/.instance-id ]; then
+    ins=$(cat /run/cloud-init/.instance-id 2>/dev/null | xargs)
+    if [ -n "$ins" ]; then
+      echo "$ins"
+      return 0
+    fi
+  fi
+
+  # 3) legacy/data location
+  if [ -f /var/lib/cloud/data/instance-id ]; then
+    ins=$(cat /var/lib/cloud/data/instance-id 2>/dev/null | xargs)
+    if [ -n "$ins" ]; then
+      echo "$ins"
+      return 0
+    fi
+  fi
+
+  # 4) /var/lib/cloud/instance is often a symlink to instances/<id>
+  if [ -L /var/lib/cloud/instance ]; then
+    target=$(readlink -f /var/lib/cloud/instance 2>/dev/null)
+    if [ -n "$target" ]; then
+      echo "$(basename "$target")"
+      return 0
+    fi
+  fi
+
+  # 5) fallback: the most-recent /var/lib/cloud/instances/<id> directory
+  latest=$(find /var/lib/cloud/instances -maxdepth 1 -mindepth 1 -type d -printf "%T@ %p\n" | sort -rn | head -n1 | cut -d' ' -f2)
+  if [ -n "$latest" ]; then
+    echo "$(basename "$latest")"
+    return 0
+  fi
+
+  return 1
+}
+
+##--- Start validation ---
+
+# 0) Terminal: cloud-init explicitly disabled
+if [ -f /etc/cloud/cloud-init.disabled ]; then
+  echo "TERMINAL:cloud-init-disabled"
+  exit 2
+fi
+
+# 1) strong evidence: instance-id files (try common locations)
+check_mtime_after '/var/lib/cloud/data/instance-id' RAN
+check_mtime_after '/run/cloud-init/.instance-id' RAN
+
+# If /var/lib/cloud/instance is a symlink, check the linked path mtime
+if [ -L /var/lib/cloud/instance ]; then
+  inst_link_target=$(readlink -f /var/lib/cloud/instance 2>/dev/null)
+  if [ -n "$inst_link_target" ]; then
+    check_mtime_after "$inst_link_target" RAN
+  fi
+fi
 
 # 2) very strong: sem files (module-level evidence)
-inst=$(cat /var/lib/cloud/instance/instance-id 2>/dev/null || echo "")
-if [ -n "$inst" ] && [ -d "/var/lib/cloud/instances/$inst/sem" ]; then
-  for s in /var/lib/cloud/instances/$inst/sem/*; do
-    [ -e "$s" ] || continue
-    file_ts=$(stat -c %Y "$s" 2>/dev/null || echo 0)
-    if [ "$file_ts" -gt "$SEED_TS" ]; then
-      echo "RAN-SEM:$s"
-      exit 0
-    fi
-  done
+inst=""
+inst=$(get_instance_id 2>/dev/null || echo "")
+if [ -n "$inst" ]; then
+  semdir="/var/lib/cloud/instances/$inst/sem"
+  if [ -d "$semdir" ]; then
+    for s in "$semdir"/*; do
+      [ -e "$s" ] || continue
+      file_ts=$(stat -c %Y "$s" 2>/dev/null || echo 0)
+      if [ "$file_ts" -gt "$SEED_TS" ]; then
+        echo "RAN-SEM:$s"
+        exit 0
+      fi
+    done
+  fi
 fi
 
 # 3) strong evidence: cloud-init logs
