@@ -1510,6 +1510,7 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                                 # fall through to normal polling
                             }
                         }
+                    }
                     default {
                         # Unexpected exit code — be conservative
                         Write-Log -Error "Quick-check: unexpected exit code $($qcRes.ExitCode). stdout: '$qcStdout' stderr: '$qcStderr'. Aborting Phase-3."
