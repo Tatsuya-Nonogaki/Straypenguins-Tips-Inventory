@@ -1463,7 +1463,7 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                     $label = $matches['label']
                     $evidencePath = $matches['path'].Trim()
                     if ($matches['inst']) { $currentInstanceId = $matches['inst'].Trim() }
-                    Write-Verbose "quick-check parsed: label=$label, path=$evidencePath, instance=$currentInstanceId"
+                    Write-Verbose "quick-check parsed: label=$label, evidence=$evidencePath, instance=$currentInstanceId"
                 } elseif ($firstLine) {
                     # unexpected format; log for diagnostics
                     Write-Verbose "quick-check: unrecognized stdout format: '$firstLine'"
