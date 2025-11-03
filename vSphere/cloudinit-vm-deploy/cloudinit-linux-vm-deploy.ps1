@@ -1444,7 +1444,7 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                     $qcStdout = ($qcRes.ScriptOutput -join [Environment]::NewLine).Trim()
                 } elseif ($qcRes.ScriptError -and $qcRes.ScriptError.Count -gt 0) {
                     $qcStderr = ($qcRes.ScriptError -join [Environment]::NewLine).Trim()
-                    Write-Log -Verbose "quick-check stderr: $qcStderr"
+                    Write-Verbose "quick-check stderr: $qcStderr"
                     $qcStdout = $qcStderr
                 }
 
@@ -1463,10 +1463,15 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                     $label = $matches['label']
                     $evidencePath = $matches['path'].Trim()
                     if ($matches['inst']) { $currentInstanceId = $matches['inst'].Trim() }
-                    Write-Log -Verbose "quick-check parsed: label=$label, path=$evidencePath, instance=$currentInstanceId"
+                    Write-Verbose "quick-check parsed: label=$label, path=$evidencePath, instance=$currentInstanceId"
                 } elseif ($firstLine) {
                     # unexpected format; log for diagnostics
-                    Write-Log -Verbose "quick-check: unrecognized stdout format: '$firstLine'"
+                    Write-Verbose "quick-check: unrecognized stdout format: '$firstLine'"
+                }
+
+                # Log instance id if present
+                if ($currentInstanceId) {
+                    Write-Log "Current cloud-init instance-id: $currentInstanceId"
                 }
 
                 try {
