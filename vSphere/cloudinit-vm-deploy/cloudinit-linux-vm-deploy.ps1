@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.4546A
+  Version: 0.0.4546B
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -723,7 +723,7 @@ function InitializeClone {
         $phase2cmd = @"
 sudo /bin/bash -c "mkdir -p $workDirOnVM && chown $guestUser $workDirOnVM"
 "@
-        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -ScriptType Bash `
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase2cmd -ScriptType Bash `
             -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
         Write-Log "Ensured work directory exists on the VM: $workDirOnVM"
     } catch {
@@ -745,7 +745,7 @@ sudo /bin/bash -c "mkdir -p $workDirOnVM && chown $guestUser $workDirOnVM"
         $phase2cmd = @"
 chmod +x $guestInitPath && sudo /bin/bash $guestInitPath
 "@
-        $null = Invoke-VMScript -VM $vm -ScriptText $phase2Cmd -ScriptType Bash `
+        $null = Invoke-VMScript -VM $vm -ScriptText $phase2cmd -ScriptType Bash `
             -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
         Write-Log "Executed init script on the VM. Output: $($result.ScriptOutput)"
     } catch {
@@ -1782,10 +1782,10 @@ function CloseDeploy {
         }
 
         try {
-            $phase4Cmd = @'
+            $phase4cmd = @'
 sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
 '@
-            $null = Invoke-VMScript -VM $vm -ScriptText $phase4Cmd -GuestUser $guestUser `
+            $null = Invoke-VMScript -VM $vm -ScriptText $phase4cmd -GuestUser $guestUser `
                 -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
             Write-Log "Created /etc/cloud/cloud-init.disabled to prevent cloud-init invocation."
         } catch {
