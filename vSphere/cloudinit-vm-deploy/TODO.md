@@ -91,7 +91,9 @@
 
 - ✅ Phase-3 の終わりに、seed ISO付きブートともに発動したcloud-initの終了まで待って終わりたい。
   - ✅ それ自体は一通りコーディング済み。終了チェックには、(0) /etc/cloud/cloud-init.disabledの存在、(1)`cloud-init status --wait`、(2)`systemctl show cloud-final`、(3) cloud/instance/boot-finished ファイルの存在(ISOアタッチ時のepochより新しいこと) を入れた。
-  - 📌 しかし、もし、過去に既に当VMはcloud-initによるデプロイがされたもので且つcloud-init.disabledがない場合、cloudinit_wait_sec いっぱいまでチェックが回ってしまうか、cloud-initがこのrunでは発動していないのに「完了した」という扱いになってしまう。cloud-initのインスタンスIDや状態ファイルなどに基づいて、今回cloud-initが動作しなかったことを確認できないか？
+  - ✅ しかし、もし、過去に既に当VMはcloud-initによるデプロイがされたもので且つcloud-init.disabledがない場合、cloudinit_wait_sec いっぱいまでチェックが回ってしまうか、cloud-initがこのrunでは発動していないのに「完了した」という扱いになってしまう。cloud-initのインスタンスIDや状態ファイルなどに基づいて、今回cloud-initが動作しなかったことを確認できないか？
+  ⇒  
+  cloud-init完了待ちの前に Quick Checkを挿入。cloud-initのステータスやファイルから情報を拾い、完了待ちの短縮やスキップをできるようにする。instance-idも拾えるようにした。
 
 - ✅ その中のcloud-init終了チェックコードの作成中に気づいたこと: 終了チェックで cloud-init.disabled ファイルが存在したら、チェックを即時不合格とし即座にPhase-3を終わることにしたが、そもそも、cloud-init.disabled が存在する場合、Phase-3 の実行 (seed ISOの作成とアタッチ) 自体、無意味なので、初期段階でPhase-3を警告終了すべきではないか。やるとすれば、Phase-3 頭のシャットダウンの直前に、
   1. Invoke-VMScript でVM上で cloud-init.disabled ファイルの存在をチェックし、あれば、シャットダウンさえ行わずに、その旨の警告メッセージとともにスクリプトを終了する。
