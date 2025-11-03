@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.4546B
+  Version: 0.0.4546C
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -1384,7 +1384,7 @@ sudo /bin/bash -c "mkdir -p $workDirOnVM && chown $guestUser $workDirOnVM"
     }
 
     if (-not $toolsAvailableForQuickCheck) {
-        Write-Log -Warn "VMware Tools not available for quick-check; cannot reliably detect whether cloud-init ran for this attach. Proceeding to polling as a fallback."
+        Write-Log -Warn "VMware Tools not available for quick-check; cannot reliably detect whether cloud-init ran for this attach. Proceeding to cloud-init completion polling as a fallback."
     } else {
         # Replace placeholder and write local script (guest expects LF line endings)
         $qcContent = $quickCheckTpl.Replace('{{SEED_TS}}', [string]$seedAttachEpoch)
@@ -1428,15 +1428,23 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
         # Remove local quick script regardless, while keeping guest copy for execution
         Remove-Item -Path $localQuickPath -ErrorAction SilentlyContinue
 
+        $qcExecuted = $false
+
         if (-not $qcCopied) {
-            Write-Log -Warn "Failed to upload quick-check script to the VM after $maxQCAttempts attempts; as a fallback, proceeding to normal polling without quick-check."
+            Write-Log -Warn "Failed to upload quick-check script to the VM after $maxQCAttempts attempts; as a fallback, proceeding to normal cloud-init completion polling without quick-check."
         } else {
             # Execute quick-check on guest and collect output
             try {
+                Write-Log "Executing quick-check script on the VM to collect clout-init base status..."
                 $qcExecCmd = "sudo /bin/bash '$guestQuickPath'"
                 $qcRes = Invoke-VMScript -VM $vm -ScriptText $qcExecCmd -ScriptType Bash `
                     -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
+                $qcExecuted = $true
+            } catch {
+                Write-Log -Warn "Quick-check execution failed (Invoke-VMScript error): $_. Proceeding with normal cloud-init completion polling."
+            }
 
+            if ($qcExecuted) {
                 # Collect stdout primarily and use stderr as fallback; optionally log stderr.
                 $qcStdout = ""
                 $qcStderr = ""
@@ -1497,21 +1505,20 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                         # Success: Use the parsed label to decide action
                         switch ($label) {
                             'RAN-SEM' {
-                                Write-Log "Quick-check: success by module sem; evidence: $evidencePath. Proceeding to polling."
+                                Write-Log "Quick-check: success by module sem; evidence: $evidencePath. Proceeding to cloud-init completion polling."
                             }
                             'RAN' {
-                                Write-Log "Quick-check: success by cloud-init artifacts; evidence: $evidencePath. Proceeding to polling."
+                                Write-Log "Quick-check: success by cloud-init artifacts; evidence: $evidencePath. Proceeding to cloud-init completion polling."
                             }
                             'RAN-NET' {
-                                Write-Log "Quick-check: success by network-config; evidence: $evidencePath. Treating as supporting evidence and reducing wait to 60s."
+                                Write-Log "Quick-check: success by network-config; evidence: $evidencePath. As this is a weak evidence, proceeding to cloud-init completion polling with reduced wait (60s)."
                                 $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
                             }
                             default {
                                 # ExitCode 0 but no recognised token -> fold-down policy (shorten wait and continue polling)
                                 Write-Log -Warn "Quick-check: ExitCode 0 but stdout missing expected token (stdout='$firstLine', qcStderr='$qcStderr')"
-                                Write-Log -Warn "Proceeding with reduced cloud-init wait to avoid long pointless polling; operator should investigate."
+                                Write-Log -Warn "Proceeding to cloud-init completion check with reduced wait to avoid pointless long polling; operator should investigate."
                                 $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
-                                $global:QuickCheckUnexpectedStdout = $true
                                 # fall through to normal polling
                             }
                         }
@@ -1522,8 +1529,6 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                         Exit 2
                     }
                 }
-            } catch {
-                Write-Log -Warn "Quick-check execution failed (Invoke-VMScript error): $_. Proceeding with normal polling."
             }
         }
     }
