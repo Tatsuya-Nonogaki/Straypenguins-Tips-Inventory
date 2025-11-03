@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.4546
+  Version: 0.0.4546A
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -1293,13 +1293,7 @@ check_mtime_after() {
     [ -e "$f" ] || continue
     file_ts=$(stat -c %Y "$f" 2>/dev/null || echo 0)
     if [ "$file_ts" -gt "$SEED_TS" ]; then
-      # Always try to get current instance-id and append to token
-      inst=$(get_instance_id 2>/dev/null || echo "")
-      if [ -n "$inst" ]; then
-        echo "${label}:$f;instance-id:${inst}"
-      else
-        echo "${label}:$f;instance-id:unknown"
-      fi
+      echo "${label}:$f${instanceIdStr:-}"
       exit 0
     fi
   done
@@ -1307,14 +1301,17 @@ check_mtime_after() {
 
 ##--- Start validation ---
 
+# Get current instance-id if possible
+inst=""
+instanceIdStr=""
+inst=$(get_instance_id 2>/dev/null || echo "")
+if [ -n "$inst" ]; then
+  instanceIdStr=";$inst"
+fi
+
 # 0) Terminal: cloud-init explicitly disabled
 if [ -f /etc/cloud/cloud-init.disabled ]; then
-  inst=$(get_instance_id 2>/dev/null || echo "")
-  if [ -n "$inst" ]; then
-    echo "TERMINAL:cloud-init-disabled;instance-id:${inst}"
-  else
-    echo "TERMINAL:cloud-init-disabled;instance-id:unknown"
-  fi
+  echo "TERMINAL:cloud-init-disabled"
   exit 2
 fi
 
@@ -1322,17 +1319,20 @@ fi
 check_mtime_after '/var/lib/cloud/data/instance-id' RAN
 check_mtime_after '/run/cloud-init/.instance-id' RAN
 
-# If /var/lib/cloud/instance is a symlink, check the linked path mtime
-if [ -L /var/lib/cloud/instance ]; then
-  inst_link_target=$(readlink -f /var/lib/cloud/instance 2>/dev/null)
-  if [ -n "$inst_link_target" ]; then
-    check_mtime_after "$inst_link_target" RAN
+# Check /var/lib/cloud/instances/<id>/, where cloud/instance/ is often a symlink to it.
+# If we already discovered an instance id, prefer directly checking it.
+if [ -n "$inst" ] && [ -d "/var/lib/cloud/instances/$inst" ]; then
+  check_mtime_after "/var/lib/cloud/instances/$inst" RAN
+else
+  if [ -L /var/lib/cloud/instance ]; then
+    inst_link_target=$(readlink -f /var/lib/cloud/instance 2>/dev/null)
+    if [ -n "$inst_link_target" ]; then
+      check_mtime_after "$inst_link_target" RAN
+    fi
   fi
 fi
 
 # 2) very strong: sem files (module-level evidence)
-inst=""
-inst=$(get_instance_id 2>/dev/null || echo "")
 if [ -n "$inst" ]; then
   semdir="/var/lib/cloud/instances/$inst/sem"
   if [ -d "$semdir" ]; then
@@ -1340,7 +1340,7 @@ if [ -n "$inst" ]; then
       [ -e "$s" ] || continue
       file_ts=$(stat -c %Y "$s" 2>/dev/null || echo 0)
       if [ "$file_ts" -gt "$SEED_TS" ]; then
-        echo "RAN-SEM:$s;instance-id:${inst}"
+        echo "RAN-SEM:$s${instanceIdStr:-}"
         exit 0
       fi
     done
@@ -1362,12 +1362,7 @@ check_mtime_after '/etc/systemd/network/*.network' RAN-NET
 check_mtime_after '/etc/network/interfaces' RAN-NET
 
 # nothing found
-inst=$(get_instance_id 2>/dev/null || echo "")
-if [ -n "$inst" ]; then
-  echo "NOTRAN;instance-id:${inst}"
-else
-  echo "NOTRAN;instance-id:unknown"
-fi
+echo "NOTRAN"
 exit 1
 '@
 
@@ -1453,6 +1448,27 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                     $qcStdout = $qcStderr
                 }
 
+                # take first non-empty line from qcStdout (guard against multi-line noise)
+                $firstLine = ""
+                if ($qcStdout) {
+                    $firstLine = ($qcStdout -split "`r?`n" | Where-Object { $_.Trim() -ne "" } | Select-Object -First 1).Trim()
+                }
+
+                # Extract required fields: label, path, optional instance-id if contained in qcStdout
+                $currentInstanceId = $null
+                $evidencePath = $null
+                $label = $null
+
+                if ($firstLine -and ($firstLine -match '^(?<label>[^:]+):(?<path>[^;]+)(?:;(?<inst>.+))?$')) {
+                    $label = $matches['label']
+                    $evidencePath = $matches['path'].Trim()
+                    if ($matches['inst']) { $currentInstanceId = $matches['inst'].Trim() }
+                    Write-Log -Verbose "quick-check parsed: label=$label, path=$evidencePath, instance=$currentInstanceId"
+                } elseif ($firstLine) {
+                    # unexpected format; log for diagnostics
+                    Write-Log -Verbose "quick-check: unrecognized stdout format: '$firstLine'"
+                }
+
                 try {
                     $null = Invoke-VMScript -VM $vm -ScriptText "rm -f $guestQuickPath" -ScriptType Bash `
                         -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
@@ -1463,51 +1479,37 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
 
                 switch ($qcRes.ExitCode) {
                     2 {
-                        # Terminal condition from guest (invalid seed ts, cloud-init.disabled, etc.)
-                        # Extract and log instance-id if present
-                        if ($qcStdout -match ';instance-id:([^;]+)') {
-                            $instanceId = $matches[1]
-                            Write-Log "Quick-check: detected instance-id: $instanceId"
-                        }
-                        Write-Log -Error "Quick-check reported TERMINAL (exit code 2). stdout: '$qcStdout' stderr: '$qcStderr'"
+                        Write-Log -Error "Quick-check reported TERMINAL (exit code 2). stdout: '$firstLine' stderr: '$qcStderr'"
                         Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
                         Exit 2
                     }
                     1 {
-                        # NOTRAN: guest determined no sign of cloud-init run after seed attach
-                        # Extract and log instance-id if present
-                        if ($qcStdout -match ';instance-id:([^;]+)') {
-                            $instanceId = $matches[1]
-                            Write-Log "Quick-check: detected instance-id: $instanceId"
-                        }
-                        Write-Log -Warn "Quick-check: guest returned NOTRAN (exit code 1). stdout: '$qcStdout' stderr: '$qcStderr'"
+                        Write-Log -Warn "Quick-check: guest returned NOTRAN (exit code 1). stdout: '$firstLine' stderr: '$qcStderr'"
                         Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
                         Exit 2
                     }
                     0 {
-                        # Success: now parse stdout tokens (robustness: ensure stdout contains expected token)
-                        # Extract and log instance-id if present
-                        if ($qcStdout -match ';instance-id:([^;]+)') {
-                            $instanceId = $matches[1]
-                            Write-Log "Quick-check: detected instance-id: $instanceId"
+                        # Success: Use the parsed label to decide action
+                        switch ($label) {
+                            'RAN-SEM' {
+                                Write-Log "Quick-check: success by module sem; evidence: $evidencePath. Proceeding to polling."
+                            }
+                            'RAN' {
+                                Write-Log "Quick-check: success by cloud-init artifacts; evidence: $evidencePath. Proceeding to polling."
+                            }
+                            'RAN-NET' {
+                                Write-Log "Quick-check: success by network-config; evidence: $evidencePath. Treating as supporting evidence and reducing wait to 60s."
+                                $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
+                            }
+                            default {
+                                # ExitCode 0 but no recognised token -> fold-down policy (shorten wait and continue polling)
+                                Write-Log -Warn "Quick-check: ExitCode 0 but stdout missing expected token (stdout='$firstLine', qcStderr='$qcStderr')"
+                                Write-Log -Warn "Proceeding with reduced cloud-init wait to avoid long pointless polling; operator should investigate."
+                                $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
+                                $global:QuickCheckUnexpectedStdout = $true
+                                # fall through to normal polling
+                            }
                         }
-                        if ($qcStdout -match '^RAN-SEM:(.+?)(;|$)') {
-                            $evidence = $matches[1]
-                            Write-Log "Quick-check: module sem evidence: $evidence. Proceeding to polling."
-                        } elseif ($qcStdout -match '^RAN:(.+?)(;|$)') {
-                            $evidence = $matches[1]
-                            Write-Log "Quick-check: cloud-init evidence: $evidence. Proceeding to polling."
-                        } elseif ($qcStdout -match '^RAN-NET:(.+?)(;|$)') {
-                            $evidence = $matches[1]
-                            Write-Log "Quick-check: network-config evidence: $evidence. Treating as supporting evidence and reducing wait to 60s."
-                            $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
-                        } else {
-                            # ExitCode 0 but no structured stdout — unexpected; treat conservatively as environment error
-                            Write-Log -Warn "Quick-check: ExitCode 0 but stdout missing/unexpected (qcStdout='$qcStdout', qcStderr='$qcStderr')"
-                            Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
-                            Exit 2
-                        }
-                    }
                     default {
                         # Unexpected exit code — be conservative
                         Write-Log -Error "Quick-check: unexpected exit code $($qcRes.ExitCode). stdout: '$qcStdout' stderr: '$qcStderr'. Aborting Phase-3."
