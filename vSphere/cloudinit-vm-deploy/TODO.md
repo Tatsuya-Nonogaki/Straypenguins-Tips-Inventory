@@ -71,12 +71,14 @@
 
 - ✅ NetworkManagerのコネクション設定で、"Ignore automatically obtained routes" と "Ignore automatically obtained DNS param" を true/yes にしたいが方法は？
 
-- 📌 netowrk-config_template.yaml に  
+- ✅ netowrk-config_template.yaml に  
   ```
   dhcp6: false
   ipv6: false
   ```
-  は書いてあるが、デプロイされたNM設定では IPv6 が Disabled ではなく Ignore になっている。Disabled にしたい。
+  は書いてあるが、デプロイされたNM設定では IPv6 が Disabled ではなく Ignore になっている。Disabled にしたい。  
+  ⇒  
+  cloud-init network-configの通常のYAMLパラメータでは強制は不能。user-dataの `{{USER_RUNCMD_BLOCK}}`プレースホルダ置換内容メンバに `[ nmcli, connection, modify, "System $dev", ipv6.method, disabled ]` を追加。そのために、パラメータファイルに "netif*.ipv6_disable: yes" を追加。
 
 - 📌 ネットワークconnectionプロファイルの削除を、クローン後の初期化(Phase-2)に盛り込む。  
   ユーザは、Phase-3でのcloud-init発動ブート時に user-data の中で実処理に使われているので Phase-2 での削除は不可。唯一の保守ユーザであり、同じユーザがuser-dataに定義されていてもネットワークと違って重複作成や上書きされることはないので、事前削除は行わない。
