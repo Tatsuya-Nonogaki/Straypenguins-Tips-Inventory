@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.46
+  Version: 0.0.47
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -747,7 +747,7 @@ chmod +x $guestInitPath && sudo /bin/bash $guestInitPath
 "@
         $null = Invoke-VMScript -VM $vm -ScriptText $phase2cmd -ScriptType Bash `
             -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
-        Write-Log "Executed init script on the VM. Output: $($result.ScriptOutput)"
+        Write-Log "Executed init script on the VM."
     } catch {
         Write-Log -Error "Failed to execute init script on the VM: $_"
         Exit 1
@@ -994,15 +994,21 @@ $shBody
                     $runcmdList += @("[ bash, $workDirOnVM/resize_swap.sh ]")
 
                     $dev = $params.netif1["netdev"]
-                    if ($params.netif1["ignore-auto-routes"]) {         # Not set if the key does not exist or the value is false/no/$null
+                    if ($params.netif1["ignore_auto_routes"]) {         # Not set if the key does not exist or the value is false/no/$null
                         $cmd = @"
 [ nmcli, connection, modify, "System $dev", ipv4.ignore-auto-routes, yes ]
 "@
                         $runcmdList += @($cmd)
                     }
-                    if ($params.netif1["ignore-auto-dns"]) {
+                    if ($params.netif1["ignore_auto_dns"]) {
                         $cmd = @"
 [ nmcli, connection, modify, "System $dev", ipv4.ignore-auto-dns, yes ]
+"@
+                        $runcmdList += @($cmd)
+                    }
+                    if ($params.netif1["ipv6_disable"]) {
+                        $cmd = @"
+[ nmcli, connection, modify, "System $dev", ipv6.method, disabled ]
 "@
                         $runcmdList += @($cmd)
                     }
