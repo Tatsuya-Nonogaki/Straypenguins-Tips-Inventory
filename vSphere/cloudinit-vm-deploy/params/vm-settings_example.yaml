@@ -62,15 +62,17 @@ netif1:
   gateway: 192.168.0.254
   dns1: 192.168.0.201
   dns2: 192.168.0.202
-  ignore-auto-routes: yes
-  ignore-auto-dns: yes
+  ignore_auto_routes: yes
+  ignore_auto_dns: yes
+  ipv6_disable: yes      # Set "yes" to force IPv6 method of this interface to be 'disabled', not 'ignore'
 
 # Additional NIC example (uncomment to use)
 # netif2:
 #  ip_addr: 10.10.10.101
 #  prefix: 24
-#  ignore-auto-routes: yes
-#  ignore-auto-dns: yes
+#  ignore_auto_routes: yes
+#  ignore_auto_dns: yes
+#  ipv6_disable: yes
 
 username: mainte
 user_groups: "wheel,adm,systemd-journal"
