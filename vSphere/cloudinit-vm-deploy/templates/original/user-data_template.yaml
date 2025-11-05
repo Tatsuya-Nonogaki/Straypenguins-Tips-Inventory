@@ -57,6 +57,9 @@ growpart:
 
 runcmd:{{USER_RUNCMD_BLOCK}}
 
+# If custom runcmd commands are required, they cannot be elsewhere than here
+#   - [ echo, "Hello, cloud-init!" ]
+
 # Customize hosts file (the file gets thoroughly overwritten)
 write_files:
   - path: /etc/hosts
@@ -66,6 +69,3 @@ write_files:
       {{netif1.ip_addr}}  {{fqdn}} {{hostname}}
     owner: root:root
     permissions: '0644'
-
-# runcmd:  # (Optional) Custom commands at first boot
-#   - [ echo, "Hello, cloud-init!" ]
