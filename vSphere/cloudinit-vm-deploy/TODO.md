@@ -82,7 +82,7 @@
   ⇒  
   cloud-init network-configの通常のYAMLパラメータでは強制は不能。user-dataの `{{USER_RUNCMD_BLOCK}}`プレースホルダ置換内容メンバに `[ nmcli, connection, modify, "System $dev", ipv6.method, disabled ]` を追加。そのために、パラメータファイルに "netif*.ipv6_disable: yes" を追加。
 
-- 📌 Phase-3 user-data YAMLファイルの置換処理の`{{USER_RUNCMD_BLOCK}}`のために runcmd 生成が、$params.netif1 しか扱っていない。netif2,3..があった場合も処理できるように。
+- ✅ Phase-3 user-data YAMLファイルの置換処理で、`{{USER_RUNCMD_BLOCK}}`のための runcmd 生成が、$params.netif1 しか扱っていない。netif2,3..があった場合も処理できるように。
 
 - ✅ 現在は Phase-2 の最後でVMをシャットダウンしているが、それを Phase-3の頭に移したほうが良いのではないか。  
   - Phase-2 で、起動したまま終われば、スクリプト実行がPhase-2単体指定だった場合、手動調整の機会が与えられる。この時点では cloud-init.disbled は削除されているので手動での再ブートはリスク。
