@@ -68,6 +68,7 @@ netif1:
 
 # Additional NIC example (uncomment to use)
 # netif2:
+#  netdev: ens224
 #  ip_addr: 10.10.10.101
 #  prefix: 24
 #  ignore_auto_routes: yes
