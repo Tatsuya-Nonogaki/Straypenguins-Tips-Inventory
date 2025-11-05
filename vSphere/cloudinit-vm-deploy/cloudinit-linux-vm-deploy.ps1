@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.47
+  Version: 0.0.48
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -993,29 +993,47 @@ $shBody
                     $runcmdList += @($swapScriptCmd)
                     $runcmdList += @("[ bash, $workDirOnVM/resize_swap.sh ]")
 
-                    $dev = $params.netif1["netdev"]
-                    if ($params.netif1["ignore_auto_routes"]) {         # Not set if the key does not exist or the value is false/no/$null
-                        $cmd = @"
-[ nmcli, connection, modify, "System $dev", ipv4.ignore-auto-routes, yes ]
+                    $netifKeys = $params.Keys | Where-Object { $_ -match '^netif\d+$' } | Sort-Object { [int]($_ -replace '^netif','') }
+
+                    $conNamePrefix = "System "
+
+                    foreach ($netifKey in $netifKeys) {
+                        $cfg = $params[$netifKey]
+                        if (-not $cfg) { continue }
+                        $dev = $cfg["netdev"]
+                        if (-not $dev) { continue }
+                        $conName = "${conNamePrefix}$dev"
+                        $netifModified=$false
+
+                        if ($cfg["ignore_auto_routes"]) {         # Not set if the key does not exist or the value is false/no/$null
+                            $cmd = @"
+[ nmcli, connection, modify, "$conName", ipv4.ignore-auto-routes, yes ]
 "@
-                        $runcmdList += @($cmd)
+                            $runcmdList += @($cmd)
+                            $netifModified=$true
+                        }
+
+                        if ($cfg["ignore_auto_dns"]) {
+                            $cmd = @"
+[ nmcli, connection, modify, "$conName", ipv4.ignore-auto-dns, yes ]
+"@
+                            $runcmdList += @($cmd)
+                            $netifModified=$true
+                        }
+
+                        if ($cfg["ipv6_disable"]) {
+                            $cmd = @"
+[ nmcli, connection, modify, "$conName", ipv6.method, disabled ]
+"@
+                            $runcmdList += @($cmd)
+                            $netifModified=$true
+                        }
+
+                        if ($netifModified) {
+                            $cmd = "[ nmcli, device, reapply, $dev ]"
+                            $runcmdList += @($cmd)
+                        }
                     }
-                    if ($params.netif1["ignore_auto_dns"]) {
-                        $cmd = @"
-[ nmcli, connection, modify, "System $dev", ipv4.ignore-auto-dns, yes ]
-"@
-                        $runcmdList += @($cmd)
-                    }
-                    if ($params.netif1["ipv6_disable"]) {
-                        $cmd = @"
-[ nmcli, connection, modify, "System $dev", ipv6.method, disabled ]
-"@
-                        $runcmdList += @($cmd)
-                    }
-                    $cmd = @"
-[ nmcli, device, reapply, $dev ]
-"@
-                    $runcmdList += @($cmd)
                 }
 
                 # Compose final USER_RUNCMD_BLOCK for template
