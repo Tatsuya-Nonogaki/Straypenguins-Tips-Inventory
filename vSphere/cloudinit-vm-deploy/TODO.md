@@ -59,7 +59,7 @@
   **⇒ ⭐結論:**  
   CDアタッチなしの際には、cloud-initが新たなinstance-id "iid-datasource-none" を生成してしまうことが判明した。よって、デプロイ完了後に /etc/cloud/cloud-init.disabled ファイルの設置によってcloud-init発動を無効化するしか手はない。第4"Close"フェーズ(後述)を新設し、そこでVM OS上に /etc/cloud/cloud-init.disabled ファイルを置く方式とする。多重防御として、cloud.cfgでのFrequencyの明示はしたままにする。
 
-- ❎ NetworkManagerのconnectionプロファイル(例えば"ens192")が、Template VMからクローンされたVMに残っている状態でcloud-init付きブートがキックされると、"System ens192"という新たなプロファイルが作られてしまう。もし、既存のプロファイルが"System ens192"と同名だった場合には、ユーザの作成時の挙動のように、余計なプロファイルは作られないのか？ あるいは、cloud-init YAML で、プロファイル名まで指定することは可能？  
+- ✅ NetworkManagerのconnectionプロファイル(例えば"ens192")が、Template VMからクローンされたVMに残っている状態でcloud-init付きブートがキックされると、"System ens192"という新たなプロファイルが作られてしまう。既存のプロファイルが"System ens192"と同名だった場合には、同じ名前のプロファイルが追加で作らてしまう。  
   ネットワーク設定は、NetworkManager直接でなく、レガシーな /etc/sysconfig/network-scripts/ifcfg-ens192 経由でNMへ設定が反映されるようだ (仮にもし netplan経由だった場合はどのファイルが証拠になる？): cloud.cfgの  
   ```  network:
     renderers: ['sysconfig', 'eni', 'netplan', 'network-manager', 'networkd']
@@ -67,7 +67,9 @@
   から 'sysconfig'など無用レンダラーを削除しておくのも手？
 
   ⇒  
-  抑止する確実な方法はない。
+  cloud-init標準の仕組みで確実に抑止することはできない。 よって:  
+  - ✅ ネットワークconnectionプロファイルの削除を、クローン後の初期化(Phase-2)に盛り込む。  
+    ユーザに関しては、Phase-3でのcloud-init発動ブート時に user-data の中で実処理に使われているので Phase-2 での削除は不可。唯一の保守ユーザであり、同じユーザがuser-dataに定義されていてもネットワークと違って重複作成や上書きされることはないので、事前削除は行わない。
 
 - ✅ NetworkManagerのコネクション設定で、"Ignore automatically obtained routes" と "Ignore automatically obtained DNS param" を true/yes にしたいが方法は？
 
@@ -80,8 +82,7 @@
   ⇒  
   cloud-init network-configの通常のYAMLパラメータでは強制は不能。user-dataの `{{USER_RUNCMD_BLOCK}}`プレースホルダ置換内容メンバに `[ nmcli, connection, modify, "System $dev", ipv6.method, disabled ]` を追加。そのために、パラメータファイルに "netif*.ipv6_disable: yes" を追加。
 
-- 📌 ネットワークconnectionプロファイルの削除を、クローン後の初期化(Phase-2)に盛り込む。  
-  ユーザは、Phase-3でのcloud-init発動ブート時に user-data の中で実処理に使われているので Phase-2 での削除は不可。唯一の保守ユーザであり、同じユーザがuser-dataに定義されていてもネットワークと違って重複作成や上書きされることはないので、事前削除は行わない。
+- 📌 Phase-3 user-data YAMLファイルの置換処理の`{{USER_RUNCMD_BLOCK}}`のために runcmd 生成が、$params.netif1 しか扱っていない。netif2,3..があった場合も処理できるように。
 
 - ✅ 現在は Phase-2 の最後でVMをシャットダウンしているが、それを Phase-3の頭に移したほうが良いのではないか。  
   - Phase-2 で、起動したまま終われば、スクリプト実行がPhase-2単体指定だった場合、手動調整の機会が与えられる。この時点では cloud-init.disbled は削除されているので手動での再ブートはリスク。
