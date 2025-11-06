@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.48
+  Version: 0.0.49
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -104,7 +104,7 @@ if ($phaseSorted.Count -gt 1 -and $NoRestart) {
         Write-Host "Operation cancelled by user."
         Exit 3
     }
-    Write-Log -Warn "-NoRestart ignored due to multi-phase execution (user confirmed)."
+    Write-Log -Warn "-NoRestart ignored due to multi-phase execution (user confirmed)"
     $NoRestart = $false
 }
 
@@ -345,11 +345,6 @@ function Stop-MyVM {
         $vmName = $VM.ToString()
     }
 
-    if ($NoRestart) {
-       Write-Log "NoRestart specified: Shutdown was skipped."
-       return "skipped"
-    }
-
     # Refresh current state to get current PowerState
     $vmObj = TryGet-VMObject $VM
     if (-not $vmObj) {
@@ -358,8 +353,17 @@ function Stop-MyVM {
     }
 
     if ($vmObj.PowerState -eq "PoweredOff") {
+        if ($NoRestart) {
+            Write-Log "VM already powered off (NoRestart set): '$vmName'"
+            return "already-stopped"
+        }
         Write-Log "VM already powered off: '$vmName'"
         return "already-stopped"
+    }
+
+    if ($NoRestart) {
+       Write-Log "NoRestart specified: Shutdown was skipped."
+       return "skipped"
     }
 
     Write-Log "Shutting down VM: '$vmName'"
@@ -478,13 +482,13 @@ function Wait-ForVMwareTools {
 
 # ---- Load parameter file ----
 if (-not (Test-Path $Config)) {
-    Write-Host "Parameter file not found: $Config" -ForegroundColor Red
+    Write-Log -Error "Configuration parameter file not found: $Config"
     Exit 3
 }
 try {
     $params = ConvertFrom-Yaml (Get-Content $Config -Raw)
 } catch {
-    Write-Host "Failed to parse YAML: $Config" -ForegroundColor Red
+    Write-Log -Error "Failed to parse configuration parameter YAML: $Config"
     Exit 3
 }
 
@@ -513,7 +517,7 @@ $vcuser   = $params.vcenter_user
 $vcpasswd = $params.vcenter_password
 VIConnect
 
-# ---- Clone Template VM to the target VM with specified spec ----
+# ---- Phase 1: Clone the VM Template to the target VM with specified spec ----
 function AutoClone {
     Write-Log "=== Phase 1: Automatic Cloning ==="
 
@@ -524,7 +528,6 @@ function AutoClone {
         Exit 2
     }
 
-    # Clone
     $templateVM = Get-Template -Name $params.template_vm_name
     if (-not $templateVM) {
         Write-Log -Error "Specified VM Template not found: $($params.template_vm_name)"
@@ -573,12 +576,19 @@ function AutoClone {
         $vmParams['NetworkName'] = $params.network_name
     }
 
+    # Clone the VM Template to target VM
     try {
         $newVM = New-VM @vmParams | Tee-Object -Variable newVMOut
         $newVMOut | Out-File $LogFilePath -Append -Encoding UTF8
-        Write-Log "Deployed new VM: $($newVM.Name) from template: $($params.template_vm_name) in $($params.datastore_name)"
+        Write-Log "Deployed new VM: `"$($newVM.Name)`" from template: `"$($templateVM.Name)`" in datastore: `"$($params.datastore_name)`""
+        Write-Verbose @"
+VM:`"$($vmParams['Name'])`", Template:`"$($templateVM.Name)`", Datastore:`"$($vmParams['Datastore'])`", ESXi-host:`"$($vmParams['VMHost'])`", DiskStorageFormat:`"$($vmParams['DiskStorageFormat'])`", ResourcePool:`"$($resourcePool.Name)`"
+"@
     } catch {
         Write-Log -Error "Error occurred while deploying VM: '$new_vm_name': $_"
+        Write-Verbose @"
+VM:`"$($vmParams['Name'])`", Template:`"$($templateVM.Name)`", Datastore:`"$($vmParams['Datastore'])`", ESXi-host:`"$($vmParams['VMHost'])`", DiskStorageFormat:`"$($vmParams['DiskStorageFormat'])`", ResourcePool:`"$($resourcePool.Name)`"
+"@
         Exit 1
     }
 
@@ -586,7 +596,7 @@ function AutoClone {
     try {
         Set-VM -VM $newVM -NumCpu $params.cpu -MemoryMB $params.memory_mb -Confirm:$false -ErrorAction Stop |
           Tee-Object -Variable setVMOut | Out-File $LogFilePath -Append -Encoding UTF8
-        Write-Log "Set CPU: $($params.cpu), Mem: $($params.memory_mb) MB"
+        Write-Log "Set CPU: $($params.cpu), Mem: $($params.memory_mb)MB"
     } catch {
         Write-Log -Error "Error during CPU/memory set: $_"
         Exit 1
@@ -617,7 +627,7 @@ function AutoClone {
     Write-Log "Phase 1 complete"
 }
 
-# ---- Initialize the clone VM for Phase-3 kickstart ----
+# ---- Phase 2: Initialize the clone VM for Phase-3 kickstart ----
 function InitializeClone {
     Write-Log "=== Phase 2: Guest Initialization ==="
 
@@ -655,26 +665,22 @@ function InitializeClone {
                 Exit 1
             }
         } else {
-            # No prompt; delegate further processing and messaging to Start-MyVM
             $vmStartStatus = Start-MyVM $vm -Force
         }
     } else {
         $vmStartStatus = Start-MyVM $vm
     }
 
-    Write-Log "VM boot/init status: `"$vmStartStatus`""
+    Write-Log "VM boot/init status: '$vmStartStatus'"
 
-    # Use a pass/fail sentinel ($toolsOk) to decide whether we continue.
-    # Only explicit "passing" cases set $toolsOk = $true; everything else will remain false and be treated as failure.
     $toolsOk = $false
 
     switch ($vmStartStatus) {
         "success" {
-            # Start-MyVM guarantees VMware Tools readiness before returning success.
             $toolsOk = $true
         }
         "already-started" {
-            # Start-MyVM returned this when VM was already on and Tools were ready.
+            # VM was already on and Tools ready before our operation
             $toolsOk = $true
         }
 
@@ -700,7 +706,7 @@ function InitializeClone {
             Write-Log -Error "Unable to determine VM state (stat-unknown). Initialization aborted."
         }
         default {
-            Write-Log -Warn "Unrecognized VM start status: `"$vmStartStatus`". Aborting to avoid undefined behaviour."
+            Write-Log -Warn "Unrecognized VM start status: `"$vmStartStatus`". Aborting to avoid exceptional behaviour."
         }
     }
 
@@ -735,9 +741,9 @@ sudo /bin/bash -c "mkdir -p $workDirOnVM && chown $guestUser $workDirOnVM"
     try {
         $null = Copy-VMGuestFile -LocalToGuest -Source $localInitPath -Destination $guestInitPath `
             -VM $vm -GuestUser $guestUser -GuestPassword $guestPass -Force -ErrorAction Stop
-        Write-Log "Copied init script to the VM: $guestInitPath"
+        Write-Log "Copied initialization script to the VM: $guestInitPath"
     } catch {
-        Write-Log -Error "Failed to copy script to the VM: $_"
+        Write-Log -Error "Failed to copy initialization script to the VM: $_"
         Exit 1
     }
 
@@ -747,18 +753,18 @@ chmod +x $guestInitPath && sudo /bin/bash $guestInitPath
 "@
         $null = Invoke-VMScript -VM $vm -ScriptText $phase2cmd -ScriptType Bash `
             -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
-        Write-Log "Executed init script on the VM."
+        Write-Log "Executed initialization script on the VM."
     } catch {
-        Write-Log -Error "Failed to execute init script on the VM: $_"
+        Write-Log -Error "Failed to execute initialization script on the VM: $_"
         Exit 1
     }
 
     try {
         $null = Invoke-VMScript -VM $vm -ScriptText "rm -f $guestInitPath" -ScriptType Bash `
             -GuestUser $guestUser -GuestPassword $guestPass -ErrorAction Stop
-        Write-Log "Removed init script from the VM: $guestInitPath"
+        Write-Log "Removed initialization script from the VM: $guestInitPath"
     } catch {
-        Write-Log -Warn "Failed to remove init script from the VM: $_"
+        Write-Log -Warn "Failed to remove initialization script from the VM: $_"
     }
 
     Write-Log "Phase 2 complete"
@@ -768,16 +774,16 @@ chmod +x $guestInitPath && sudo /bin/bash $guestInitPath
     }
 }
 
-# ---- Generate cloud-init seed ISO and personalize VM ----
+# ---- Phase 3: Generate cloud-init seed ISO and personalize VM ----
 function CloudInitKickStart {
     Write-Log "=== Phase 3: Cloud-init Seed Generation & Personalization ==="
 
     function Replace-Placeholders {
     # Replace each placeholder with a value from YAML key or nested hash key (array keys are not supported for now)
         Param(
-            [parameter(Mandatory=$true)]
+            [parameter()]
             [String]$template,
-            [parameter(Mandatory=$true)]
+            [parameter()]
             [Object]$params,
             [parameter()]
             [String]$prefix = ""
@@ -795,14 +801,14 @@ function CloudInitKickStart {
             ) {
                 $pattern = "{{\s*$keyPath\s*}}"
                 if ($template -match $pattern) {
-                    Write-Log "Replacing placeholder: '$keyPath'"
+                    Write-Verbose "Replacing placeholder: '$keyPath'"
                     $template = $template -replace $pattern, [string]$v
                 }
             } elseif ($v -is [hashtable] -or $v -is [PSCustomObject]) {
                 $template = Replace-Placeholders -template $template -params $v -prefix $keyPath
             } else {
                 $typeName = $v.GetType().Name
-                Write-Log "Placeholder replacement skipped unsupported data structure for this script: $keyPath (type: $typeName)"
+                Write-Verbose "Placeholder replacement skipped unsupported data structure for this script: $keyPath (type: $typeName)"
             }
         }
         return $template
@@ -824,17 +830,19 @@ function CloudInitKickStart {
     }
 
     # --- Early check for /etc/cloud/cloud-init.disabled; if the file exists Phase-3 is meaningless
-    $vm = TryGet-VMObject $vm
-
+    $powerOnNoRestart = $false
+    
     if ($vm -and $vm.PowerState -eq 'PoweredOn') {
-        $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 20 -PollIntervalSec 2
+        $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 20 -PollIntervalSec 5
 
         if (-not $toolsOk) {
             Write-Log -Warn "VMware Tools not available to perform early cloud-init.disabled check; proceeding with Phase-3 anyway."
         } else {
-            # One-line guest command to check for /etc/cloud/cloud-init.disabled
-            $checkCmd = "sudo /bin/bash -c 'if [ -f /etc/cloud/cloud-init.disabled ]; then echo CLOUDINIT_DISABLED; exit 0; else echo CLOUDINIT_ENABLED; exit 1; fi'"
+            if ($NoRestart) {
+                $powerOnNoRestart = $true
+            }
 
+            $checkCmd = "sudo /bin/bash -c 'if [ -f /etc/cloud/cloud-init.disabled ]; then echo CLOUDINIT_DISABLED; exit 0; else echo CLOUDINIT_ENABLED; exit 1; fi'"
             try {
                 $res = Invoke-VMScript -VM $vm -GuestUser $guestUser -GuestPassword $guestPass `
                     -ScriptText $checkCmd -ScriptType Bash -ErrorAction Stop
@@ -855,7 +863,7 @@ function CloudInitKickStart {
             }
         }
     } else {
-        Write-Log -Warn "VM is not powered on; unable to check /etc/cloud/cloud-init.disabled. Proceeding with Phase-3."
+        Write-Log -Warn "VM is not powered on; unable to check existence of /etc/cloud/cloud-init.disabled. Proceeding with Phase-3 anyway."
     }
 
     # 1. Shutdown the VM (skipped automatically if applicable)
@@ -881,7 +889,7 @@ function CloudInitKickStart {
             Write-Log "Continuing without shutdown."
             $vm = TryGet-VMObject $vm
             if ($vm) { Write-Log "VM power state: $($vm.PowerState)" }
-            Write-Log "Note: Ensure the VM power state is appropriate for your needs in this run of Phase-3."
+            Write-Log -Warn "Note: Ensure the VM power state is appropriate for your needs in this run of Phase-3."
         }
         "timeout" {
             Write-Log -Error "Script aborted."
@@ -897,7 +905,7 @@ function CloudInitKickStart {
         }
     }
 
-    # 2. Prepare seed working dir
+    # 2. Prepare local seed working dir
     $seedDir = Join-Path $workdir "cloudinit-seed"
     if (Test-Path $seedDir) {
         try {
@@ -915,7 +923,7 @@ function CloudInitKickStart {
         Exit 2
     }
 
-    # 3. Generate user-data/meta-data/network-config from templates
+    # 3. Generate cloud-config YAMLs; user-data/meta-data/network-config from templates
     $tplDir = Join-Path $scriptdir "templates"
     $seedFiles = @(
         @{tpl="user-data_template.yaml"; out="user-data"},
@@ -925,9 +933,9 @@ function CloudInitKickStart {
     $netTpl = Join-Path $tplDir "network-config_template.yaml"
     if (Test-Path $netTpl) {
         $seedFiles += @{tpl="network-config_template.yaml"; out="network-config"}
+    } else {
+        Write-Log "cloud-config YAML template: '$netTpl' not found; omitted."
     }
-
-    $guestUser = $params.username
 
     foreach ($f in $seedFiles) {
         $tplPath = Join-Path $tplDir $f.tpl
@@ -937,20 +945,21 @@ function CloudInitKickStart {
             Exit 2
         }
         try {
+            Write-Log "Composing '$($f.out)' for cloud-config seed"
             $template = Get-Content $tplPath -Raw
 
             # For user-data only: construct the filesystem resizing runcmd blocks by substitution
             if ($f.out -eq "user-data") {
                 $runcmdList = @()
 
-                # 1. Ext2/3/4 filesystems expansion ===
+                # 1. --- Ext2/3/4 filesystems expansion
                 if ($params.resize_fs -and $params.resize_fs.Count -gt 0) {
                     foreach ($fsdev in $params.resize_fs) {
                         $runcmdList += @("[ resize2fs, $fsdev ]")
                     }
                 }
 
-                # 2. Swap devices expansion ===
+                # 2. --- Swap devices expansion
                 if ($params.resize_swap -and $params.resize_swap.Count -gt 0) {
                     $swapdevs = $params.resize_swap -join " "
 
@@ -994,8 +1003,7 @@ $shBody
                     $runcmdList += @("[ bash, $workDirOnVM/resize_swap.sh ]")
 
                     $netifKeys = $params.Keys | Where-Object { $_ -match '^netif\d+$' } | Sort-Object { [int]($_ -replace '^netif','') }
-
-                    $conNamePrefix = "System "
+                    $conNamePrefix = "System "    # Change this if cloud-init on your environment behaves differently
 
                     foreach ($netifKey in $netifKeys) {
                         $cfg = $params[$netifKey]
@@ -1036,7 +1044,7 @@ $shBody
                     }
                 }
 
-                # Compose final USER_RUNCMD_BLOCK for template
+                # 3. --- Compose final USER_RUNCMD_BLOCK for template
                 if ($runcmdList.Count -gt 0) {
                     $userRuncmdBlock = $runcmdList -join "`n  - "
                     $userRuncmdBlock = "`n  - " + $userRuncmdBlock
@@ -1048,6 +1056,7 @@ $shBody
                 Write-Log "USER_RUNCMD_BLOCK placeholder replaced (count: $($runcmdList.Count))"
             }
 
+            Write-Log "Replacing placeholders in $($f.out)"
             $output = Replace-Placeholders $template $params
 
             # Write out the file contents, avoiding Set-Content's default behavior of appending a trailing CRLF
@@ -1055,7 +1064,7 @@ $shBody
             $seedOut = Join-Path $seedDir $f.out
             $utf8NoBomEncoding = New-Object System.Text.UTF8Encoding($false)
             [System.IO.File]::WriteAllText($seedOut, $output, $utf8NoBomEncoding)
-            Write-Log "Generated $($f.out) for cloud-init"
+            Write-Log "Generated '$($f.out)' for cloud-config seed"
         } catch {
             Write-Log -Error "Failed to render $($f.tpl): $_"
             Exit 2
@@ -1069,14 +1078,24 @@ $shBody
     }
     $isoPath = Join-Path $workdir $seedIsoName
 
-    $cmd = "`"$mkisofs`" -output `"$isoPath`" -V cidata -r -J `"$seedDir`""
-    Write-Log "Executing command: $cmd"
-    $mkisofsOut = cmd /c $cmd 2>&1
-    if (-not (Test-Path $isoPath)) {
-        Write-Log -Error "Failed to generate ${isoName}: $mkisofsOut"
-        Exit 2
-    } else {
+    try {
+        $mkArgs = @('-output', $isoPath, '-V', 'cidata', '-r', '-J', $seedDir)
+    
+        $quotedArgs = $mkArgs | ForEach-Object { if ($_ -match '\s') { '"{0}"' -f $_ } else { $_ } }
+        $cmdForLog = '"' + $mkisofs + '" ' + ($quotedArgs -join ' ')
+        Write-Log "Creating ISO; command: $cmdForLog"
+    
+        $mkisofsOut = & "$mkisofs" @mkArgs 2>&1
+        $mkisofsExit = $LASTEXITCODE
+    
+        if ($mkisofsExit -ne 0 -or -not (Test-Path $isoPath)) {
+            $mkisofsOutStr = if ($mkisofsOut) { $mkisofsOut -join [Environment]::NewLine } else { "" }
+            throw "mkisofs failed; exit-code: $mkisofsExit), output:`n$mkisofsOutStr"
+        }
         Write-Log "cloud-init seed ISO successfully created: $isoPath"
+    } catch {
+        Write-Log -Error "Failed to generate ${seedIsoName}: $_"
+        Exit 2
     }
 
     # 5. Upload ISO to vSphere datastore and attach to VM's CD drive
@@ -1156,6 +1175,18 @@ $shBody
         Exit 1
     }
 
+    # When VM has been powered on since before this phase started --
+    if ($powerOnNoRestart) {
+        Write-Log -Warn "Boot with the cloud-init seed ISO attached is impossible bacause the VM has been powered on prior to attach."
+        Write-Log -Warn "Phase-3 ends now without cloud-init OS modifications taken effect."
+        Write-Log -Warn "Manual reboot is required."
+        if ($Phase -contains 4) {
+            Write-Log -Warn "Aborting without proceeding to Phase-4."
+            Exit 2
+        }
+        exit
+    }
+
     # Record epoch seconds right after attaching the seed ISO to reference later in determination of cloud-init completion.
     $seedAttachEpoch = [int][double]((Get-Date).ToUniversalTime() - (Get-Date "1970-01-01T00:00:00Z")).TotalSeconds
     Write-Verbose "Recorded seed attach epoch '$seedAttachEpoch' for later cloud-init completion checks."
@@ -1199,6 +1230,7 @@ $shBody
         if ($vmStartStatus -eq "skipped") {
             # If the user requested Phase-4 in the same run and cloud-reset is expected,
             # we must not continue to Phase-4 when the VM hasn't actually been booted here.
+            # Note: This check is not reached because '-NoRestart' and multi phase are mutually exclusive
             if ($Phase -contains 4 -and -not $NoCloudReset) {
                 Write-Log -Error "Script aborted since VM is not ready for the online activities in Phase 4 (seed ISO attached but VM not started due to -NoRestart)"
                 Exit 2
@@ -1210,13 +1242,6 @@ $shBody
             Write-Log -Error "Script aborted since VM is not ready for online activities."
             Exit 1
         }
-    }
-
-    # When VM was not started by this phase since it was already running
-    if ($vmStartStatus -eq "already-started" -and $Phase -contains 4 -and -not $NoCloudReset) {
-        Write-Log -Warn "VM was already powered on before seed ISO attach; cloud-init was NOT applied in this run."
-        Write-Log -Warn "Phase-4 would remove the seed without applying changes. Aborting."
-        Exit 2
     }
 
     # 7. Wait for cloud-init to complete personalization on the VM
@@ -1238,7 +1263,7 @@ $shBody
     Write-Log "Pausing ${backoffSec}s to allow guest services to stabilize..."
     Start-Sleep -Seconds $backoffSec
 
-    #--- Quick check before the real cloud-init completion polling, in order to avoid pointless wait in case cloud-init was not invoked on this boot.
+    #--- Quick cloud-init status check before the real completion polling, in order to avoid pointless wait in case cloud-init was not invoked on this boot.
 
     # Build Quick-check script locally then transfer to the VM and utilize.
     $localQuickPath = Join-Path $workdir "quick-check.sh"
@@ -1673,10 +1698,10 @@ sudo /bin/bash -c "chmod +x $guestCheckPath"
 
             $stdout = ""
             if ($res.ScriptOutput) {
-                $stdout = ($res.ScriptOutput -join "`r`n").Trim()
+                $stdout = ($res.ScriptOutput -join [Environment]::NewLine).Trim()
             }
             elseif ($res.ScriptError) {
-                $stdout = ($res.ScriptError -join "`r`n").Trim()
+                $stdout = ($res.ScriptError -join [Environment]::NewLine).Trim()
             }
             else {
                 $stdout = ""
@@ -1822,7 +1847,7 @@ sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
 '@
             $null = Invoke-VMScript -VM $vm -ScriptText $phase4cmd -GuestUser $guestUser `
                 -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-            Write-Log "Created /etc/cloud/cloud-init.disabled to prevent cloud-init invocation."
+            Write-Log "Created /etc/cloud/cloud-init.disabled to prevent future cloud-init invocation."
         } catch {
             Write-Log -Error "Failed to create cloud-init.disabled file: $_"
         }
