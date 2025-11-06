@@ -1,15 +1,15 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.49
+  Version: 0.0.4950
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
     (1) Automatic Cloning
     (2) Clone Initialization
-    (3) Kick Cloud-init Start
-    (4) Close & Clean up (detach ISO, remove seed ISO on DataStore, and optionally disable cloud-init)
-  Uses a YAML parameter file (see vm-settings_example.yaml).
+    (3) Seed ISO Creation & Cloud-init KickStart
+    (4) Clean up and Fixiation (detach seed ISO, remove ISO on DataStore, and disable cloud-init)
+  Most parameters for unique deployment are centralized in a YAML file (vm-settings_*.yaml).
 
   **Requirements:**
   * vSphere virtual machine environment (8+ recommended)
@@ -25,20 +25,22 @@
     3: Bad arguments or parameter/config input
 
 .PARAMETER Phase
-  (Alias -p) List of steps (1,2,3,4) to execute. e.g. -Phase 1,2,3,4 or -Phase 2
+  (Alias -p) List of steps (1,2,3,4) to execute, e.g. '-Phase 3', '-p 1,2,3,4', '-p 1,2'. 
 
 .PARAMETER Config
-  (Alias -c) Path to YAML parameter file for the VM deployment.
+  (Alias -c) Path to parameter YAML file for the VM deployment.
 
 .PARAMETER NoRestart
-  If set, disables auto-poweron/shutdown except when multi-phase is needed.
+  If set, automatic power-on/shutdown are disabled, except when multi-phase run is requested.
+  In certain cases where the logic cannot be satisfied without a power-on/shutdown, user will 
+  be prompted for confirmation.
 
 .PARAMETER NoCloudReset
   (Alias -noreset) If set, disables creation of /etc/cloud/cloud-init.disabled in Phase 4.
-  ISO detachment and ISO file removal are always performed in Phase 4.
+  ISO detachment and ISO file removal are always performed.
 
 .EXAMPLE
-  .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3,4 -Config .\params\vm-settings.yaml
+  .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings_my1stvm.yaml
 #>
 [CmdletBinding()]
 param(
@@ -706,7 +708,7 @@ function InitializeClone {
             Write-Log -Error "Unable to determine VM state (stat-unknown). Initialization aborted."
         }
         default {
-            Write-Log -Warn "Unrecognized VM start status: `"$vmStartStatus`". Aborting to avoid exceptional behaviour."
+            Write-Log -Warn "Unrecognized VM start status: `"$vmStartStatus`". Aborting to avoid undefined behaviour."
         }
     }
 
@@ -830,7 +832,7 @@ function CloudInitKickStart {
     }
 
     # --- Early check for /etc/cloud/cloud-init.disabled; if the file exists Phase-3 is meaningless
-    $powerOnNoRestart = $false
+    $wasPowerOnAtBegin = $false      # Flag to indicate this VM was already PoweredOn when this phase started
     
     if ($vm -and $vm.PowerState -eq 'PoweredOn') {
         $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 20 -PollIntervalSec 5
@@ -838,9 +840,7 @@ function CloudInitKickStart {
         if (-not $toolsOk) {
             Write-Log -Warn "VMware Tools not available to perform early cloud-init.disabled check; proceeding with Phase-3 anyway."
         } else {
-            if ($NoRestart) {
-                $powerOnNoRestart = $true
-            }
+            $wasPowerOnAtBegin = $true
 
             $checkCmd = "sudo /bin/bash -c 'if [ -f /etc/cloud/cloud-init.disabled ]; then echo CLOUDINIT_DISABLED; exit 0; else echo CLOUDINIT_ENABLED; exit 1; fi'"
             try {
@@ -1176,10 +1176,9 @@ $shBody
     }
 
     # When VM has been powered on since before this phase started --
-    if ($powerOnNoRestart) {
-        Write-Log -Warn "Boot with the cloud-init seed ISO attached is impossible bacause the VM has been powered on prior to attach."
-        Write-Log -Warn "Phase-3 ends now without cloud-init OS modifications taken effect."
-        Write-Log -Warn "Manual reboot is required."
+    if ($wasPowerOnAtBegin -and $NoRestart) {
+        Write-Log -Warn "Boot with attached cloud-init seed ISO is impossible, because VM had been powered on prior to attach and -NoRestart option inhibited previous shutdown."
+        Write-Log -Warn "Phase-3 ends now without cloud-init OS modifications in effect; Manual reboot is required."
         if ($Phase -contains 4) {
             Write-Log -Warn "Aborting without proceeding to Phase-4."
             Exit 2
@@ -1221,27 +1220,14 @@ $shBody
             Write-Log -Error "Unable to determine VM state (stat-unknown). Aborting Phase-3."
         }
         default {
-            Write-Log -Warn "Unknown result from Start-MyVM: `"$vmStartStatus`". Aborting to avoid undefined behaviour."
+            Write-Log -Warn "Unknown result from Start-MyVM: '$vmStartStatus'. Aborting to avoid undefined behaviour."
         }
     }
 
     # Final gating logic: proceed only when $toolsOk was set by an accepted success case.
     if (-not $toolsOk) {
-        if ($vmStartStatus -eq "skipped") {
-            # If the user requested Phase-4 in the same run and cloud-reset is expected,
-            # we must not continue to Phase-4 when the VM hasn't actually been booted here.
-            # Note: This check is not reached because '-NoRestart' and multi phase are mutually exclusive
-            if ($Phase -contains 4 -and -not $NoCloudReset) {
-                Write-Log -Error "Script aborted since VM is not ready for the online activities in Phase 4 (seed ISO attached but VM not started due to -NoRestart)"
-                Exit 2
-            }
-
-            Write-Log "Phase 3 complete with -NoRestart (seed ISO created and attached; VM not started due to the option)"
-            return
-        } else {
-            Write-Log -Error "Script aborted since VM is not ready for online activities."
-            Exit 1
-        }
+        Write-Log -Error "Script aborted since VM is not ready for online activities."
+        Exit 1
     }
 
     # 7. Wait for cloud-init to complete personalization on the VM
