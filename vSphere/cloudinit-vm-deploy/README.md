@@ -6,7 +6,7 @@ Automated, repeatable deployment of cloud-init-enabled Linux VMs on vSphere, usi
 
 ## 🧭 Features
 
-- **Three-phase deployment workflow:** Template Clone, Guest Preparation, Cloud-init Personalization
+- **Four-phase deployment workflow:** Template Clone, Guest Preparation, Cloud-init Personalization, and cloud-init disablement
 - **Parameter-driven, YAML-based configuration** for per-VM customization
 - **Robust cloud-init integration:** hostname, users, SSH keys, network, `/etc/hosts`, and more
 - **Template safety:** Template VM is protected from accidental cloud-init runs
