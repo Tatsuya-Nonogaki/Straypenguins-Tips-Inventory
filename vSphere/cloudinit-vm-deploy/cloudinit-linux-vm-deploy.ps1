@@ -1767,9 +1767,9 @@ sudo /bin/bash -c "chmod +x $guestCheckPath"
     Write-Log "Phase 3 complete"
 }
 
-# ---- Phase 4: Close & Clean up the deployed VM ----
+# ---- Phase 4: Clean up and Fixiate the deployed VM ----
 function CloseDeploy {
-    Write-Log "=== Phase 4: Close & Clean up ==="
+    Write-Log "=== Phase 4: Clean up and Fixiation ==="
 
     # 1. Get VM object
     $vm = TryGet-VMObject $new_vm_name
@@ -1807,13 +1807,11 @@ function CloseDeploy {
     $cdd = Get-CDDrive -VM $vm
     if (-not $cdd) {
         Write-Log -Warn "No CD/DVD drive found on this VM."
-    }
-    else {
+    } else {
         try {
             $null = Set-CDDrive -CD $cdd -NoMedia -Confirm:$false -ErrorAction Stop
             Write-Log "Seed ISO media is detached from the VM: '$new_vm_name'"
         } catch {
-            # Not fatal, continue, as the cmdlet returns true if it is already detached
             Write-Log -Warn "Failed to detach CD/DVD drive from VM: $_"
         }
     }
@@ -1822,12 +1820,12 @@ function CloseDeploy {
     if (Test-Path "$vmstoreIsoPath") {
         try {
             Remove-Item -Path $vmstoreIsoPath -Force
-            Write-Log "Removed seed ISO from datastore: $vmstoreIsoPath"
+            Write-Log "Removed seed ISO from datastore: '$vmstoreIsoPath'"
         } catch {
             Write-Log -Warn "Failed to remove seed ISO '$vmstoreIsoPath' from datastore: $_"
         }
     } else {
-        Write-Log "Seed ISO file not found in datastore for removal: $vmstoreIsoPath"
+        Write-Log "Seed ISO file not found in datastore for removal: '$vmstoreIsoPath'"
     }
 
     # 5. Disable cloud-init for future boots (unless -NoCloudReset switch is specified)
