@@ -11,19 +11,19 @@ This kit enables quick deployment of Linux VMs from a prepared VM Template on vS
 
 ---
 
-Table of contents
-- Overview
-- Key Points — What This Kit Complements in cloud-init
-- Key Files
-- Requirements and Pre-setup (admin host and template VM)
-- Quick Start
-- Phases — What Does Each Step Perform?
-- Template Infra: What is Changed and Why
-- mkisofs / ISO Creation Notes
-- Operational Recommendations
-- Troubleshooting (common cases)
-- Logs & Debugging
-- License
+**Table of contents**
+- [Overview](#overview)  
+- [Key Points — What This Kit Complements in cloud-init](#key-points--what-this-kit-complements-in-cloud-init)  
+- [Key Files](#key-files)  
+- [Requirements and Pre-setup (admin host and template VM)](#requirements--pre-setup)  
+- [Quick Start](#quick-start-short-path)  
+- [Phases — What Does Each Step Perform?](#phases--what-does-each-step-perform)  
+- [Template Infra: What is Changed and Why](#template-infra-what-is-changed-and-why)  
+- [mkisofs / ISO Creation Notes](#mkisofs--iso-creation-notes)  
+- [Operational Recommendations](#operational-recommendations)  
+- [Troubleshooting (common cases)](#troubleshooting-common-cases)  
+- [Logs & Debugging](#logs--debugging)  
+- [License](#license)
 
 ---
 
@@ -59,14 +59,14 @@ This kit assumes the lifecycle: **template → new clone → initialization → 
 
 ## Requirements / Pre-setup
 
-Admin host (PowerShell environment — Windows is the primary target):
+### Admin host (PowerShell environment — Windows is the primary target):
 - Windows PowerShell (5.1+) or PowerShell Core on Windows  
 - VMware PowerCLI (e.g., VMware.VimAutomation.Core)  
 - `powershell-yaml` module for YAML parsing  
 - ISO creation tool: Win32 `mkisofs.exe` (the script defaults to a Win32 mkisofs from cdrtfe). Adjust `$mkisofs` and `$mkArgs` in the script if you use a different tool.  
 - Clone or unzip this repository on the admin host. The repo contains a `spool/` directory (dummy file present), which the script expects to exist.
 
-Template VM (example: RHEL9):
+### Template VM (example: RHEL9):
 - Template is a VM you tailored (this kit won't provide). It may consist of considerable minimal resources, e.g., 2 CPUs, 2.1GB memory, 8GB primary disk, 2GB swap / 500MB kdump disks with 'Thin' vmdk format, all of which can be automatically expanded by the capabilities of cloud-init and the kit during provisioning.  
 - `open-vm-tools` installed and running; required for guest operations such as `Copy-VMGuestFile` / `Invoke-VMScript` on the VMs cloned from this template (it should normally inherit working).  
 - `cloud-init` and `cloud-utils-growpart` installed (optionally `dracut-config-generic` if you rebuild initramfs)  
@@ -74,7 +74,7 @@ Template VM (example: RHEL9):
 - Copy `infra/` to the template and run `prevent-cloud-init.sh` as root to install infra files and create `/etc/cloud/cloud-init.disabled`  
 - A local administrative user (username/password) must exist on the template; this account is used by the script for guest operations and must be able to run at least `sudo /bin/bash` without password (`NOPASSWD:`). Password-based guest auth is required by the current implementation.
 
-Notes and limitations:
+**Notes and limitations:**
 - Partition expansion: the partition(s) you intend to expand must be the last partition on the disk; otherwise the kit's non-LVM expansion helpers cannot extend them.  
 - Supported filesystems for kit-managed expansion: `ext2`, `ext3`, `ext4`, and `swap`. LVM-managed volumes are not supported.  
 - Line endings: PowerShell scripts and `params/*.yaml` should use CRLF (Windows). Guest shell scripts and cloud-init templates must use LF (Unix).
@@ -113,35 +113,35 @@ Get-Help ./cloudinit-linux-vm-deploy.ps1 -Detailed
 
 ## Phases — What Does Each Step Perform?
 
-Important: Phase selection must be a contiguous ascending list (single phase is allowed). Examples:
+**Important:** Phase selection must be a contiguous ascending list (single phase is allowed). Examples:
 - Valid: `-Phase 1` or `-Phase 1,2,3`
 - Invalid: `-Phase 1,3`
 
 Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finalization step and is recommended to be run after confirming Phase-3 succeeded.
 
 ### Phase 1 — Automatic cloning
-Purpose:
+**Purpose:**
 - Create a new VM by cloning the VM Template and apply specified vSphere-level hardware settings (CPU, memory, disk sizes, disk storage format). This phase does not perform guest power-on or shutdown.
 
-High-level steps:
+**High-level steps:**
 1. Validate no VM name collision.  
 2. Resolve resource pool / datastore / host / portgroup from parameters.  
 3. Perform `New-VM` to clone the template.  
 4. Apply CPU and memory settings (`Set-VM`).  
 5. Resize virtual disks as specified in `params.disks` (via `Set-HardDisk`).
 
-Result:
+**Result:**
 - A new VM object is created in vCenter (typically left powered off).
 
-Cautions / Notes:
+**Cautions / Notes:**
 - Do not run if a VM with the same name already exists — the script will abort.  
 - This kit is not intended to retrofit cloud-init onto arbitrary running VMs; use the template → clone path.
 
 ### Phase 2 — Guest initialization
-Purpose:
+**Purpose:**
 - Run guest-side initialization to remove template protections and clear cloud-init residual state. The VM is left powered on when Phase 2 completes so administrators can log in for verification or adjustments.
 
-High-level steps:
+**High-level steps:**
 1. Power on the VM (the script respects `-NoRestart` semantics and will prompt if conflicts arise).  
 2. Ensure a working directory on the guest and copy `scripts/init-vm-cloudinit.sh` to the VM.  
 3. Execute the init script, which:
@@ -153,19 +153,19 @@ High-level steps:
    - Writes `/etc/cloud/cloud.cfg.d/99-override.cfg` with `preserve_hostname: false` and `manage_etc_hosts: false`.  
 4. Remove the transfer script from the guest.
 
-Result:
+**Result:**
 - The clone is prepared to accept cloud-init personalization; the VM remains powered on.
 
-Cautions / Notes:
+**Cautions / Notes:**
 - Provide valid guest credentials (`params.username` / `params.password`) for the administrative account on the guest — the script uses guest operations requiring VMware Tools and password-based sudo.  
 - The included `scripts/init-vm-cloudinit.sh` targets RHEL-like systems; verify and adapt it for other distributions.  
 - Because the VM remains powered on after Phase 2, avoid rebooting it before attaching the seed ISO in Phase 3 (unless you intend to boot with the seed attached); an unexpected boot may trigger cloud-init without the intended seed.
 
 ### Phase 3 — Cloud-init seed creation & personalization
-Purpose:
+**Purpose:**
 - Render `user-data`, `meta-data`, and optional `network-config` from YAML templates and parameters, create a `cidata` ISO, upload it to the datastore, attach it to the VM CD drive, boot the VM, and wait for cloud-init to complete. The VM is left powered on when Phase 3 finishes.
 
-High-level steps:
+**High-level steps:**
 1. Shut down the VM (unless `-NoRestart` is requested and accepted).  
 2. Create a local seed working directory and render `user-data`, `meta-data`, and (if present) `network-config` from the templates, replacing placeholders from `params`. For `user-data`, the script may inject a kit-specific `runcmd` block to:
    - Run `resize2fs` on specified non-root partitions.  
@@ -173,14 +173,14 @@ High-level steps:
    - Modify NetworkManager Ethernet connection profiles with `nmcli` (`ignore-auto-routes`, `ignore-auto-dns`, IPv6 disablement).  
 3. Create a `cidata` ISO using `mkisofs` and place it in `spool/<new_vm_name>/`.  
 4. Upload the ISO to the datastore path specified by `params.seed_iso_copy_store` and attach it to the VM's CD drive. The script will abort if an ISO with the same name already exists at the target path.  
-5. Power on the VM and detect cloud-init activity:
+5. Power on the VM and detect cloud-init activity:  
    - Run a `quick-check` script (one-shot) on the guest to detect early evidence that cloud-init ran after the ISO attach.  
    - If quick-check indicates possible activity, copy a `check-cloud-init` script and poll until it reports completion (or timeout). Temporary helper scripts are removed from the guest; local copies, too.
 
-Result:
+**Result:**
 - cloud-init has applied the personalization and the VM is ready; VM remains powered on.
 
-Cautions / Notes:
+**Cautions / Notes:**
 - If `/etc/cloud/cloud-init.disabled` remains on the guest, Phase 3 will be ineffective — the script checks and aborts if found.  
 - `/etc/hosts` is completely overwritten by the template's entries. If you need extra static host records, add them to the `write_files > content` section of `templates/user-data_template.yaml` before running Phase 3.  
 - The script will not overwrite an existing ISO at the datastore destination. If the target path already contains an ISO with the same name, either run Phase 4 alone to remove it (with `-NoCloudReset` to avoid creating `/etc/cloud/cloud-init.disabled`) or delete the file manually.  
@@ -188,18 +188,18 @@ Cautions / Notes:
 - If `-NoRestart` prevents the shutdown/reboot required to boot with the attached seed ISO (for example, the VM was already powered on), Phase 3 will warn and exit; a manual reboot is then required to apply the seed.
 
 ### Phase 4 — Cleanup and finalization
-Purpose:
+**Purpose:**
 - Detach the seed ISO, remove the ISO file from the datastore, and (by default) create `/etc/cloud/cloud-init.disabled` on the guest to prevent future automatic cloud-init runs. If `-NoCloudReset` is supplied, the script detaches and deletes the ISO but skips creating `/etc/cloud/cloud-init.disabled`.
 
-High-level steps:
+**High-level steps:**
 1. Detach the CD/DVD media from the VM.  
 2. Remove the uploaded ISO file from the datastore (via the vmstore path).  
 3. Unless `-NoCloudReset` is set, use guest operations to create `/etc/cloud/cloud-init.disabled` on the guest.
 
-Result:
+**Result:**
 - The seed ISO is removed and cloud-init is disabled for future boots (unless skipped).
 
-Cautions / Notes:
+**Cautions / Notes:**
 - Phase 4 does not attempt to power on the VM. If the VM is powered off or VMware Tools are not running, the script cannot create `/etc/cloud/cloud-init.disabled` and will exit with an error; run Phase 4 when the VM is powered on or use `-NoCloudReset` if you only need to remove the ISO.  
 - If detaching media triggers a confirmation prompt in the vSphere UI (VMRC or vSphere Client), you may need to confirm manually for the operation to complete.
 
@@ -240,18 +240,18 @@ Notes:
 
 ## Troubleshooting (common cases)
 
-- cloud-init did not run:
+- **cloud-init did not run:**
   - Confirm `/etc/cloud/cloud-init.disabled` was removed on the clone (Phase 2 must have succeeded).  
   - Inspect `spool/<new_vm_name>/cloudinit-seed/` for the generated `user-data`, `meta-data`, and `network-config`, and check timestamps; also check `spool/<new_vm_name>/cloudinit-linux-seed.iso` (mount or extract to verify contents).  
   - Verify VMware Tools are running; without them `Copy-VMGuestFile` and `Invoke-VMScript` will fail.  
   - Check guest logs: `/var/log/cloud-init.log`, `/var/log/cloud-init-output.log`, and `/var/lib/cloud/instance/*`.
 
-- ISO creation / upload failure:
+- **ISO creation / upload failure:**
   - `$mkisofs` not found or incompatible flags. Update `$mkisofs` and `$mkArgs` in the script.  
   - `seed_iso_copy_store` parameter malformed. Expected format: `[DATASTORE] path` (for example `[COMMSTORE01] cloudinit-iso/`). Trailing slash is optional.  
   - A file with the same ISO name already exists at the datastore path (common when re-running Phase 3). Remedy: run Phase 4 alone (use `-NoCloudReset` to avoid creating `/etc/cloud/cloud-init.disabled`) to remove the ISO, or delete it manually in vSphere.
 
-- Network configuration not applied:
+- **Network configuration not applied:**
   - Verify `templates/network-config_template.yaml` placeholders and `params`:`netifX.netdev` values match the guest's actual interface names (e.g., `ens192`). Also check vSphere NIC ordering vs. guest device naming if your environment renumbers devices.
 
 ---
@@ -260,6 +260,15 @@ Notes:
 
 - Logs and generated artifacts are written to `spool/<new_vm_name>/` on the admin host. The primary log is `spool/<new_vm_name>/deploy-YYYYMMDD.log`. Seed YAMLs are under `spool/<new_vm_name>/cloudinit-seed/` and the ISO is `spool/<new_vm_name>/cloudinit-linux-seed.iso`.  
 - Run the script with `-Verbose` to print additional internal steps to the console for debugging.
+
+---
+
+## 👉 References
+
+- [cloud-init documentation](https://cloud-init.io/)
+- [VMware PowerCLI](https://developer.vmware.com/powercli)
+- [powershell-yaml](https://github.com/cloudbase/powershell-yaml)
+- [cdrtfe (mkisofs win32)](https://sourceforge.net/projects/cdrtfe/)
 
 ---
 
