@@ -176,14 +176,14 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 
 **High-level steps:**
 1. Shut down the VM (unless `-NoRestart` is requested and accepted) if it is not already powered off.  
-2. Create a local seed working directory and render `user-data`, `meta-data`, and (if present) `network-config` from the templates, replacing placeholders from `params`. For `user-data`, the script may inject a kit-specific `runcmd` block to:
+2. Ensure a local seed working directory and render `user-data`, `meta-data`, and (if present) `network-config` from the templates, replacing placeholders from `params`. For `user-data`, the script may inject a kit-specific `runcmd` block to:
    - Run `resize2fs` on specified non-root partitions.  
    - Reinitialize and resize swap devices with careful UUID updates to `/etc/fstab`.  
    - Modify NetworkManager Ethernet connection profiles with `nmcli` (`ignore-auto-routes`, `ignore-auto-dns`, IPv6 disablement).  
 3. Create a `cidata` ISO using `mkisofs` and place it in `spool/<new_vm_name>/`.  
 4. Upload the ISO to the datastore path specified by `params.seed_iso_copy_store` and attach it to the VM's CD drive. The script will abort if an ISO with the same name already exists at the target path.  
 5. Power on the VM and detect cloud-init activity:  
-   - Run a `quick-check` script (one-shot) on the guest to detect early evidence that cloud-init ran after the ISO attach.  
+   - Run a `quick-check` script (one-shot) on the guest to detect early evidence that cloud-init activated after the ISO attach.  
    - If quick-check indicates possible activity, copy a `check-cloud-init` script and poll until it reports completion (or timeout). Temporary helper scripts are removed from the guest; local copies, too.
 
 **Result:**
@@ -192,9 +192,8 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 **Cautions / Notes:**
 - `/etc/hosts` is completely overwritten by the template's entries. If you need extra static host records, add them to the `write_files > content` section of `templates/user-data_template.yaml` before running Phase 3.  
 - If `/etc/cloud/cloud-init.disabled` exists on the guest, Phase 3 cannot apply the seed — the script checks for this file and aborts when it can be detected. If the VM is powered off at the start of Phase 3 the script cannot probe the file and will continue; in that case cloud‑init may not be applied in the run; manual intervention may be required.  
-- If `-NoRestart` prevents the pre-shutdown (and also the boot at the end of the phase), clone cannot take the effect of cloud-init personalization after the attach of seed ISO automatically. Phase 3 will issue a warning in that case; a manual reboot is required to apply the seed.  
-- The script will not overwrite an existing ISO at the datastore destination. If the target path already contains an ISO with the same name, either run Phase 4 alone to remove it (with `-NoCloudReset` to avoid creating `/etc/cloud/cloud-init.disabled`) or delete the file manually.  
-- Re-running Phase 3 repeatedly without finishing with Phase 4 can cause repeated SSH host‑key regeneration and duplicate NetworkManager connection profiles. If you must retry Phase 3 after a partial failure, re-run Phase 2 (guest initialization) first to re-prepare the clone; note that filesystem expansions already applied will not be reprocessed and also user duplication will not occur. Always run Phase 4 once you are satisfied.
+- If `-NoRestart` prevents the required pre-shutdown (and therefore the boot at the end of this phase), the clone will not automatically apply the cloud‑init personalization even though the seed ISO is attached. Phase 3 will emit a warning in that case; a manual reboot is required to apply the modification.  
+- Re-running Phase 3 repeatedly without finalizing with Phase 4 can cause undesired side effects, for example repeated SSH host‑key regeneration and duplicated NetworkManager connection profiles. If you must retry Phase 3 after a partial failure, re-run **Phase 2** (guest initialization) first to mitigate negative effects; note that filesystem expansions already applied will not be reprocessed and user duplication will not occur. Always run Phase 4 once you are satisfied.
 
 ――――――――――――――――――――――――――――――――
 
