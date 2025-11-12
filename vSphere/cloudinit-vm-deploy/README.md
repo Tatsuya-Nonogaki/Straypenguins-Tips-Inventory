@@ -136,7 +136,7 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 5. Resize virtual disks as specified in `params.disks` (via `Set-HardDisk`).
 
 **Result:**
-- A new VM object is created in vCenter (typically left powered off).
+- A new VM object is created in vCenter (not yet powered on).
 
 **Cautions / Notes:**
 - Do not run if a VM with the same name already exists — the script will abort.  
