@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.4950
+  Version: 0.0.50
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -1533,25 +1533,25 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                 switch ($qcRes.ExitCode) {
                     2 {
                         Write-Log -Error "Quick-check reported TERMINAL (exit code 2). stdout: '$firstLine' stderr: '$qcStderr'"
-                        Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
+                        Write-Log -Warn "Phase 3 complete (cloud-init activation NOT confirmed)."
                         Exit 2
                     }
                     1 {
                         Write-Log -Warn "Quick-check: guest returned NOTRAN (exit code 1). stdout: '$firstLine' stderr: '$qcStderr'"
-                        Write-Log -Warn "Phase 3 complete (cloud-init NOT confirmed)."
+                        Write-Log -Warn "Phase 3 complete (cloud-init activation NOT confirmed)."
                         Exit 2
                     }
                     0 {
                         # Success: Use the parsed label to decide action
                         switch ($label) {
                             'RAN-SEM' {
-                                Write-Log "Quick-check: success by module sem; evidence: $evidencePath. Proceeding to cloud-init completion polling."
+                                Write-Log "Quick-check: cloud-init activation detected; success by module sem; evidence: $evidencePath. Proceeding to cloud-init completion polling."
                             }
                             'RAN' {
-                                Write-Log "Quick-check: success by cloud-init artifacts; evidence: $evidencePath. Proceeding to cloud-init completion polling."
+                                Write-Log "Quick-check: cloud-init activation detected; success by cloud-init artifacts; evidence: $evidencePath. Proceeding to cloud-init completion polling."
                             }
                             'RAN-NET' {
-                                Write-Log "Quick-check: success by network-config; evidence: $evidencePath. As this is a weak evidence, proceeding to cloud-init completion polling with reduced wait (60s)."
+                                Write-Log "Quick-check: cloud-init activation detected; success by network-config; evidence: $evidencePath. As this is a weak evidence, proceeding to cloud-init completion polling with reduced wait (60s)."
                                 $cloudInitWaitTotalSec = [int]([math]::Max(30, [math]::Min($cloudInitWaitTotalSec, 60)))
                             }
                             default {
@@ -1565,7 +1565,7 @@ sudo /bin/bash -c "chmod +x $guestQuickPath"
                     }
                     default {
                         # Unexpected exit code — be conservative
-                        Write-Log -Error "Quick-check: unexpected exit code $($qcRes.ExitCode). stdout: '$qcStdout' stderr: '$qcStderr'. Aborting Phase-3."
+                        Write-Log -Error "Quick-check: failed to probe cloud-init activation; unexpected exit code $($qcRes.ExitCode). stdout: '$qcStdout' stderr: '$qcStderr'. Aborting Phase-3."
                         Exit 2
                     }
                 }
