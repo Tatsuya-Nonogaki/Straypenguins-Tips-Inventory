@@ -1,6 +1,6 @@
 # Cloud-init Ready: Linux VM Deployment Kit on vSphere
 
-## Overview
+## 🧭 Overview
 
 This kit enables quick deployment of Linux VMs from a prepared VM Template on vSphere, using the cloud-init framework. The main control program is a PowerShell script: `cloudinit-linux-vm-deploy.ps1`. The workflow is split into four phases:
 
@@ -11,7 +11,7 @@ This kit enables quick deployment of Linux VMs from a prepared VM Template on vS
 
 ---
 
-**Table of contents**
+📑 **Table of contents**
 - [Overview](#overview)  
 - [Key Points — What This Kit Complements in cloud-init](#key-points--what-this-kit-complements-in-cloud-init)  
 - [Key Files](#key-files)  
@@ -27,7 +27,7 @@ This kit enables quick deployment of Linux VMs from a prepared VM Template on vS
 
 ---
 
-## Key Points — What This Kit Complements in cloud-init
+## 🎯 Key Points — What This Kit Complements in cloud-init
 
 This kit assumes the lifecycle: **template → new clone → initialization → personalization**. It complements cloud-init by addressing several practical operational gaps in vSphere deployments:
 
@@ -39,11 +39,12 @@ This kit assumes the lifecycle: **template → new clone → initialization → 
 - The script stores logs and generated artifacts under `spool/<new_vm_name>/` on the admin host for auditing and troubleshooting.  
 - Use PowerShell `-Verbose` to print detailed internal steps for debugging.
 
-**Important:** This kit is designed for the template → clone → initialization → personalization flow. It is not intended to retrofit cloud-init onto arbitrary, already-running production VMs.
+⚠️ **Important:**  
+This kit is designed for the template → clone → initialization → personalization flow. It is not intended to retrofit cloud-init onto arbitrary, already-running production VMs.
 
 ---
 
-## Key Files
+## 📁 Key Files
 
 - `cloudinit-linux-vm-deploy.ps1` — main PowerShell deployment script (implements Phases 1–4)  
 - `params/vm-settings_example.yaml` — example parameter file (copy and edit per VM)  
@@ -57,7 +58,7 @@ This kit assumes the lifecycle: **template → new clone → initialization → 
 
 ---
 
-## Requirements / Pre-setup
+## 🛠️ Requirements / Pre-setup
 
 ### Admin host (PowerShell environment — Windows is the primary target):
 - Windows PowerShell (5.1+) or PowerShell Core on Windows  
@@ -74,14 +75,14 @@ This kit assumes the lifecycle: **template → new clone → initialization → 
 - Copy `infra/` to the template and run `prevent-cloud-init.sh` as root to install infra files and create `/etc/cloud/cloud-init.disabled`  
 - A local administrative user (username/password) must exist on the template; this account is used by the script for guest operations and must be able to run at least `sudo /bin/bash` without password (`NOPASSWD:`). Password-based guest auth is required by the current implementation.
 
-**Notes and limitations:**
+📝 **Notes and limitations:**
 - Partition expansion: the partition(s) you intend to expand must be the last partition on the disk; otherwise the kit's non-LVM expansion helpers cannot extend them.  
 - Supported filesystems for kit-managed expansion: `ext2`, `ext3`, `ext4`, and `swap`. LVM-managed volumes are not supported.  
 - Line endings: PowerShell scripts and `params/*.yaml` should use CRLF (Windows). Guest shell scripts and cloud-init templates must use LF (Unix).
 
 ---
 
-## Quick Start (short path)
+## 🚀 Quick Start (short path)
 
 1. Clone or unzip this repo on the Windows admin host and install PowerCLI and `powershell-yaml`.  
 2. On the template VM:
@@ -93,7 +94,8 @@ This kit assumes the lifecycle: **template → new clone → initialization → 
      This installs the kit-optimized `/etc/cloud/cloud.cfg`, `/etc/cloud/cloud.cfg.d/99-template-maint.cfg`, and `/etc/cloud/cloud-init.disabled`.  
    - Shut down the VM and convert it to a vSphere Template.
 3. On the admin host:
-   - Copy `params/vm-settings_example.yaml` to a new filename (e.g., `params/vm-settings_myvm01.yaml`) and edit it. Tip: include the target VM name (`new_vm_name` in `params`) in the filename for clarity.  
+   - Copy `params/vm-settings_example.yaml` to a new filename (e.g., `params/vm-settings_myvm01.yaml`) and edit it.  
+     💡**Tip:** include the target VM name (`new_vm_name` in `params`) in the filename for clarity.  
    - Copy `templates/original/*_template.yaml` to `templates/` and update them as needed (especially network device names in `network-config_template.yaml`).
 4. Run the deploy script from the repository root:
    ```powershell
@@ -104,20 +106,22 @@ This kit assumes the lifecycle: **template → new clone → initialization → 
 
 5. Inspect `spool/<new_vm_name>/` for logs and generated artifacts. Primary log: `spool/<new_vm_name>/deploy-YYYYMMDD.log`. Seed files are under `spool/<new_vm_name>/cloudinit-seed/` and the seed ISO is `spool/<new_vm_name>/cloudinit-linux-seed.iso`.
 
-Refer to the script's help for details:
+👉 **Refer to the script's help for details:**
 ```powershell
 Get-Help ./cloudinit-linux-vm-deploy.ps1 -Detailed
 ```
 
 ---
 
-## Phases — What Does Each Step Perform?
+## 🔁 Phases — What Does Each Step Perform?
 
-**Important:** Phase selection must be a contiguous ascending list (single phase is allowed). Examples:
+❗**Important:** Phase selection must be a contiguous ascending list (single phase is allowed). Examples:
 - Valid: `-Phase 1` or `-Phase 1,2,3`
 - Invalid: `-Phase 1,3`
 
 Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finalization step and is recommended to be run after confirming Phase-3 succeeded.
+
+――――――――――――――――――――――――――――――――
 
 ### Phase 1 — Automatic cloning
 **Purpose:**
@@ -136,6 +140,8 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 **Cautions / Notes:**
 - Do not run if a VM with the same name already exists — the script will abort.  
 - This kit is not intended to retrofit cloud-init onto arbitrary running VMs; use the template → clone path.
+
+――――――――――――――――――――――――――――――――
 
 ### Phase 2 — Guest initialization
 **Purpose:**
@@ -160,6 +166,8 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 - Provide valid guest credentials (`params.username` / `params.password`) for the administrative account on the guest — the script uses guest operations requiring VMware Tools and password-based sudo.  
 - The included `scripts/init-vm-cloudinit.sh` targets RHEL-like systems; verify and adapt it for other distributions.  
 - Because the VM remains powered on after Phase 2, avoid rebooting it before attaching the seed ISO in Phase 3 (unless you intend to boot with the seed attached); an unexpected boot may trigger cloud-init without the intended seed.
+
+――――――――――――――――――――――――――――――――
 
 ### Phase 3 — Cloud-init seed creation & personalization
 **Purpose:**
@@ -187,6 +195,8 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 - Repeatedly re-running Phase 3 without finalizing with Phase 4 can cause repeated SSH host-key regeneration and duplicate NetworkManager profiles; run Phase 4 when satisfied.  
 - If `-NoRestart` prevents the shutdown/reboot required to boot with the attached seed ISO (for example, the VM was already powered on), Phase 3 will warn and exit; a manual reboot is then required to apply the seed.
 
+――――――――――――――――――――――――――――――――
+
 ### Phase 4 — Cleanup and finalization
 **Purpose:**
 - Detach the seed ISO, remove the ISO file from the datastore, and (by default) create `/etc/cloud/cloud-init.disabled` on the guest to prevent future automatic cloud-init runs. If `-NoCloudReset` is supplied, the script detaches and deletes the ISO but skips creating `/etc/cloud/cloud-init.disabled`.
@@ -205,7 +215,7 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 
 ---
 
-## Template Infra: What is Changed and Why
+## 🏗️ Template Infra: What is Changed and Why
 
 Files in `infra/` (`cloud.cfg`, `99-template-maint.cfg`) are tuned to make the template safe for cloning. The shipped `infra/cloud.cfg` is based on RHEL9 defaults; only intentionally changed parameters are annotated with `[CHANGED]`. Key intentional changes include:
 
@@ -215,12 +225,12 @@ Files in `infra/` (`cloud.cfg`, `99-template-maint.cfg`) are tuned to make the t
 - Set many cloud-init modules to `once` / `once-per-instance` to avoid repeated execution on templates and clones — [CHANGED]  
 - Removed package update/upgrade from cloud-final to avoid unintended package changes on the template and during clone personalization — [CHANGED]
 
-Notes:
+📝**Notes:**
 - SSH host key regeneration settings (e.g., `ssh_deletekeys`, `ssh_genkeytypes`) are left at the distro defaults and are not intentionally changed by this kit.
 
 ---
 
-## mkisofs & ISO Creation Notes
+## 💿 mkisofs & ISO Creation Notes
 
 - The script's default `$mkisofs` points to a Win32 `mkisofs.exe` from the cdrtfe distribution. If you use a different ISO tool (for example `genisoimage` under WSL), update `$mkisofs` and `$mkArgs` in the script's globals.  
 - The ISO must be labeled `cidata` and include `user-data` and `meta-data` at its root (and optionally `network-config`) so cloud-init recognizes it.  
@@ -228,7 +238,7 @@ Notes:
 
 ---
 
-## Operational Recommendations
+## ✅ Operational Recommendations
 
 - Phase selection: use contiguous sequences only. Single-phase runs are supported; non-contiguous lists are rejected.  
 - Prefer running Phase 4 as a separate finalization step after confirming Phase 3 succeeded.  
@@ -238,7 +248,7 @@ Notes:
 
 ---
 
-## Troubleshooting (common cases)
+## 🔧 Troubleshooting (common cases)
 
 - **cloud-init did not run:**
   - Confirm `/etc/cloud/cloud-init.disabled` was removed on the clone (Phase 2 must have succeeded).  
@@ -256,14 +266,14 @@ Notes:
 
 ---
 
-## Logs & Debugging
+## 🧾 Logs & Debugging
 
 - Logs and generated artifacts are written to `spool/<new_vm_name>/` on the admin host. The primary log is `spool/<new_vm_name>/deploy-YYYYMMDD.log`. Seed YAMLs are under `spool/<new_vm_name>/cloudinit-seed/` and the ISO is `spool/<new_vm_name>/cloudinit-linux-seed.iso`.  
 - Run the script with `-Verbose` to print additional internal steps to the console for debugging.
 
 ---
 
-## 👉 References
+## 🔗 References
 
 - [cloud-init documentation](https://cloud-init.io/)
 - [VMware PowerCLI](https://developer.vmware.com/powercli)
@@ -272,6 +282,6 @@ Notes:
 
 ---
 
-## License
+## 📜 License
 
 This project is licensed under the MIT License — see the repository `LICENSE` file for details.
