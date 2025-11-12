@@ -23,6 +23,7 @@ This kit enables quick deployment of Linux VMs from a prepared VM Template on vS
 - [Operational Recommendations](#-operational-recommendations)  
 - [Troubleshooting (common cases)](#-troubleshooting-common-cases)  
 - [Logs & Debugging](#-logs--debugging)  
+- [References](#-references)  
 - [License](#-license)
 
 ---
