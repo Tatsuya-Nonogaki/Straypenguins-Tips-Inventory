@@ -175,7 +175,7 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 - Render `user-data`, `meta-data`, and optional `network-config` from YAML templates and parameters, create a `cidata` ISO, upload it to the datastore, attach it to the VM CD drive, boot the VM, and wait for cloud-init to complete. The VM is left powered on when Phase 3 finishes.
 
 **High-level steps:**
-1. Shut down the VM (unless `-NoRestart` is requested and accepted).  
+1. Shut down the VM (unless `-NoRestart` is requested and accepted) if it is not already powered off.  
 2. Create a local seed working directory and render `user-data`, `meta-data`, and (if present) `network-config` from the templates, replacing placeholders from `params`. For `user-data`, the script may inject a kit-specific `runcmd` block to:
    - Run `resize2fs` on specified non-root partitions.  
    - Reinitialize and resize swap devices with careful UUID updates to `/etc/fstab`.  
@@ -190,11 +190,11 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 - cloud-init has applied the personalization and the VM is ready; VM remains powered on.
 
 **Cautions / Notes:**
-- If `/etc/cloud/cloud-init.disabled` remains on the guest, Phase 3 will be ineffective — the script checks and aborts if found.  
 - `/etc/hosts` is completely overwritten by the template's entries. If you need extra static host records, add them to the `write_files > content` section of `templates/user-data_template.yaml` before running Phase 3.  
+- If `/etc/cloud/cloud-init.disabled` exists on the guest, Phase 3 cannot apply the seed — the script checks for this file and aborts when it can be detected. If the VM is powered off at the start of Phase 3 the script cannot probe the file and will continue; in that case cloud‑init may not be applied in the run; manual intervention may be required.  
+- If `-NoRestart` prevents the pre-shutdown (and also the boot at the end of the phase), clone cannot take the effect of cloud-init personalization after the attach of seed ISO automatically. Phase 3 will issue a warning in that case; a manual reboot is required to apply the seed.  
 - The script will not overwrite an existing ISO at the datastore destination. If the target path already contains an ISO with the same name, either run Phase 4 alone to remove it (with `-NoCloudReset` to avoid creating `/etc/cloud/cloud-init.disabled`) or delete the file manually.  
-- Repeatedly re-running Phase 3 without finalizing with Phase 4 can cause repeated SSH host-key regeneration and duplicate NetworkManager profiles; run Phase 4 when satisfied.  
-- If `-NoRestart` prevents the shutdown/reboot required to boot with the attached seed ISO (for example, the VM was already powered on), Phase 3 will warn and exit; a manual reboot is then required to apply the seed.
+- Re-running Phase 3 repeatedly without finishing with Phase 4 can cause repeated SSH host‑key regeneration and duplicate NetworkManager connection profiles. If you must retry Phase 3 after a partial failure, re-run Phase 2 (guest initialization) first to re-prepare the clone; note that filesystem expansions already applied will not be reprocessed and also user duplication will not occur. Always run Phase 4 once you are satisfied.
 
 ――――――――――――――――――――――――――――――――
 
