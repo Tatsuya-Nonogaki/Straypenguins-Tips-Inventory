@@ -1,22 +1,22 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.0.50
+  Version: 0.1.0
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
     (1) Automatic Cloning
     (2) Clone Initialization
     (3) Seed ISO Creation & Cloud-init KickStart
-    (4) Clean up and Fixiation (detach seed ISO, remove ISO on DataStore, and disable cloud-init)
-  Most parameters for unique deployment are centralized in a YAML file (vm-settings_*.yaml).
+    (4) Cleanup and Finalization (detach seed ISO, remove ISO on DataStore, and disable cloud-init)
+  Most parameters for unique deployment are centralized in a parameter file (vm-settings_*.yaml).
 
   **Requirements:**
   * vSphere virtual machine environment (8+ recommended)
   * VMware PowerCLI
   * powershell-yaml module
-  * mkisofs: ISO creator command; Redefine the variable in "Global variables"
-    section if you want to use an alternative (with appropriate option flags).
+  * mkisofs: ISO creator command; If you use an alternative, adjust global $mkisofs and 
+    Phase-3 specific $mkArgs in the script.
 
   **Exit codes:**
     0: Success
@@ -25,7 +25,8 @@
     3: Bad arguments or parameter/config input
 
 .PARAMETER Phase
-  (Alias -p) List of steps (1,2,3,4) to execute, e.g. '-Phase 3', '-p 1,2,3,4', '-p 1,2'. 
+  (Alias -p) List of steps (1,2,3,4) to execute, e.g. '-p 1,2,3', '-Phase 3'.
+  Non-contiguous lists (e.g., `-Phase 1,3`) are rejected.
 
 .PARAMETER Config
   (Alias -c) Path to parameter YAML file for the VM deployment.
@@ -40,7 +41,7 @@
   ISO detachment and ISO file removal are always performed.
 
 .EXAMPLE
-  .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings_my1stvm.yaml
+  .\cloudinit-linux-vm-deploy.ps1 -Phase 1,2,3 -Config .\params\vm-settings_myvm01.yaml
 #>
 [CmdletBinding()]
 param(
@@ -1653,7 +1654,7 @@ sudo /bin/bash -c "chmod +x $guestCheckPath"
         }
     }
 
-    # cleanup local check script
+    # clean up local check script
     Remove-Item -Path $localCheckPath -ErrorAction SilentlyContinue
 
     if (-not $copied) {
@@ -1767,9 +1768,9 @@ sudo /bin/bash -c "chmod +x $guestCheckPath"
     Write-Log "Phase 3 complete"
 }
 
-# ---- Phase 4: Clean up and Fixiate the deployed VM ----
+# ---- Phase 4: Clean up and Finalize the deployed VM ----
 function CloseDeploy {
-    Write-Log "=== Phase 4: Clean up and Fixiation ==="
+    Write-Log "=== Phase 4: Cleanup and Finalization ==="
 
     # 1. Get VM object
     $vm = TryGet-VMObject $new_vm_name
