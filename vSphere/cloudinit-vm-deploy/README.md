@@ -2,7 +2,7 @@
 
 ## 🧭 Overview
 
-This kit enables quick deployment of Linux VMs from a prepared VM Template on vSphere, using the cloud-init framework. The main control program is a PowerShell script: `cloudinit-linux-vm-deploy.ps1`. The workflow is split into four phases:
+This kit is designed to enable quick deployment of Linux VMs from a **well-prepared** (not an out-of-the-box default) VM Template on vSphere, using the cloud-init framework. The main control program is a PowerShell script: `cloudinit-linux-vm-deploy.ps1`. The workflow is split into four phases:
 
 - **Phase 1:** Create a clone from a VM Template  
 - **Phase 2:** Prepare the clone to accept cloud-init  
@@ -41,7 +41,7 @@ This kit assumes the lifecycle: **template → new clone → initialization → 
 - Use PowerShell `-Verbose` to print detailed internal steps for debugging.
 
 ⚠️ **Important:**  
-This kit is designed for the template → clone → initialization → personalization flow. It is not intended to retrofit cloud-init onto arbitrary, already-running production VMs.
+This kit is designed for the template → clone → initialization → personalization flow. It is not intended to retrofit cloud-init onto arbitrary, already-running production VMs (at the time being).
 
 ---
 
@@ -69,7 +69,8 @@ This kit is designed for the template → clone → initialization → personali
 - Clone or unzip this repository on the admin host. The repo contains a `spool/` directory (dummy file present), which the script expects to exist.
 
 ### Template VM (example: RHEL9):
-- Template is a VM you tailored (this kit won't provide). It may consist of considerable minimal resources, e.g., 2 CPUs, 2.1GB memory, 8GB primary disk, 2GB swap / 500MB kdump disks with 'Thin' vmdk format, all of which can be automatically expanded by the capabilities of cloud-init and the kit during provisioning.  
+- This kit assumes the template is a well-prepared VM that you have tailored as a base for cloning (this kit does not provide one).  
+It may consist of considerable minimal resources, e.g., 2 CPUs, 2.1GB memory, 8GB primary disk, 2GB swap / 500MB kdump disks with 'Thin' vmdk format, all of which can be automatically expanded by the capabilities of cloud-init and the kit during provisioning.  
 - `open-vm-tools` installed and running; required for guest operations such as `Copy-VMGuestFile` / `Invoke-VMScript` on the VMs cloned from this template (it should normally inherit working).  
 - `cloud-init` and `cloud-utils-growpart` installed (optionally `dracut-config-generic` if you rebuild initramfs)  
 - A CD/DVD device configured on the VM (seed ISO must be attached to the guest's CD drive)  
@@ -220,9 +221,9 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 Files in `infra/` (`cloud.cfg`, `99-template-maint.cfg`) are tuned to make the template safe for cloning. The shipped `infra/cloud.cfg` is based on RHEL9 defaults; only intentionally changed parameters are annotated with `[CHANGED]`. Key intentional changes include:
 
 - `users: []` — suppress automatic creation of the default cloud user (e.g., `cloud-user`) — [CHANGED]  
-- `disable_root: false` — allow root SSH login on the template (adjust per policy) — [CHANGED]  
+- `disable_root: false` — prevent cloud-init from creating `sshd_config.d/50-cloud-init.conf` file. This strategy assues the template VM has been properly configured `sshd_config` or `sshd_config.d/80-custom.cfg`, etc. (adjust per policy) — [CHANGED]  
 - `preserve_hostname: true` — preserve the template hostname (clones receive `99-override.cfg` to set `preserve_hostname: false`) — [CHANGED]  
-- Set many cloud-init modules to `once` / `once-per-instance` to avoid repeated execution on templates and clones — [CHANGED]  
+- Set 'frequecy' of many cloud-init modules to `once` / `once-per-instance` to avoid repeated execution on templates and clones — [CHANGED]  
 - Removed package update/upgrade from cloud-final to avoid unintended package changes on the template and during clone personalization — [CHANGED]
 
 📝**Notes:**
