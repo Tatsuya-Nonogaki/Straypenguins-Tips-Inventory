@@ -232,7 +232,7 @@ Files in `infra/` (`cloud.cfg`, `99-template-maint.cfg`) are tuned to make the t
 
 ## 💿 mkisofs & ISO Creation Notes
 
-- The script's default `$mkisofs` points to a Win32 `mkisofs.exe` from the cdrtfe distribution. If you use a different ISO tool (for example `genisoimage` under WSL), update `$mkisofs` and `$mkArgs` in the script's globals.  
+- The script's default `$mkisofs` points to a Win32 `mkisofs.exe` from the cdrtfe distribution. If you use a different ISO tool (for example `genisoimage` under WSL), update variables `$mkisofs` (global) and `$mkArgs` (Phase-3 local) in the script.  
 - The ISO must be labeled `cidata` and include `user-data` and `meta-data` at its root (and optionally `network-config`) so cloud-init recognizes it.  
 - Different mkisofs implementations accept different flags (Joliet, Rock Ridge, encoding). If ISO creation fails, verify the `$mkisofs` path and the `$mkArgs` used in the script.
 
