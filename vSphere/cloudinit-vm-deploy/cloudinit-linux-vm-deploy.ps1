@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.1.0
+  Version: 0.1.1
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -967,16 +967,38 @@ function CloudInitKickStart {
                 }
 
                 # 2. --- Swap devices expansion
-                if ($params.resize_swap -and $params.resize_swap.Count -gt 0) {
-                    $swapdevs = $params.resize_swap -join " "
+                if ($params.swaps) {
+                    $swapList = @()
+                    try {
+                        $keys = $params.swaps.Keys
 
-                    # Bash script for swap reinit (dividing into parts to avoid PowerShell variable expansion)
-                    $shBodyHead = @'
+                        # If keys look numeric, sort numerically for stable ordering; otherwise sort lexicographically for failsafe.
+                        $numericKeys = $keys | Where-Object { $_ -as [int] -ne $null }
+                        if ($numericKeys.Count -gt 0) {
+                            $sortedKeys = $keys | Sort-Object { [int]$_ }
+                        } else {
+                            $sortedKeys = $keys | Sort-Object
+                        }
+
+                        foreach ($k in $sortedKeys) {
+                            $val = $params.swaps[$k]
+                            if ($val) { $swapList += [string]$val }
+                        }
+                    } catch {
+                        Write-Verbose "Failed to derive swap list from swaps mapping: $_"
+                        $swapList = @()
+                    }
+
+                    if ($swapList.Count -gt 0) {
+                        $swapdevs = $swapList -join " "
+
+                        # Bash script for swap reinit (dividing into parts to avoid PowerShell variable expansion)
+                        $shBodyHead = @'
       #!/bin/bash
       set -eux
       for swapdev in 
 '@
-                    $shBodyTail = @'
+                        $shBodyTail = @'
       ; do
         OLDUUID=$(blkid -s UUID -o value "$swapdev")
         OLDSWAPUNIT=$(systemd-escape "dev/disk/by-uuid/$OLDUUID").swap
@@ -991,12 +1013,12 @@ function CloudInitKickStart {
       done
       dracut -f
 '@
-                    $shBody = $shBodyHead + "$swapdevs" + $shBodyTail
+                        $shBody = $shBodyHead + "$swapdevs" + $shBodyTail
 
-                    # Compose the here-document runcmd entry
-                    # By packaging the generated shell script as a here-document for cloud-init runcmd,
-                    # complex tasks are delegated to the target VM for reliable execution, avoiding extensive escaping.
-                    $swapScriptCmd = @"
+                        # Compose the here-document runcmd entry
+                        # By packaging the generated shell script as a here-document for cloud-init runcmd,
+                        # complex tasks are delegated to the target VM for reliable execution, avoiding extensive escaping.
+                        $swapScriptCmd = @"
 |
       bash -c 'cat <<"EOF" >$workDirOnVM/resize_swap.sh
 $shBody
@@ -1004,54 +1026,56 @@ $shBody
       '
 "@
 
-                    $runcmdList += @("[ mkdir, -p, $workDirOnVM ]")
-                    $runcmdList += @("[ chown, $guestUser, $workDirOnVM ]")
-                    $runcmdList += @($swapScriptCmd)
-                    $runcmdList += @("[ bash, $workDirOnVM/resize_swap.sh ]")
-
-                    $netifKeys = $params.Keys | Where-Object { $_ -match '^netif\d+$' } | Sort-Object { [int]($_ -replace '^netif','') }
-                    $conNamePrefix = "System "    # Change this if cloud-init on your environment behaves differently
-
-                    foreach ($netifKey in $netifKeys) {
-                        $cfg = $params[$netifKey]
-                        if (-not $cfg) { continue }
-                        $dev = $cfg["netdev"]
-                        if (-not $dev) { continue }
-                        $conName = "${conNamePrefix}$dev"
-                        $netifModified=$false
-
-                        if ($cfg["ignore_auto_routes"]) {         # Not set if the key does not exist or the value is false/no/$null
-                            $cmd = @"
-[ nmcli, connection, modify, "$conName", ipv4.ignore-auto-routes, yes ]
-"@
-                            $runcmdList += @($cmd)
-                            $netifModified=$true
-                        }
-
-                        if ($cfg["ignore_auto_dns"]) {
-                            $cmd = @"
-[ nmcli, connection, modify, "$conName", ipv4.ignore-auto-dns, yes ]
-"@
-                            $runcmdList += @($cmd)
-                            $netifModified=$true
-                        }
-
-                        if ($cfg["ipv6_disable"]) {
-                            $cmd = @"
-[ nmcli, connection, modify, "$conName", ipv6.method, disabled ]
-"@
-                            $runcmdList += @($cmd)
-                            $netifModified=$true
-                        }
-
-                        if ($netifModified) {
-                            $cmd = "[ nmcli, device, reapply, $dev ]"
-                            $runcmdList += @($cmd)
-                        }
+                        $runcmdList += @("[ mkdir, -p, $workDirOnVM ]")
+                        $runcmdList += @("[ chown, $guestUser, $workDirOnVM ]")
+                        $runcmdList += @($swapScriptCmd)
+                        $runcmdList += @("[ bash, $workDirOnVM/resize_swap.sh ]")
                     }
                 }
 
-                # 3. --- Compose final USER_RUNCMD_BLOCK for template
+                # 3. --- Network devices tuninig options
+                $netifKeys = $params.Keys | Where-Object { $_ -match '^netif\d+$' } | Sort-Object { [int]($_ -replace '^netif','') }
+                $conNamePrefix = "System "    # Change this if cloud-init on your environment behaves differently
+
+                foreach ($netifKey in $netifKeys) {
+                    $cfg = $params[$netifKey]
+                    if (-not $cfg) { continue }
+                    $dev = $cfg["netdev"]
+                    if (-not $dev) { continue }
+                    $conName = "${conNamePrefix}$dev"
+                    $netifModified=$false
+
+                    if ($cfg["ignore_auto_routes"]) {         # Not set if the key does not exist or the value is false/no/$null
+                        $cmd = @"
+[ nmcli, connection, modify, "$conName", ipv4.ignore-auto-routes, yes ]
+"@
+                        $runcmdList += @($cmd)
+                        $netifModified=$true
+                    }
+
+                    if ($cfg["ignore_auto_dns"]) {
+                        $cmd = @"
+[ nmcli, connection, modify, "$conName", ipv4.ignore-auto-dns, yes ]
+"@
+                        $runcmdList += @($cmd)
+                        $netifModified=$true
+                    }
+
+                    if ($cfg["ipv6_disable"]) {
+                        $cmd = @"
+[ nmcli, connection, modify, "$conName", ipv6.method, disabled ]
+"@
+                        $runcmdList += @($cmd)
+                        $netifModified=$true
+                    }
+
+                    if ($netifModified) {
+                        $cmd = "[ nmcli, device, reapply, $dev ]"
+                        $runcmdList += @($cmd)
+                    }
+                }
+
+                # 4. --- Finally compose final USER_RUNCMD_BLOCK for user-data template
                 if ($runcmdList.Count -gt 0) {
                     $userRuncmdBlock = $runcmdList -join "`n  - "
                     $userRuncmdBlock = "`n  - " + $userRuncmdBlock
