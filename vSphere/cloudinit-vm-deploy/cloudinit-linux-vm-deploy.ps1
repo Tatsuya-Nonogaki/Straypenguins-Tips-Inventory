@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.1.1
+  Version: 0.1.2
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -808,7 +808,7 @@ function CloudInitKickStart {
                 $v -is [double] -or
                 $null -eq $v
             ) {
-                $pattern = "{{\s*$keyPath\s*}}"
+                $pattern = '\{\{\s*' + [Regex]::Escape($keyPath) + '\s*\}\}'
                 if ($template -match $pattern) {
                     Write-Verbose "Replacing placeholder: '$keyPath'"
                     $template = $template -replace $pattern, [string]$v
@@ -990,6 +990,19 @@ function CloudInitKickStart {
                     }
 
                     if ($swapList.Count -gt 0) {
+                        # -- Placeholder replacement for partitions growpart
+                        $swapsQuoted = $swapList | ForEach-Object { "'$($_.ToString().Trim())'" }
+
+                        if ($swapsQuoted -and $swapsQuoted.Count -gt 0) {
+                            $swapsToGrow = ($swapsQuoted -join ", ") + ", "
+                        } else {
+                            $swapsToGrow = " "
+                        }
+
+                        $template = $template -replace '\{\{SWAPS_GROW\}\}', $swapsToGrow
+                        Write-Log "SWAPS_GROW placeholder replaced: '$swapsToGrow'"
+
+                        # -- Runcmd composition for swap-space reformatting
                         $swapdevs = $swapList -join " "
 
                         # Bash script for swap reinit (dividing into parts to avoid PowerShell variable expansion)
@@ -1033,7 +1046,7 @@ $shBody
                     }
                 }
 
-                # 3. --- Network devices tuninig options
+                # 3. --- Runcmd composition for network devices optimization
                 $netifKeys = $params.Keys | Where-Object { $_ -match '^netif\d+$' } | Sort-Object { [int]($_ -replace '^netif','') }
                 $conNamePrefix = "System "    # Change this if cloud-init on your environment behaves differently
 
@@ -1075,7 +1088,7 @@ $shBody
                     }
                 }
 
-                # 4. --- Finally compose final USER_RUNCMD_BLOCK for user-data template
+                # 4. --- Finally compose USER_RUNCMD_BLOCK for user-data template
                 if ($runcmdList.Count -gt 0) {
                     $userRuncmdBlock = $runcmdList -join "`n  - "
                     $userRuncmdBlock = "`n  - " + $userRuncmdBlock
@@ -1083,7 +1096,7 @@ $shBody
                     $userRuncmdBlock = " []"
                 }
 
-                $template = $template -replace "{{USER_RUNCMD_BLOCK}}", $userRuncmdBlock
+                $template = $template -replace '\{\{USER_RUNCMD_BLOCK\}\}', $userRuncmdBlock
                 Write-Log "USER_RUNCMD_BLOCK placeholder replaced (runcmd count: $($runcmdList.Count))"
             }
 
