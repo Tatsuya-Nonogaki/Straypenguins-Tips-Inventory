@@ -1000,7 +1000,7 @@ function CloudInitKickStart {
                         }
 
                         $template = $template -replace '\{\{SWAPS_GROW\}\}', $swapsToGrow
-                        Write-Log "SWAPS_GROW placeholder replaced: '$swapsToGrow'"
+                        Write-Log "SWAPS_GROW placeholder replaced: `"$swapsToGrow`""
 
                         # -- Runcmd composition for swap-space reformatting
                         $swapdevs = $swapList -join " "
