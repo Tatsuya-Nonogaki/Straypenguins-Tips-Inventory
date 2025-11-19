@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.1.2
+  Version: 0.1.3
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -1098,6 +1098,18 @@ $shBody
 
                 $template = $template -replace '\{\{USER_RUNCMD_BLOCK\}\}', $userRuncmdBlock
                 Write-Log "USER_RUNCMD_BLOCK placeholder replaced (runcmd count: $($runcmdList.Count))"
+
+                # 5. --- Placeholder replacement for SSH_KEYS block
+                if ($params.ssh_keys -and $params.ssh_keys.Count -gt 0) {
+                    # Build lines like: "      - \"ssh-rsa AAAA...\"" for ssh_authorized_keys items.
+                    $sshLines = $params.ssh_keys | ForEach-Object { '      - "' + $_.ToString().Trim() + '"' }
+                    $sshKeysBlock = $sshLines -join "`n"
+                } else {
+                    $sshKeysBlock = '      []'
+                }
+
+                $template = $template -replace '\{\{SSH_KEYS\}\}', $sshKeysBlock
+                Write-Log "SSH_KEYS placeholder replaced (count: $($params.ssh_keys.Count))"
             }
 
             Write-Log "Replacing placeholders in $($f.out)"
