@@ -20,9 +20,8 @@ users:
     # sudo: ALL=(ALL) NOPASSWD:ALL  # (Optional) Uncomment only if you require passwordless sudo for this user
     lock_passwd: false             # DO NOT set true in this framework (see above)
     passwd: {{password_hash}}      # SHA-512 hashed string (see the main script for hash method)
-    ssh_authorized_keys:
-      - {{ssh_key1}}               # e.g. ssh-rsa AAAAB3... mainte@workstation
-      # - {{ssh_key2}}             # (Add more keys if needed)
+    ssh_authorized_keys:           # Placeholder forms lines of ' - "ssh-rsa AAAAB3... mainte@workstation"'
+{{SSH_KEYS}}
     shell: /bin/bash
 
   # Example: Additional user with password only (no SSH key)
