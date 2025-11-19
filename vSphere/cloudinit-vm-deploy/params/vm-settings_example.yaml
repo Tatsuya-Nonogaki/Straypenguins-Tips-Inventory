@@ -75,8 +75,9 @@ username: mainte
 user_groups: "wheel,adm,systemd-journal"
 password: "naks9slewiv"    # As plain string for use with PowerShell logics
 password_hash: "$6$Kc8......"      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
-ssh_key1: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
-# ssh_key2: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
+ssh_keys:
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
+  #- "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
 
 # == Script tuning parameters ==
 # How long the script wait for cloud-init completion at Phase-3 (personalization)
