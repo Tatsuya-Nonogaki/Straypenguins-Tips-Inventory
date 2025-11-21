@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.1.3
+  Version: 0.1.4
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -840,7 +840,7 @@ function CloudInitKickStart {
 
     # --- Early check for /etc/cloud/cloud-init.disabled; if the file exists Phase-3 is meaningless
     $wasPowerOnAtBegin = $false      # Flag to indicate this VM was already PoweredOn when this phase started
-    
+
     if ($vm -and $vm.PowerState -eq 'PoweredOn') {
         $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 20 -PollIntervalSec 5
 
@@ -1112,6 +1112,37 @@ $shBody
                 Write-Log "SSH_KEYS placeholder replaced (count: $($params.ssh_keys.Count))"
             }
 
+            # For network-config only
+            if ($f.out -eq "network-config") {
+                $netifKeys = $params.Keys | Where-Object { $_ -match '^netif\d+$' } | Sort-Object { [int]($_ -replace '^netif','') }
+
+                foreach ($netifKey in $netifKeys) {
+                    $cfg = $params[$netifKey]
+                    if (-not $cfg) { continue }
+
+                    # Placeholder replacement for nameserver addresses, e.g. "{{netif1.DNS_ADDRESSES}}" -> "[192.168.0.1, 192.168.0.2]"
+                    if ($cfg.dnsaddresses -and $cfg.dnsaddresses.Count -gt 0) {
+                        $dnsItems = $cfg.dnsaddresses | ForEach-Object { $_.ToString().Trim() }
+                        $dnsBlock = '[' + ($dnsItems -join ', ') + ']'
+                    } else {
+                        $dnsBlock = '[]'
+                    }
+
+                    # Use '[Regex]::Escape' with case-insensitivity indicator '(?i)' to build pattern; .NET method '[Regex]::Replace()'
+                    # avoids regex metacharacter surprises in the placeholder name but is case-sensitive by default
+                    $placeholder = "${netifKey}.DNS_ADDRESSES"
+                    $pattern = '(?i)\{\{\s*' + [Regex]::Escape($placeholder) + '\s*\}\}'
+
+                    if ($template -match $pattern) {       # '-match' is case-insensitive by default in PowerShell
+                        $template = [Regex]::Replace($template, $pattern, $dnsBlock)
+                        Write-Log "Placeholder: '$placeholder' replaced: '$dnsBlock'"
+                    } else {
+                        Write-Verbose "Network placeholder not present for '$placeholder' (skipped)."
+                    }
+                }
+            }
+
+            # Generic placeholder replacement based on their hierarchial names
             Write-Log "Replacing placeholders in $($f.out)"
             $output = Replace-Placeholders $template $params
 
@@ -1136,14 +1167,14 @@ $shBody
 
     try {
         $mkArgs = @('-output', $isoPath, '-V', 'cidata', '-r', '-J', $seedDir)
-    
+
         $quotedArgs = $mkArgs | ForEach-Object { if ($_ -match '\s') { '"{0}"' -f $_ } else { $_ } }
         $cmdForLog = '"' + $mkisofs + '" ' + ($quotedArgs -join ' ')
         Write-Log "Creating ISO; command:`n$cmdForLog"
-    
+
         $mkisofsOut = & "$mkisofs" @mkArgs 2>&1
         $mkisofsExit = $LASTEXITCODE
-    
+
         if ($mkisofsExit -ne 0 -or -not (Test-Path $isoPath)) {
             $mkisofsOutStr = if ($mkisofsOut) { $mkisofsOut -join [Environment]::NewLine } else { "" }
             throw "mkisofs failed; exit-code: $mkisofsExit), output:`n$mkisofsOutStr"
