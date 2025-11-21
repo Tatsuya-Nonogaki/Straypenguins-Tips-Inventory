@@ -56,8 +56,9 @@ netif1:
   ip_addr: 192.168.0.10
   prefix: 24
   gateway: 192.168.0.254
-  dns1: 192.168.0.201
-  dns2: 192.168.0.202
+  dnsaddresses:
+    - 192.168.0.201
+    - 192.168.0.202
   ignore_auto_routes: yes
   ignore_auto_dns: yes
   ipv6_disable: yes      # Set "yes" to force IPv6 method of this interface to be 'disabled', not 'ignore'
