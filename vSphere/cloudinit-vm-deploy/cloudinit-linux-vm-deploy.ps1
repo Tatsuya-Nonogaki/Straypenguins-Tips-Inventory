@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.1.4
+  Version: 0.1.5
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -1911,30 +1911,41 @@ function CloseDeploy {
 
     # 5. Disable cloud-init for future boots (unless -NoCloudReset switch is specified)
     if (-not $NoCloudReset) {
-        $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 30
-        if (-not $toolsOk) {
-            Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on and rerun Phase-4."
+        $vm = TryGet-VMObject $new_vm_name
+        if (-not $vm) {
+            Write-Log -Error "Unable to refresh VM object while preparing to disable cloud-init: '$new_vm_name'; Phase-4 aborted."
             Exit 1
         }
 
-        # Prepare username and password for VM commands
-        $guestUser = $params.username
-        $guestPassPlain = $params.password
-        $guestPass = ConvertToSecureStringFromPlain $guestPassPlain
-        if (-not $guestPass) {
-            Write-Log -Error "Failed to convert guest password to SecureString. Aborting in Phase-4."
-            Exit 3
-        }
+        if ($NoRestart -and ($vm.PowerState -ne "PoweredOn")) {
+            Write-Log "Skipped deactivation of cloud-init; NoRestart specified and VM is not PoweredOn."
+        } else {
+            # Normal behaviour: wait for VMware Tools and attempt to create cloud-init.disabled.
+            $toolsOk = Wait-ForVMwareTools -VM $vm -TimeoutSec 30
+            if (-not $toolsOk) {
+                Write-Log -Error "Unable to disable cloud-init since VMware Tools is NOT running. Make sure the VM is powered on and rerun Phase-4."
+                Exit 1
+            }
 
-        try {
-            $phase4cmd = @'
+            # Prepare username and password for VM commands
+            $guestUser = $params.username
+            $guestPassPlain = $params.password
+            $guestPass = ConvertToSecureStringFromPlain $guestPassPlain
+            if (-not $guestPass) {
+                Write-Log -Error "Failed to convert guest password to SecureString. Aborting in Phase-4."
+                Exit 3
+            }
+
+            try {
+                $phase4cmd = @'
 sudo /bin/bash -c "install -m 644 /dev/null /etc/cloud/cloud-init.disabled"
 '@
-            $null = Invoke-VMScript -VM $vm -ScriptText $phase4cmd -GuestUser $guestUser `
-                -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
-            Write-Log "Created /etc/cloud/cloud-init.disabled to prevent future cloud-init invocation."
-        } catch {
-            Write-Log -Error "Failed to create cloud-init.disabled file: $_"
+                $null = Invoke-VMScript -VM $vm -ScriptText $phase4cmd -GuestUser $guestUser `
+                    -GuestPassword $guestPass -ScriptType Bash -ErrorAction Stop
+                Write-Log "Created /etc/cloud/cloud-init.disabled to prevent future cloud-init invocation."
+            } catch {
+                Write-Log -Error "Failed to create cloud-init.disabled file: $_"
+            }
         }
     } else {
         Write-Log "Skipped deactivation of cloud-init due to -NoCloudReset switch."
