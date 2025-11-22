@@ -495,6 +495,40 @@ try {
     Exit 3
 }
 
+# --- Begin: map "userN" hashes to legacy top-level username/password for compatibility ---
+# Find keys like user1, user2 ... and sort numerically
+$userKeys = @()
+try {
+    $userKeys = $params.Keys | Where-Object { $_ -match '^user\d+$' } | Sort-Object { [int]($_ -replace '^user','') }
+} catch {
+    $userKeys = @()
+}
+
+if ($userKeys.Count -gt 0) {
+    # Choose the first user with primary=true; otherwise fall back to the first declared user.
+    $primaryUser = $null
+    foreach ($k in $userKeys) {
+        $u = $params[$k]
+        if ($u -and $u.primary) {
+            $primaryUser = $u
+            break
+        }
+    }
+    if (-not $primaryUser) {
+        $primaryUser = $params[$userKeys[0]]
+    }
+
+    if ($primaryUser) {
+        # Only map username/password for in-guest operations (keep other userN fields untouched)
+        # so Replace-Placeholders can render user-data from user1.*, user2.*, etc.
+        if ($primaryUser.name)     { $params.username = $primaryUser.name }
+        if ($primaryUser.password) { $params.password = $primaryUser.password }
+
+        Write-Log "Primary user selected for in-guest operations: '$($params.username)'" -Verbose
+    }
+}
+# --- End compatibility mapping ---
+
 $new_vm_name = $params.new_vm_name
 
 # ---- Resolve working directory ----
@@ -1110,6 +1144,32 @@ $shBody
 
                 $template = $template -replace '\{\{SSH_KEYS\}\}', $sshKeysBlock
                 Write-Log "SSH_KEYS placeholder replaced (count: $($params.ssh_keys.Count))"
+
+                # --- Begin: per-user SSH_KEYS replacement (support user1, user2, ... definitions) ---
+                $userKeys = $params.Keys | Where-Object { $_ -match '^user\d+$' } | Sort-Object { [int]($_ -replace '^user','') }
+                foreach ($userKey in $userKeys) {
+                    $u = $params[$userKey]
+                    if (-not $u) { continue }
+
+                    if ($u.ssh_keys -and $u.ssh_keys.Count -gt 0) {
+                        # Build lines with same indentation as standard SSH_KEYS block (6 spaces to match cloud-init YAML structure)
+                        $sshLines = $u.ssh_keys | ForEach-Object { '      - "' + $_.ToString().Trim() + '"' }
+                        $userSshBlock = $sshLines -join "`n"
+                    } else {
+                        # Emit an explicit empty array to keep YAML valid and remove need for commented-out items
+                        $userSshBlock = '      []'
+                    }
+
+                    $placeholder = "${userKey}.SSH_KEYS"
+                    $pattern = '\{\{\s*' + [Regex]::Escape($placeholder) + '\s*\}\}'
+
+                    if ($template -match $pattern) {
+                        Write-Verbose "Replacing per-user SSH placeholder: '$placeholder'"
+                        $template = $template -replace $pattern, $userSshBlock
+                        Write-Log "SSH_KEYS placeholder for $userKey replaced (count: $($u.ssh_keys.Count))"
+                    }
+                }
+                # --- End per-user SSH_KEYS replacement ---
             }
 
             # For network-config only
