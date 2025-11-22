@@ -519,8 +519,8 @@ if ($userKeys.Count -gt 0) {
     }
 
     if ($primaryUser) {
-        # Only map username/password for in-guest operations (keep other userN fields untouched
-        # so Replace-Placeholders can render user-data from user1.*, user2.*, etc.)
+        # Only map username/password for in-guest operations (keep other userN fields untouched)
+        # so Replace-Placeholders can render user-data from user1.*, user2.*, etc.
         if ($primaryUser.name)     { $params.username = $primaryUser.name }
         if ($primaryUser.password) { $params.password = $primaryUser.password }
 
@@ -1152,7 +1152,7 @@ $shBody
                     if (-not $u) { continue }
 
                     if ($u.ssh_keys -and $u.ssh_keys.Count -gt 0) {
-                        # Indentation must match the template: ssh_authorized_keys: is above and its items are expected with six spaces (adjust if your template differs).
+                        # Build lines with same indentation as standard SSH_KEYS block (6 spaces to match cloud-init YAML structure)
                         $sshLines = $u.ssh_keys | ForEach-Object { '      - "' + $_.ToString().Trim() + '"' }
                         $userSshBlock = $sshLines -join "`n"
                     } else {
