@@ -1,0 +1,62 @@
+#cloud-config
+# ======== Multi-user template for RHEL9 cloud-init VM deployment ========
+# This template demonstrates the new userN.SSH_KEYS placeholder feature
+#
+# Required parameters:
+#   - hostname: FQDN or short name
+#   - user1, user2, ... : multiple user definitions with their own SSH keys
+#   - network: not set here (handled via network-config)
+#   - growpart: enabled for root device expansion
+
+hostname: {{hostname}}
+
+users:
+  # User 1 (typically the primary admin user)
+  - name: {{user1.name}}
+    groups: {{user1.user_groups}}
+    lock_passwd: false
+    passwd: {{user1.password_hash}}
+    ssh_authorized_keys:
+{{user1.SSH_KEYS}}
+    shell: /bin/bash
+
+  # User 2 (deployment user)
+  - name: {{user2.name}}
+    groups: {{user2.user_groups}}
+    lock_passwd: false
+    passwd: {{user2.password_hash}}
+    ssh_authorized_keys:
+{{user2.SSH_KEYS}}
+    shell: /bin/bash
+
+  # User 3 (monitoring user)
+  - name: {{user3.name}}
+    groups: {{user3.user_groups}}
+    lock_passwd: false
+    passwd: {{user3.password_hash}}
+    ssh_authorized_keys:
+{{user3.SSH_KEYS}}
+    shell: /bin/bash
+
+chpasswd:
+  expire: false
+
+package_update: false
+package_upgrade: false
+
+growpart:
+  mode: auto
+  devices: ['/', {{SWAPS_GROW}}'/var/crash']
+  ignore_growroot_disabled: false
+
+runcmd:{{USER_RUNCMD_BLOCK}}
+
+# Customize hosts file
+write_files:
+  - path: /etc/hosts
+    content: |
+      127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+      ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+      {{netif1.ip_addr}}  {{fqdn}} {{hostname}}
+    owner: root:root
+    permissions: '0644'
