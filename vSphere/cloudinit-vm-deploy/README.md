@@ -4,6 +4,9 @@
 
 This kit is designed to enable quick deployment of Linux VMs from a **well-prepared** (not an out-of-the-box default) VM Template on vSphere, using the cloud-init framework. The main control program is a PowerShell script: `cloudinit-linux-vm-deploy.ps1`. The workflow is split into four phases:
 
+### ✨ New Feature: Multi-User Support
+The script now supports defining multiple users (user1, user2, ...) in the parameter file, each with their own SSH keys. See [MULTIUSER_FEATURE.md](MULTIUSER_FEATURE.md) for details.
+
 - **Phase 1:** Create a clone from a VM Template  
 - **Phase 2:** Prepare the clone to accept cloud-init  
 - **Phase 3:** Generate a cloud-init seed (user-data, meta-data, optional network-config), pack them into an ISO, upload it to a datastore and attach it to the clone's CD drive, then boot the VM and wait for cloud-init to complete  
