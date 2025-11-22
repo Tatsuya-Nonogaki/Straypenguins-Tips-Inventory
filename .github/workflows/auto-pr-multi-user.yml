@@ -1,5 +1,3 @@
-# Creates a PR that applies the multi-user (userN) patches to cloudinit-linux-vm-deploy.ps1
-# Run manually from Actions -> Workflows -> "Create PR: multi-user support" -> Run workflow
 name: Create PR: multi-user support
 
 on:
