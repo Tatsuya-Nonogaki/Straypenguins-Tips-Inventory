@@ -3,43 +3,41 @@
 #
 # Required parameters:
 #   - hostname: FQDN or short name
-#   - users: at least one user, with password and/or ssh-authorized-keys
+#   - users: at least one user; the primary user must pre-exist on the Template VM and be a real, login-capable administrative account with password authentication enabled.
 #   - network: not set here (handled via network-config)
 #   - growpart: enabled for root device expansion
 #
 # Notes:
-# - For security and management, this framework requires password authentication enabled for the main user.
-# - Setting "lock_passwd: true" (SSH-key-only user) is NOT supported, as it breaks Phase 2 management (Invoke-VMScript needs password auth).
-# - To allow both password and SSH-key authentication, include both "passwd" and "ssh_authorized_keys".
+# - The VM template's primary user must be a real, login-capable administrative account. This means the account can perform an interactive (local-equivalent) login via the VM console and must not be locked.
+# - Do NOT set `lock_passwd: true` (i.e., do not disable the primary user's password or make the template user SSH-only). VMware Tools guest operations (Invoke-VMScript and similar guest API guest operations) rely on password-based authentication and will not work with a password-disabled primary user.
+# - The primary user must be able to run at least `sudo /bin/bash` without being prompted for a password. Configure sudoers accordingly, for example, an appropriate `NOPASSWD:` rule limited to the minimal commands required.
 
-hostname: {{hostname}}             # e.g. original01.production.local
+hostname: {{hostname}}
 
 users:
-  - name: {{username}}             # e.g. mainte
-    groups: {{user_groups}}        # e.g. "wheel,adm,systemd-journal"
-    # sudo: ALL=(ALL) NOPASSWD:ALL  # (Optional) Uncomment only if you require passwordless sudo for this user
+  # User 1 (typically the primary admin user)
+  - name: {{user1.name}}
+    groups: {{user1.groups}}
+   #sudo: ALL=(ALL) NOPASSWD:ALL   # Uncomment only if you want cloud-init to set sudoers for this user
     lock_passwd: false             # DO NOT set true in this framework (see above)
-    passwd: {{password_hash}}      # SHA-512 hashed string (see the main script for hash method)
-    ssh_authorized_keys:           # Placeholder forms lines of ' - "ssh-rsa AAAAB3... mainte@workstation"'
-{{SSH_KEYS}}
+    passwd: {{user1.password_hash}}
+    ssh_authorized_keys:           # Placeholder forms lines of ' - "ssh-rsa AAAAB3..."'; No need to comment-out these lines even if no keys are defined in parameter file
+{{user1.SSH_KEYS}}
     shell: /bin/bash
 
-  # Example: Additional user with password only (no SSH key)
-  # - name: testuser
-  #   lock_passwd: false
-  #   passwd: $6$...  # Password hash
-  #   shell: /bin/bash
+  # User 2
+#  - name: {{user2.name}}
+#    groups: {{user2.groups}}
+#    lock_passwd: false
+#    passwd: {{user2.password_hash}}
+#    ssh_authorized_keys:
+#{{user2.SSH_KEYS}}
+#    shell: /bin/bash
 
 chpasswd:
   expire: false
 
-# -- Authentication strategy examples --
-# 1) Password + SSH-key (recommended): set lock_passwd: false, provide both passwd and ssh_authorized_keys.
-# 2) Password only: set lock_passwd: false, provide passwd, omit ssh_authorized_keys.
-# 3) SSH-key only (NOT SUPPORTED in this framework): lock_passwd: true, provide ssh_authorized_keys, omit passwd.
-#    DO NOT use this pattern, as Phase 2 management will fail.
-
-# Packages to install at first boot (optional)
+# Packages to install at first boot (to enable these, infra/cloud.cfg must be edited before running Phase-2; this kit intentionally removed package_update_upgrade_install module)
 # packages:
 #   - vim
 #   - git
