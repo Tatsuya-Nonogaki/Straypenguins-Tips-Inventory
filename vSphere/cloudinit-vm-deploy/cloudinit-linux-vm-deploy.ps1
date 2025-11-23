@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.1.5
+  Version: 0.1.6
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -495,10 +495,29 @@ try {
     Exit 3
 }
 
-# --- Begin: map "userN" hashes to legacy top-level username/password for compatibility ---
-# Find keys like user1, user2 ... and sort numerically
+# ---------------------------------------
+# ---- Main processing begins from here
+# ---------------------------------------
+
+$new_vm_name = $params.new_vm_name
+
+# ---- Resolve working directory ----
+$workdir = Join-Path $spooldir $new_vm_name
+if (-not (Test-Path $workdir)) {
+    try {
+        New-Item -ItemType Directory -Path $workdir | Out-Null
+        Write-Log "Created VM output directory: $workdir"
+    } catch {
+        Write-Log -Error "Failed to create workdir ($workdir): $_"
+        Exit 2
+    }
+}
+$LogFilePath = Join-Path $workdir ("deploy-" + (Get-Date -Format 'yyyyMMdd') + ".log")
+
+# --- Select "primary" user from "userN" hashes and map its name and password to top-level variables ---
 $userKeys = @()
 try {
+    # Find keys like user1, user2 ... and sort numerically
     $userKeys = $params.Keys | Where-Object { $_ -match '^user\d+$' } | Sort-Object { [int]($_ -replace '^user','') }
 } catch {
     $userKeys = @()
@@ -519,34 +538,21 @@ if ($userKeys.Count -gt 0) {
     }
 
     if ($primaryUser) {
-        # Only map username/password for in-guest operations (keep other userN fields untouched)
-        # so Replace-Placeholders can render user-data from user1.*, user2.*, etc.
         if ($primaryUser.name)     { $params.username = $primaryUser.name }
         if ($primaryUser.password) { $params.password = $primaryUser.password }
-
-        Write-Log "Primary user selected for in-guest operations: '$($params.username)'" -Verbose
+        Write-Log "Primary user selected for in-guest operations: '$($params.username)'"
     }
 }
-# --- End compatibility mapping ---
 
-$new_vm_name = $params.new_vm_name
-
-# ---- Resolve working directory ----
-$workdir = Join-Path $spooldir $new_vm_name
-if (-not (Test-Path $workdir)) {
-    try {
-        New-Item -ItemType Directory -Path $workdir | Out-Null
-        Write-Log "Created VM output directory: $workdir"
-    } catch {
-        Write-Log -Error "Failed to create workdir ($workdir): $_"
-        Exit 2
+if (
+    ($Phase -contains 2) -or ($Phase -contains 3) -or
+    ( ($Phase -contains 4) -and -not $NoCloudReset )
+) {
+    if (-not ($params.username -and $params.password)) {
+        Write-Log -Error "Could not determine primary user credentials (username/password) for in-guest operations for '$new_vm_name'. Aborting deployment."
+        Exit 3
     }
 }
-$LogFilePath = Join-Path $workdir ("deploy-" + (Get-Date -Format 'yyyyMMdd') + ".log")
-
-# ---------------------------------------
-# ---- Main processing begins from here
-# ---------------------------------------
 
 # Connect to vCenter
 $vcserver = $params.vcenter_host
@@ -1133,30 +1139,16 @@ $shBody
                 $template = $template -replace '\{\{USER_RUNCMD_BLOCK\}\}', $userRuncmdBlock
                 Write-Log "USER_RUNCMD_BLOCK placeholder replaced (runcmd count: $($runcmdList.Count))"
 
-                # 5. --- Placeholder replacement for SSH_KEYS block
-                if ($params.ssh_keys -and $params.ssh_keys.Count -gt 0) {
-                    # Build lines like: "      - \"ssh-rsa AAAA...\"" for ssh_authorized_keys items.
-                    $sshLines = $params.ssh_keys | ForEach-Object { '      - "' + $_.ToString().Trim() + '"' }
-                    $sshKeysBlock = $sshLines -join "`n"
-                } else {
-                    $sshKeysBlock = '      []'
-                }
-
-                $template = $template -replace '\{\{SSH_KEYS\}\}', $sshKeysBlock
-                Write-Log "SSH_KEYS placeholder replaced (count: $($params.ssh_keys.Count))"
-
-                # --- Begin: per-user SSH_KEYS replacement (support user1, user2, ... definitions) ---
+                # 5. --- Placeholder replacement for SSH_KEYS block per user
                 $userKeys = $params.Keys | Where-Object { $_ -match '^user\d+$' } | Sort-Object { [int]($_ -replace '^user','') }
                 foreach ($userKey in $userKeys) {
                     $u = $params[$userKey]
                     if (-not $u) { continue }
 
                     if ($u.ssh_keys -and $u.ssh_keys.Count -gt 0) {
-                        # Build lines with same indentation as standard SSH_KEYS block (6 spaces to match cloud-init YAML structure)
                         $sshLines = $u.ssh_keys | ForEach-Object { '      - "' + $_.ToString().Trim() + '"' }
                         $userSshBlock = $sshLines -join "`n"
                     } else {
-                        # Emit an explicit empty array to keep YAML valid and remove need for commented-out items
                         $userSshBlock = '      []'
                     }
 
@@ -1166,10 +1158,9 @@ $shBody
                     if ($template -match $pattern) {
                         Write-Verbose "Replacing per-user SSH placeholder: '$placeholder'"
                         $template = $template -replace $pattern, $userSshBlock
-                        Write-Log "SSH_KEYS placeholder for $userKey replaced (count: $($u.ssh_keys.Count))"
+                        Write-Log "SSH_KEYS placeholder for user '$($u.name)' replaced (count: $($u.ssh_keys.Count))"
                     }
                 }
-                # --- End per-user SSH_KEYS replacement ---
             }
 
             # For network-config only
@@ -1188,13 +1179,13 @@ $shBody
                         $dnsBlock = '[]'
                     }
 
-                    # Use '[Regex]::Escape' with case-insensitivity indicator '(?i)' to build pattern; .NET method '[Regex]::Replace()'
-                    # avoids regex metacharacter surprises in the placeholder name but is case-sensitive by default
+                    # Use '[Regex]::Escape' to avoid regex metacharacter surprises in the placeholder name
                     $placeholder = "${netifKey}.DNS_ADDRESSES"
-                    $pattern = '(?i)\{\{\s*' + [Regex]::Escape($placeholder) + '\s*\}\}'
+                    $pattern = '\{\{\s*' + [Regex]::Escape($placeholder) + '\s*\}\}'
 
-                    if ($template -match $pattern) {       # '-match' is case-insensitive by default in PowerShell
-                        $template = [Regex]::Replace($template, $pattern, $dnsBlock)
+                    # '-match' and '-replace' are both case-insensitive by default
+                    if ($template -match $pattern) {
+                        $template = $template -replace $pattern, $dnsBlock
                         Write-Log "Placeholder: '$placeholder' replaced: '$dnsBlock'"
                     } else {
                         Write-Verbose "Network placeholder not present for '$placeholder' (skipped)."
