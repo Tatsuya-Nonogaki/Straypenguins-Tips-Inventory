@@ -72,13 +72,23 @@ netif1:
 #  ignore_auto_dns: yes
 #  ipv6_disable: yes
 
-username: mainte
-user_groups: "wheel,adm,systemd-journal"
-password: "naks9slewiv"    # As plain string for use with PowerShell logics
-password_hash: "$6$Kc8......"      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
-ssh_keys:
-  - "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAr..."
-  #- "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI..."
+user1:
+  name: admin01
+  primary: true  # This user will be selected for in-guest operations
+  groups: "wheel,adm,systemd-journal"
+  password: "AdminPass123!"    # As plain string for use with PowerShell logics
+  password_hash: "$6$rounds=656000$YourHashHere123$abcdef..."      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
+  ssh_keys:
+    - "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArandomkey1... admin01@workstation"
+   #- "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIrandomkey2... admin01@laptop"
+
+#user2:
+#  name: deploy01
+#  password: "DeployPass456!"
+#  password_hash: "$6$rounds=656000$YourHashHere456$ghijkl..."
+#  groups: "wheel"
+#  ssh_keys:
+#    - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrandomkey3... deploy01@ci-server"
 
 # == Script tuning parameters ==
 # How long the script wait for cloud-init completion at Phase-3 (personalization)
