@@ -75,7 +75,7 @@ It may consist of considerable minimal resources, e.g., 2 CPUs, 2.1GB memory, 8G
 - `cloud-init` and `cloud-utils-growpart` installed (optionally `dracut-config-generic` if you rebuild initramfs)  
 - A CD/DVD device configured on the VM (seed ISO must be attached to the guest's CD drive)  
 - Copy `infra/` to the template and run `prevent-cloud-init.sh` as root to install infra files and create `/etc/cloud/cloud-init.disabled`  
-- A local administrative user (username/password) must exist on the template; this account is used by the script for guest operations and must be able to run at least `sudo /bin/bash` without password (`NOPASSWD:`). Password-based guest auth is required by the current implementation.
+- Provide valid guest credentials (`params.username` / `params.password`) for the administrative account on the guest. The account must be a real, login-capable administrative user (able to perform an interactive/local-equivalent login via the VM console): VMware Tools guest operations (Invoke-VMScript and similar guest API operations) require password-based authentication and will not work with a password-disabled primary user. And also, it must be able to run `sudo /bin/bash` without being prompted for a password (i.e., an appropriate `NOPASSWD:` sudoers entry for the command).
 
 📝 **Notes and limitations:**
 - Partition expansion: the partition(s) you intend to expand must be the last partition on the disk; otherwise the kit's non-LVM expansion helpers cannot extend them.  
@@ -165,7 +165,6 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 - The clone is prepared to accept cloud-init personalization; the VM remains powered on.
 
 **Cautions / Notes:**
-- Provide valid guest credentials (`params.username` / `params.password`) for the administrative account on the guest — the script uses guest operations requiring VMware Tools and password-based sudo.  
 - The included `scripts/init-vm-cloudinit.sh` targets RHEL-like systems; verify and adapt it for other distributions.  
 - Because the VM remains powered on after Phase 2, avoid rebooting it before attaching the seed ISO in Phase 3 (unless you intend to boot with the seed attached); an unexpected boot may trigger cloud-init without the intended seed.
 
@@ -286,4 +285,3 @@ Files in `infra/` (`cloud.cfg`, `99-template-maint.cfg`) are tuned to make the t
 ## 📜 License
 
 This project is licensed under the MIT License — see the repository `LICENSE` file for details.
-
