@@ -91,7 +91,7 @@ It may consist of considerable minimal resources, e.g., 2 CPUs, 2.1GB memory, 8G
 👉 For a short checklist and examples of the parameter/template format, see [Caution: Parameter and template format changes](#%EF%B8%8F-caution-parameter-and-template-format-changes).
 
 📝 **Notes and limitations:**
-- Partition expansion: the partition(s) you intend to expand must be the last partition on the disk; otherwise the kit's non-LVM expansion helpers cannot extend them.  
+- Partition expansion: the partition(s) you intend to expand must be the last partition on the disk; otherwise the kit's non-LVM expansion helpers cannot extend them. For maximum flexibility, we recommend placing swap, kdump, and any other volumes that may need to be expanded (for example /opt or /u01) on separate, dedicated VMDKs.  
 - Supported filesystems for kit-managed expansion: `ext2`, `ext3`, `ext4`, and `swap`. LVM-managed volumes are not supported.  
 - Line endings: PowerShell scripts and `params/*.yaml` should use CRLF (Windows). Guest shell scripts and cloud-init templates must use LF (Unix).
 
@@ -155,6 +155,7 @@ Phase 1–3 form the main deployment flow. Phase 4 is a post-processing/finaliza
 **Cautions / Notes:**
 - Do not run if a VM with the same name already exists — the script will abort.  
 - This kit is not intended to retrofit cloud-init onto arbitrary running VMs; use the template → clone path.
+- For disk resizing to work, each 'name' property in `params.disks` must exactly match the VM's virtual disk Name as shown in vSphere (for example: "Hard disk 1"). If the name does not match, `Set-HardDisk` will not find the disk and resizing will fail.
 
 ――――――――――――――――――――――――――――――――
 
@@ -275,7 +276,16 @@ Files in `infra/` (`cloud.cfg`, `99-template-maint.cfg`) are tuned to make the t
   - A file with the same ISO name already exists at the datastore path (common when re-running Phase 3). Remedy: run Phase 4 alone (use `-NoCloudReset` to avoid creating `/etc/cloud/cloud-init.disabled`) to remove the ISO, or delete it manually in vSphere.
 
 - **Network configuration not applied:**
-  - Verify `templates/network-config_template.yaml` placeholders and `params`:`netifX.netdev` values match the guest's actual interface names (e.g., `ens192`). Also check vSphere NIC ordering vs. guest device naming if your environment renumbers devices.
+  - Verify `templates/network-config_template.yaml` placeholders and `params`:`netifN.netdev` values match the guest's actual interface names (e.g., `ens192`). Also check vSphere NIC ordering vs. guest device naming if your environment renumbers devices.
+
+- **Disk resizing did not occur (VMDK / partition / filesystem not grown)**
+  - Check that each `params.disks[].name` exactly matches the VM's virtual disk Name as shown in vSphere (for example: "Hard disk 1"). If the name does not match, `Set-HardDisk` cannot find the disk and resizing will fail.  
+    **Quick verification (PowerCLI):**  
+    `Get-HardDisk -VM <template-or-vm> | Select-Object Name, Filename, CapacityGB`  
+    Confirm the Name values match your `params` and whether CapacityGB was actually changed.  
+  - Ensure the partition you intend to grow is the last partition on that disk; this kit's non‑LVM helpers cannot expand non-last partitions.  
+  - If the disk Name and partition placement are correct but the guest size is unchanged, check the admin-host log `spool/<new_vm_name>/deploy-YYYYMMDD.log` for `Set-HardDisk` messages and errors.  
+  - For filesystem-level resizing, this kit supports ext2/3/4 and swap; XFS and LVM-managed volumes are not supported.
 
 ---
 
