@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
   Automated vSphere Linux VM deployment using cloud-init seed ISO.
-  Version: 0.1.6
+  Version: 0.1.7
 
 .DESCRIPTION
   Automate deployment of a Linux VM from template VM, leveraging cloud-init, in 4 phases:
@@ -650,7 +650,13 @@ VM:`"$($vmParams['Name'])`", Template:`"$($templateVM.Name)`", Datastore:`"$($vm
         foreach ($d in $params.disks) {
             if ($d.ContainsKey('name') -and $d.ContainsKey('size_gb')) {
                 $disk = Get-HardDisk -VM $newVM | Where-Object { $_.Name -eq $d['name'] }
-                if ($disk -and $disk.CapacityGB -lt $d['size_gb']) {
+
+                if (-not $disk) {
+                    Write-Log -Error "Disk named '$($d['name'])' not found on VM '$new_vm_name'. Aborting."
+                    Exit 3
+                }
+
+                if ($disk.CapacityGB -lt $d['size_gb']) {
                     try {
                         Set-HardDisk -HardDisk $disk -CapacityGB $d['size_gb'] -Confirm:$false |
                           Tee-Object -Variable setHDOut | Out-File $LogFilePath -Append -Encoding UTF8
