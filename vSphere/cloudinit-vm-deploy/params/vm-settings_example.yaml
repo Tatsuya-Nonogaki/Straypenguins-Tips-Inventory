@@ -24,7 +24,7 @@ cpu: 3
 memory_mb: 4096
 disk_format: Thick    # One of: Thick, Thin, EagerZeroedThick, or leave blank (or comment the line) to retain template's format
 disks:
-  - name: Hard disk 1
+  - name: Hard disk 1    # Must match the virtual disk's "Name" as defined in vSphere
     size_gb: 50
   - name: Hard disk 2
     size_gb: 8
