@@ -9,6 +9,18 @@ This kit is designed to enable quick deployment of Linux VMs from a **well-prepa
 - **Phase 3:** Generate a cloud-init seed (user-data, meta-data, optional network-config), pack them into an ISO, upload it to a datastore and attach it to the clone's CD drive, then boot the VM and wait for cloud-init to complete  
 - **Phase 4:** Detach and remove the seed ISO from the datastore, then place `/etc/cloud/cloud-init.disabled` on the guest to prevent future automatic personalization (can be skipped with `-NoCloudReset`)
 
+### ⚠️ Caution: Parameter and template format changes
+
+Recent changes introduced updates to parameter and seed-template formats (multi-user support, per-user SSH key placement, DNS nameserver handling, and a consolidated swaps mapping). Before applying these changes in an environment, validate the generated seed files:
+
+- Run the script with Phase 3 only and with `-NoRestart` to produce the seed files without reapplying personalization to a VM:
+  ```powershell
+  .\cloudinit-linux-vm-deploy.ps1 -Phase 3 -Config .\params\<your_params>.yaml -NoRestart
+  ```
+- Inspect `spool/<new_vm_name>/cloudinit-seed/` `user-data` and `network-config` to confirm formatting and indentation.
+
+See [UPGRADE_NOTES_PARAM_FORMAT_CHANGE.md](UPGRADE_NOTES_PARAM_FORMAT_CHANGE.md) in this directory for detailed notes and examples.
+
 ---
 
 📑 **Table of contents**
