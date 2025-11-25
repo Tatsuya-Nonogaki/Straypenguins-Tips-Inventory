@@ -77,7 +77,7 @@ user1:
   primary: true  # This user will be selected for in-guest operations
   groups: "wheel,adm,systemd-journal"
   password: "AdminPass123!"    # As plain string for use with PowerShell logics
-  password_hash: "$6$rounds=656000$YourHashHere123$abcdef..."      # SHA-512 hashed string for user registration in the guest Linux: Generate using 'openssl passwd -6 "password"'
+  password_hash: "$6$rounds=656000$YourHashHere123$abcdef..."      # SHA-512 salted-hash string for user registration in the guest Linux: Generate using "openssl passwd -6 'password'"
   ssh_keys:
     - "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEArandomkey1... admin01@workstation"
    #- "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIrandomkey2... admin01@laptop"
