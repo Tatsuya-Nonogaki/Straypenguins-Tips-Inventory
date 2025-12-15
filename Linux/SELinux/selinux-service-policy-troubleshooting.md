@@ -75,10 +75,50 @@ Use `ausearch` to efficiently locate relevant information. Here are some useful 
 - `-su`: scontext (SELinux subject context), commonly used to match the domain/type.
 - `-m`: Specifies the message type (e.g., `AVC`, `USER_AVC`, etc.). While `-m AVC` is the most common for denials, others like `USER_AVC`, `SELINUX_ERR`, and `USER_SELINUX_ERR` can surface in special cases (user-space denials or SELinux errors).
 - Combine options for precise results (e.g., by process and time).
-- See [audit(8) man page](https://man7.org/linux/man-pages/man8/ausearch.8.html) for advanced usage.
+- See [audit(8) man page](https://man7.org/linux/man-pages/man8/ausearch.8.html) for advanced usage.  
 
-Typical denial entry:
-> `type=AVC msg=audit(...): avc:  denied  { getopt } for  pid=... scontext=system_u:system_r:mysvcd_t:s0 ... comm="mysvcd" ... tclass=tcp_socket ...`
+  Typical denial entry:  
+  > `type=AVC msg=audit(...): avc:  denied  { getopt } for  pid=... scontext=system_u:system_r:mysvcd_t:s0 ... comm="mysvcd" ... tclass=tcp_socket ...`
+
+> 📝 **Note: `dontaudit` rules can hide SELinux denials**  
+>  
+> If you see that a service behaves differently in Enforcing vs Permissive mode but `ausearch` (or `audit.log`) shows no AVC `denied` records, consider `dontaudit` rules. A number of default SELinux policies use `dontaudit` to suppress noisy, commonly harmless denies — this can hide valuable diagnostic information during policy troubleshooting.  
+>  
+> **What to know**  
+> - Disabling `dontaudit` does **not** change enforcement semantics (it does not convert denies to allows). It only causes the previously suppressed denials to be written to the audit log so you can inspect them.
+> - Because many suppressed messages may appear once `dontaudit` is disabled, expect a large increase in audit log volume. Re-enable `dontaudit` when done.  
+>  
+> **How to check whether `dontaudit` rules exist**  
+> - Show the number of `dontaudit` rules (requires `setools-console` package [RHEL]):
+>   ```
+>   seinfo --dontaudit
+>   ```
+>   A non-zero count indicates the policy contains `dontaudit` rules.  
+>  
+> **How to temporarily disable `dontaudit` to capture hidden denials**  
+> - Short option (RHEL docs / common shorthand):  
+>   ```bash
+>   semodule -DB
+>   ```
+> - Long option (equivalent):  
+>   ```bash
+>   semodule --disable_dontaudit --build
+>   ```
+>   After running either command, reproduce the problem and inspect AVC logs.  
+>  
+> **How to re-enable `dontaudit` (restore normal, quieter logging)**  
+> - Short option:  
+>   ```bash
+>   semodule -B
+>   ```
+> - Long option (equivalent):  
+>   ```bash
+>   semodule --enable_dontaudit --build
+>   ```
+>  
+> 📌 **Notes and best practices:**  
+> - Perform this procedure in a controlled window (not long-term) to avoid enormous audit logs.
+> - After you fix the policy and reload your module, re-enable `dontaudit`.
 
 ### 2. Verify Running Context
 
