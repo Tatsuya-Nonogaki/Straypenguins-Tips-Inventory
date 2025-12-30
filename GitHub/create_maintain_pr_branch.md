@@ -43,12 +43,12 @@
    ```
    git push -u origin feature/update-config
    ```
-   初回は `-u` で upstream を設定しておくと、あとあと楽。
+   初回は `-u` で upstream を設定しておくと、あとあと楽。  
    内部的に手直ししたい／公開レビューを受ける前に作業を続けたい場合は、Create draft pull request を使って「下書き」にしておくと良い。
 
 ## Update PR branch
 
-1. 同PRブランチに追加で更新をpush
+1. 同PRブランチに追加で更新をpush  
    ファイルを修正したら、
    ```
    git add .
