@@ -11,8 +11,8 @@ This sub-folder of the [Straypenguins-Tips-Inventory](https://github.com/Tatsuya
 ### 📋 [Merge devel to main While Keeping the Branch History Clean](merge_devel_to_main_clean_history.md)
 Procedure to keep both branches in clean & sync to avoid cluttered or conflicted history, when your main working method is through the GitHub Web interface.
 
-### 📋 [Creating PR as a Branch and maintain](create_maintain_pr_branch.md)
-How to create a Push Request as a branch and maintain it with `git` commands.  
+### 📋 [Creating and Maintaining a Pull Request Branch](create_maintain_pr_branch.md)
+How to create a Push Request as a branch and maintain it with `git` commands.
 
 ### 📋 [GitHub Pages + Jekyll: How Markdown Links Are Handled (2025 Edition)](github-pages-md-link-behavior.md)
 This article summarizes my observations and explains how GitHub Pages and Jekyll plugins handle Markdown links—so you can write them with confidence.  
