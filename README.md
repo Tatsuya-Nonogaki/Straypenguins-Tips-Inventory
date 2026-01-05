@@ -46,7 +46,10 @@ System administration and security:
 ## 🐙 [GitHub](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub)
 [GutHub Operation Tips Memorandum](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/GitHub) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/GitHub/)
 
-- [Tips](GitHub/)
+- [Merge devel to main While Keeping the Branch History Clean](GitHub/merge_devel_to_main_clean_history.md)
+- [Creating and Maintaining a Pull Request Branch](GitHub/create_maintain_pr_branch.md)
+- [GitHub Pages + Jekyll: How Markdown Links Are Handled](GitHub/github-pages-md-link-behavior.md)
+- [UTF-8 Emoji Copy-Paste Sheet](GitHub/emoji-utf8.md)
 
 ---
 
