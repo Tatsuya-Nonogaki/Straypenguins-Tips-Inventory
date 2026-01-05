@@ -1,76 +1,78 @@
-# Creating PR as a Branch and maintain
+# Creating and Maintaining a Pull Request Branch
 
-## Create a branch for PR
+## Create a Branch for a Pull Request
 
-1. 'main'を親とする場合
-   ```
+1. Create a PR branch (for example, if the source is `main`):
+   ```bash
    git fetch origin
    git switch -c feature/update-config origin/main
    ```
-   古い gitの場合:
-   ```
+   On older Git environments:
+   ```bash
    git checkout -b feature/update-config origin/main
    ```
 
-2. ファイルを編集や追加
+2. Add or edit files.
 
-3. ステージング
-   ```
+3. Stage and commit your changes:
+   ```bash
    git add path/to/modified-file.txt
    git add path/to/another-file.txt
    git commit -m "Update config handling and add example cloud-init"
    ```
 
-   1. (オプション) 親の更新を取り込んでおく必要が出た時:
-      **リベース派:**
-      ```
+   1. (Optional) When you need to incorporate updates from the parent branch:
+
+      **Rebase approach:**
+      ```bash
       git fetch origin
       git rebase origin/main
       ```
-      コンフリクトが起きたら解消してから、
-      ```
+      If conflicts occur, resolve them and then:
+      ```bash
       git add <conflicted-files>
       git rebase --continue
       ```
-      **マージ派:**
-      ```
+
+      **Merge approach:**
+      ```bash
       git fetch origin
       git merge origin/main
       ```
-      コンフリクトを解消してコミット
+      Resolve conflicts and commit the merge.
 
-4. リモートに push (mainでなくPRブランチのまま)
-   ```
+4. Push to the remote (push the PR branch, not `main`):
+   ```bash
    git push -u origin feature/update-config
    ```
-   初回は `-u` で upstream を設定しておくと、あとあと楽。  
-   内部的に手直ししたい／公開レビューを受ける前に作業を続けたい場合は、Create draft pull request を使って「下書き」にしておくと良い。
+   For the first push, use `-u` to set the upstream branch; this makes future pushes and pulls easier.  
+   If you want to refine the changes locally or continue working before requesting a public review, use **Create draft pull request** to keep the PR in a “draft” state.
 
-## Update PR branch
+## Update the PR Branch
 
-1. 同PRブランチに追加で更新をpush  
-   ファイルを修正したら、
-   ```
+1. Push additional updates to the same PR branch.  
+   After modifying files:
+   ```bash
    git add .
    git commit -m "Address review: fix edge case"
    git push
    ```
 
-## 作業完了後のPRブランチの整理
+## Cleaning Up the PR Branch After the Work Is Finished
 
-main を最新にして
-```
+Update your local `main` branch to the latest:
+```bash
 git checkout main
 git pull origin main
 ```
 
-不要になったブランチを削除（ローカル）
-```
+Delete the now-unnecessary branch locally:
+```bash
 git branch -d feature/update-config
 ```
 
-必要ならリモートブランチも削除
-```
+If needed, delete the remote branch as well:
+```bash
 git push origin --delete feature/update-config
 ```
 
