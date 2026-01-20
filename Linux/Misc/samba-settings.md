@@ -122,7 +122,7 @@ testparm
 
 Samba package installs **`/etc/logrotate.d/samba`**.  
 
-📝**Note:** RHEL9 default rotation settings in `/etc/logrotate.conf` are typically `weekly`, `rotate 8`, `compress`, `dateext`.  
+📝**Note:** RHEL9 default global rotation settings in `/etc/logrotate.conf` typically include `weekly`, `rotate 8`, `compress`, `dateext`.  
 
 **Default:**
 ```ini
