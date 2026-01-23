@@ -227,14 +227,14 @@ journalctl -u smb
 **Check from a client (example from Linux):**
 
 ```bash
-smbclient -L //server-hostname -U sambauser1
-smbclient //server-hostname/archive -U sambauser1
+smbclient -L //server_hostname -U admin
+smbclient //server_hostname/archive -U admin
 ```
 
 **On Windows, connect to:**
 
 ```text
-\\server-hostname\archive
+\\server_hostname\archive
 ```
 
-using `sambauser1` as the username.
+using `administrator` (or `admin`) as the username, which is internally mapped to the Unix account `sambauser1` via `user.map`.
