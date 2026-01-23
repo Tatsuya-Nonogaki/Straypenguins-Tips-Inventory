@@ -22,10 +22,12 @@ usermod -aG sambashare sambauser1
 echo "Qwerty123" | passwd --stdin sambauser1
 ```
 
+This creates `sambauser1` as the primary Samba user.
+
 - `-s /sbin/nologin`: disable shell logins (SSH etc.) – Samba access is still allowed.
 - `-m -k /dev/null`: create an empty home directory without skeleton files.
 
-📝 **Note:** Afterwards, we will also create a dummy user to trap all *undefined* SMB accounts in order to secure Samba. See [/etc/samba/user.map](#etcsambausermap) in ["5. Configure Samba Server"](#%EF%B8%8F-5-configure-samba-server)
+📝 **Note:** Later, we will also create a dummy Unix user to catch all *undefined* SMB usernames in order to secure Samba. See the [/etc/samba/user.map](#etcsambausermap) section under ["5. Configure Samba Server"](#%EF%B8%8F-5-configure-samba-server) for details.
 
 ---
 
@@ -137,29 +139,29 @@ The `username map` file allows mapping Windows usernames (SMB clients) to specif
 nonexunix = *
 ```
 
-✅ The username specified on the left-hand side of the `user.map` must always be an existing Unix account. When you define a dummy account ("nonexunix" in this example), ensure it exists on the server system but is non-loginable. Use the following command to create it:
+✅ The Unix username specified on the left-hand side in `user.map` must always exist as a Unix account on the server, otherwise, Samba will fail to start. When you define a dummy account (such as `nonexunix` in this example), ensure it exists on the server system but is non-loginable. Create it with the following command:
 
 ```bash
 useradd --system -s /sbin/nologin nonexunix
 ```
 
-Then, as a doubled guard, also create a correspondig SMB user as below; this prevents Samba even from probing the dummy Unix account.  
+Then, as an additional safeguard, also create a corresponding Samba account with the same name. This prevents Samba from even probing the dummy Unix account.  
 📌 Do NOT give it an empty or simple password; use [pw-o-matic](https://github.com/Tatsuya-Nonogaki/pw-o-matic) on our Repository or `openssl rand -base64 32`, for example.
 
 ```bash
-# Register a user of the exact name
+# Register a Samba user of the exact name
 pdbedit -a -u nonexunix
-# Enter an long and complex password string:
+# Enter a long and complex password string:
 new password: Uk%QuajmoHynejyiavojnaQuapByarz2
 retype new password: Uk%QuajmoHynejyiavojnaQuapByarz2
-# Set "disabled" flag
+# Set "disabled" flag to prevent any login attempts
 pdbedit -r -u nonexunix -c '[D]'
 # Review the properties
 pdbedit -L -v -u nonexunix
 ```
 
 **After editing, always validate:**  
-(unfortunately, this does not go that far as validating user existence)
+Note that `testparm` only validates the syntax of `smb.conf` and does not validate user existence or `user.map` semantics.
 
 ```bash
 testparm
