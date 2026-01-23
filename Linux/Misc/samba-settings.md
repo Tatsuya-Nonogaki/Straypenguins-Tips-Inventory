@@ -25,6 +25,8 @@ echo "Qwerty123" | passwd --stdin sambauser1
 - `-s /sbin/nologin`: disable shell logins (SSH etc.) – Samba access is still allowed.
 - `-m -k /dev/null`: create an empty home directory without skeleton files.
 
+📝 **Note:** Afterwards, we will also create a dummy user to trap all *undefined* SMB accounts in order to secure Samba. See [/etc/samba/user.map](#etcsambausermap) in ["5. Configure Samba Server"](#%EF%B8%8F-5-configure-samba-server)
+
 ---
 
 ### 📚 3. Register user to SAM DB
@@ -65,7 +67,7 @@ ls -lZa /data/archive
 
 ### ⚙️ 5. Configure Samba Server
 
-**`/etc/samba/smb.conf`**
+#### /etc/samba/smb.conf
 ```ini
 [global]
    # Restrict Samba to IPv4 addresses only (no IPv6)
@@ -120,11 +122,9 @@ ls -lZa /data/archive
    hosts allow = 127. 192.168.1.0/255.255.255.0
 ```
 
-**`/etc/samba/user.map`**
+#### /etc/samba/user.map
 
-The `username map` file allows mapping Windows usernames (SMB clients) to specific Unix users on the server. This is especially useful when the Windows client sends usernames that do not directly correspond to valid Unix accounts. By defining these mappings, we can ensure uniform security and prevent unauthorized or misconfigured access resulting from unexpected username collisions.  
-  
-⚠️**Warning:** Do not create the dummy Unix user "nonexunix" on the Samba server system. Mapping to a non-existent user ensures that unexpected names will be safely rejected by the server.  
+The `username map` file allows mapping Windows usernames (SMB clients) to specific Unix users on the server. This is especially useful when the Windows client sends usernames that do not directly correspond to valid Unix accounts. By defining these mappings, we can ensure uniform security and prevent unauthorized or misconfigured access resulting from unexpected username collisions.
 
 ```ini
 # Unix_name = SMB_name1 SMB_name2 ..
@@ -132,12 +132,34 @@ The `username map` file allows mapping Windows usernames (SMB clients) to specif
 # Typically, adding a dedicated SMB user (e.g., "archmanager", if it exists) is sufficient.
 # The leading "!" ensures that processing stops once a match is found.
 !sambauser1 = admin administrator
-# Map all other Windows usernames to a dummy, non-existent Unix user "nonexunix",
-# to prevent unexpected mapping to existing Unix users.
+# Map all other Windows usernames to a non-loginable but existing Unix user "nonexunix",
+# to prevent unexpected mapping to effective Unix users.
 nonexunix = *
 ```
 
-After editing, always validate:
+✅ The username specified on the left-hand side of the `user.map` must always be an existing Unix account. When you define a dummy account ("nonexunix" in this example), ensure it exists on the server system but is non-loginable. Use the following command to create it:
+
+```bash
+useradd --system -s /sbin/nologin nonexunix
+```
+
+Then, as a doubled guard, also create a correspondig SMB user as below; this prevents Samba even from probing the dummy Unix account.  
+📌 Do NOT give it an empty or simple password; use [pw-o-matic](https://github.com/Tatsuya-Nonogaki/pw-o-matic) on our Repository or `openssl rand -base64 32`, for example.
+
+```bash
+# Register a user of the exact name
+pdbedit -a -u nonexunix
+# Enter an long and complex password string:
+new password: Uk%QuajmoHynejyiavojnaQuapByarz2
+retype new password: Uk%QuajmoHynejyiavojnaQuapByarz2
+# Set "disabled" flag
+pdbedit -r -u nonexunix -c '[D]'
+# Review the properties
+pdbedit -L -v -u nonexunix
+```
+
+**After editing, always validate:**  
+(unfortunately, this does not go that far as validating user existence)
 
 ```bash
 testparm
