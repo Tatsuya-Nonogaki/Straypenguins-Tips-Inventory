@@ -71,6 +71,8 @@ ls -lZa /data/archive
    # Restrict Samba to IPv4 addresses only (no IPv6)
    interfaces = 127.0.0.1 192.168.1.23
    bind interfaces only = yes
+   # Listen TCP only; disable NBT (udp:139)
+   server smb ports = 445
 
    workgroup = WORKGROUP
    server string = Samba Server on Rocky 9
@@ -96,18 +98,43 @@ ls -lZa /data/archive
    # preferred master = yes
    # os level = 20
 
+   # Hardened security
+   username map = /etc/samba/user.map
+   # Deny all login attempts with invalid credentials (rejects instead of mapping to guest)
+   map to guest = Never
+
 [archive]
    comment = archive on Rocky 9
    path = /data/archive
    browseable = yes
    writable = yes
 
-   # Grant full access per auth group
+   # Unix group-based full access control
    valid users = @sambashare
    force group = sambashare
 
    create mask = 0664
    directory mask = 2775
+
+   # IP based protection
+   hosts allow = 127. 192.168.1.0/255.255.255.0
+```
+
+**`/etc/samba/user.map`**
+
+The `username map` file allows mapping Windows usernames (SMB clients) to specific Unix users on the server. This is especially useful when the Windows client sends usernames that do not directly correspond to valid Unix accounts. By defining these mappings, we can ensure uniform security and prevent unauthorized or misconfigured access resulting from unexpected username collisions.  
+  
+⚠️**Warning:** Do not create the dummy Unix user "nonexunix" on the Samba server system. Mapping to a non-existent user ensures that unexpected names will be safely rejected by the server.  
+
+```ini
+# Unix_name = SMB_name1 SMB_name2 ..
+# Map specific Windows usernames to a single Unix user. 
+# Typically, adding a dedicated SMB user (e.g., "archmanager", if it exists) is sufficient.
+# The leading "!" ensures that processing stops once a match is found.
+!sambauser1 = admin administrator
+# Map all other Windows usernames to a dummy, non-existent Unix user "nonexunix",
+# to prevent unexpected mapping to existing Unix users.
+nonexunix = *
 ```
 
 After editing, always validate:
