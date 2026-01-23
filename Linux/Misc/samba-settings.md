@@ -76,7 +76,8 @@ ls -lZa /data/archive
    interfaces = 127.0.0.1 192.168.1.23
    bind interfaces only = yes
    # Listen TCP only; disable NBT (udp:139)
-   server smb ports = 445
+   smb ports = 445
+   disable netbios = yes
 
    workgroup = WORKGROUP
    server string = Samba Server on Rocky 9
@@ -120,8 +121,10 @@ ls -lZa /data/archive
    create mask = 0664
    directory mask = 2775
 
-   # IP based protection
+   # IP-based protection: explicitly define "hosts deny" to avoid any ambiguity
+   # in Samba's implementation and ensure a strict whitelist
    hosts allow = 127. 192.168.1.0/255.255.255.0
+   hosts deny  = 0.0.0.0/0
 ```
 
 #### /etc/samba/user.map
@@ -159,6 +162,9 @@ pdbedit -r -u nonexunix -c '[D]'
 # Review the properties
 pdbedit -L -v -u nonexunix
 ```
+
+> 📝 **Note:**  
+> If you ever decide to enable guest mapping in `smb.conf` (for example, by using `map to guest = Bad User`), consider setting `guest account = nonexunix` so that any guest access is bound to this dedicated dummy account instead of the system-wide `nobody` user.
 
 **After editing, always validate:**  
 Note that `testparm` only validates the syntax of `smb.conf` and does not validate user existence or `user.map` semantics.
