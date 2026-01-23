@@ -139,7 +139,7 @@ The `username map` file allows mapping Windows usernames (SMB clients) to specif
 nonexunix = *
 ```
 
-✅ The Unix username specified on the left-hand side in `user.map` must always exist as a Unix account on the server. When you define a dummy account (such as `nonexunix` in this example), ensure it exists on the server system but is non-loginable. Create it with the following command:
+✅ The Unix username specified on the left-hand side in `user.map` must always exist as a Unix account on the server, otherwise, Samba will fail to start. When you define a dummy account (such as `nonexunix` in this example), ensure it exists on the server system but is non-loginable. Create it with the following command:
 
 ```bash
 useradd --system -s /sbin/nologin nonexunix
