@@ -1,5 +1,7 @@
 ## Configure Samba Server on RHEL9
 
+This guide provides a practical, security‑conscious setup for Samba on RHEL9. It streamlines installation; user and account design, including username mapping (e.g., mapping admin/administrator to the primary Unix account); share configuration (permissions and SELinux); logging and rotation; and network hardening—such as disabling legacy NetBIOS/NBT (UDP/139) listening and enforcing strict IP‑based whitelist access controls.
+
 ### 📥 1. Install packages
 ```bash
 dnf install samba samba-client
