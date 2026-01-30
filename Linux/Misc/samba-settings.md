@@ -1,7 +1,5 @@
 ## Configure Samba Server on RHEL9
 
-This guide provides a practical, security‑conscious setup for Samba on RHEL9. It streamlines installation; user and account design, including username mapping (e.g., mapping admin/administrator to the primary Unix account); share configuration (permissions and SELinux); logging and rotation; and network hardening—such as disabling legacy NetBIOS/NBT (UDP/139) listening and enforcing strict IP‑based whitelist access controls.
-
 ### 📥 1. Install packages
 ```bash
 dnf install samba samba-client
@@ -116,7 +114,9 @@ ls -lZa /data/archive
    browseable = yes
    writable = yes
 
-   # Unix group-based full access control
+   # Unix group-based access control:
+   # If you prefer to grant access per user (instead of by group as below),
+   # replace the right-hand side with a list of Unix users.
    valid users = @sambashare
    force group = sambashare
 
@@ -131,16 +131,23 @@ ls -lZa /data/archive
 
 #### /etc/samba/user.map
 
-The `username map` file allows mapping Windows usernames (SMB clients) to specific Unix users on the server. This is especially useful when the Windows client sends usernames that do not directly correspond to valid Unix accounts. By defining these mappings, we can ensure uniform security and prevent unauthorized or misconfigured access resulting from unexpected username collisions.
+The `username map` file allows mapping Windows usernames (SMB clients) to specific Unix users on the server. This is especially useful when Windows clients send usernames that do not directly correspond to valid Unix accounts. By defining these mappings, you can enforce consistent security behavior and prevent unauthorized or misconfigured access caused by unexpected username collisions.  
+
+The _JAIL_ user defined by `nonexunix = *` turns this into an effective whitelist:  
+all SMB usernames that should have access **must be listed explicitly before** that catch‑all rule.
 
 ```ini
-# Unix_name = SMB_name1 SMB_name2 ..
-# Map specific Windows usernames to a single Unix user. 
-# Typically, adding a dedicated SMB user (e.g., "archmanager", if it exists) is sufficient.
+# Unix_name = SMB_name1 SMB_name2 ...
+# Map specific Windows usernames to a single Unix user.
+# Typically, mapping a dedicated SMB username (e.g. "archmanager") to a single
+# representative Unix user ("sambauser1" in this example) is sufficient.
+# If you want to handle each user separately, add explicit mappings for all of them,
+# such as:  !sambauser2 = sambauser2
 # The leading "!" ensures that processing stops once a match is found.
 !sambauser1 = admin administrator
-# Map all other Windows usernames to a non-loginable but existing Unix user "nonexunix",
-# to prevent unexpected mapping to effective Unix users.
+
+# Map all other Windows usernames to the non-loginable but existing Unix user "nonexunix"
+# to discard them; this also prevents unexpected mapping to effective Unix users.
 nonexunix = *
 ```
 
