@@ -47,10 +47,10 @@ This registers the user into Samba’s `tdbsam` passdb backend and shows the det
 ### 📁 4. Create shared directory
 
 ```bash
-mkdir -p /data/archive
-chown root:sambashare /data/archive
+mkdir -p /data/sharedstore
+chown root:sambashare /data/sharedstore
 # Set SGID bit so group is inherited to newly added sub-components.
-chmod 2775 /data/archive
+chmod 2775 /data/sharedstore
 ```
 
 - Group ownership is `sambashare`.
@@ -59,10 +59,10 @@ chmod 2775 /data/archive
 **Set SELinux label**
 ```bash
 # Define the context label (once is enough)
-semanage fcontext -a -t samba_share_t "/data/archive(/.*)?"
+semanage fcontext -a -t samba_share_t "/data/sharedstore(/.*)?"
 # Label it
-restorecon -FRv /data/archive
-ls -lZa /data/archive
+restorecon -FRv /data/sharedstore
+ls -lZa /data/sharedstore
 ```
 
 📝`semanage` is provided by `policycoreutils-python-utils` if not installed.
@@ -110,9 +110,9 @@ ls -lZa /data/archive
    # Deny all login attempts with invalid credentials (rejects instead of mapping to guest)
    map to guest = Never
 
-[archive]
-   comment = archive on Rocky 9
-   path = /data/archive
+[sharedstore]
+   comment = sharedstore on Rocky 9
+   path = /data/sharedstore
    browseable = yes
    writable = yes
 
@@ -239,13 +239,13 @@ journalctl -u smb
 
 ```bash
 smbclient -L //server_hostname -U admin
-smbclient //server_hostname/archive -U admin
+smbclient //server_hostname/sharedstore -U admin
 ```
 
 **On Windows, connect to:**
 
 ```text
-\\server_hostname\archive
+\\server_hostname\sharedstore
 ```
 
 using `administrator` (or `admin`) as the username, which is internally mapped to the Unix account `sambauser1` via `user.map`.
