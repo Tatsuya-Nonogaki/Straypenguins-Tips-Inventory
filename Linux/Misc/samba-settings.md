@@ -117,8 +117,12 @@ ls -lZa /data/sharedstore
    writable = yes
 
    # Unix group-based access control:
-   # If you prefer to grant access per user (instead of by group as below),
-   # replace the right-hand side of "valid users" with a list of Unix users.
+   # This configuration assumes that all Unix users referenced on the left side of
+   # user.map (e.g. !sambauserX = ...) belong to the "smbshare" group, so
+   # granting access by this group is sufficient ("valid users" does not define
+   # the file operation owner).
+   # Even if username-map is defined as 1:1 per user (e.g. sambauser1 = sambauser1, ...),
+   # "valid users" does not need to enumerate each user explicitly in this strategy.
    valid users = @sambashare
    force group = sambashare
 
