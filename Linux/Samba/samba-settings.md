@@ -236,7 +236,7 @@ Samba package installs **`/etc/logrotate.d/samba`**.
 ```bash
 systemctl enable --now smb
 systemctl status smb
-journalctl -u smb
+less /var/log/samba/smb.log
 ```
 
 **Check from a client (example from Linux):**
