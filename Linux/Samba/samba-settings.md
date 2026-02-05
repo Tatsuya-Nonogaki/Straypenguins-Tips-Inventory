@@ -118,7 +118,7 @@ ls -lZa /data/sharedstore
 
    # Unix group-based access control:
    # This configuration assumes that all Unix users referenced on the left side of
-   # user.map (e.g. !sambauserX = ...) belong to the "smbshare" group, so
+   # user.map (e.g. !sambauserX = ...) belong to the "sambashare" group, so
    # granting access by this group is sufficient ("valid users" does not define
    # the file operation owner).
    # Even if username-map is defined as 1:1 per user (e.g. sambauser1 = sambauser1, ...),
