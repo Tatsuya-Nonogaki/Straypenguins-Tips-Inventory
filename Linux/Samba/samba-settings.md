@@ -24,6 +24,14 @@ This installs dependencies such like `samba-common`, `samba-common-tools` (`test
 
 ### 👤 2. Create OS Users
 
+**Access control model in this guide**  
+This setup intentionally separates “who can log in via SMB” from “which Unix identity is used on the server”:  
+- You create a Unix account and group (e.g. `sambauser1` / `sambashare`) as *backend identities* for file ownership and permissions. These accounts are not meant for interactive logins (SSH, console).
+- All Unix users that will be mapped via [user.map](#etcsambausermap) are assumed to belong to the Unix group (e.g. `sambashare`). The share then uses that group in [smb.conf](#etcsambasmbconf) (e.g. `valid users = @sambashare`) to decide who is allowed to access the share; `valid users` does not define the actual file owner.
+- You create corresponding Samba accounts in the passdb (`pdbedit`), which control SMB logins and passwords. The Samba password can be different from the Unix password, or the Unix password can be locked entirely.
+- You use `/etc/samba/user.map` to map Windows-side names (such as `admin`, `administrator`) to these Unix/Samba accounts, and a dummy account like `nonexunix` to catch all other SMB usernames.
+- Samba requires that any Unix user referenced in `user.map` actually exists on the system; otherwise Samba will fail to start. This is why here we deliberately create corresponding Unix users even if they are non-loginable.
+
 > **Password design note**  
 > For better separation of concerns, it is recommended to treat the Unix account password and the Samba (SMB) password independently:
 > - The Unix account used for Samba access (e.g. `sambauser1`) does **not** need a valid shell password; you can lock or delete the Unix password and let only the Samba passdb (`pdbedit`) control SMB logins.
