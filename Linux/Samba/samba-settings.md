@@ -212,8 +212,9 @@ nonexunix = *
 useradd --system -s /sbin/nologin nonexunix
 ```
 
-Then, as an additional safeguard, also create a corresponding Samba account with the same name. This prevents Samba from even probing the dummy Unix account.  
-📌 Do NOT give it an empty or simple password; use [pw-o-matic](https://github.com/Tatsuya-Nonogaki/pw-o-matic) or `openssl rand -base64 32`, for example. The provisioning script [samba-provision.sh](samba-provision.sh) follows exactly this pattern: it creates a non-loginable Unix account `nonexunix`, registers a Samba account of the same name with a long random password, and immediately disables it via `pdbedit -c '[D]'`.
+Then, as an additional safeguard, also create a corresponding Samba account with the same name. This prevents Samba from even probing the dummy Unix account. Immediately after creating it, disable the account via `pdbedit -c '[D]'`.
+
+> 📌 Do **not** give it an empty or simple password; use [pw-o-matic](https://github.com/Tatsuya-Nonogaki/pw-o-matic) or `openssl rand -base64 32`, for example. Otherwise, a small misconfiguration or a security bug in Samba package might allow unexpected intrusions.
 
 ```bash
 # Register a Samba user of the exact name
