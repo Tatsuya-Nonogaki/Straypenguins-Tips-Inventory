@@ -2,6 +2,18 @@
 
 This guide provides a practical, security‑conscious setup for Samba on RHEL9. It streamlines installation; user and account design, including username mapping (e.g., mapping admin/administrator to the primary Unix account); share configuration (permissions and SELinux); logging and rotation; and network hardening—such as disabling legacy NetBIOS/NBT (UDP/139) listening and enforcing strict IP‑based whitelist access controls.
 
+> 💡 **Related script: `samba-provision.sh`**  
+> This document is a *quick-start style* explanation that focuses on the overall design, including `smb.conf` and `user.map` examples.  
+> For the actual provisioning steps—creating Unix and Samba users, setting passwords, preparing the shared directory, and applying SELinux labels—see the companion script **[samba-provision.sh](samba-provision.sh)**, which implements these ideas in a reproducible, step-by-step procedure.
+>  
+> If you prefer not to perform user creation, shared directory filesystem permission setting and SELinux labeling (steps **2 to 4** below) manually, run the provisioning script `samba-provision.sh` as root. It will:
+> - Create the primary Unix/Samba user for access
+> - Create the dummy Unix/Samba user (`nonexunix`) for catching undefined SMB usernames used in `user.map`
+> - Prepare the shared directory (permissions and SGID)
+> - Apply consistent SELinux labels, including careful treatment of custom mount points and `lost+found`
+
+---
+
 ### 📥 1. Install packages
 ```bash
 dnf install samba samba-client
@@ -12,6 +24,22 @@ This installs dependencies such like `samba-common`, `samba-common-tools` (`test
 
 ### 👤 2. Create OS Users
 
+**Access control model in this guide**  
+This setup intentionally separates “who can log in via SMB” from “which Unix identity is used on the server”:  
+- You create a Unix account and group (e.g. `sambauser1` / `sambashare`) as *backend identities* for file ownership and permissions. These accounts are not meant for interactive logins (SSH, console).
+- All Unix users that will be mapped via [user.map](#etcsambausermap) are assumed to belong to the Unix group (e.g. `sambashare`). The share then uses that group in [smb.conf](#etcsambasmbconf) (e.g. `valid users = @sambashare`) to decide who is allowed to access the share; `valid users` does not define the actual file owner.
+- You create corresponding Samba accounts in the passdb (`pdbedit`), which control SMB logins and passwords. The Samba password can be different from the Unix password, or the Unix password can be locked entirely.
+- You use `/etc/samba/user.map` to map Windows-side names (such as `admin`, `administrator`) to these Unix/Samba accounts, and a dummy account like `nonexunix` to catch all other SMB usernames.
+- Samba requires that any Unix user referenced in `user.map` actually exists on the system; otherwise Samba will fail to start. This is why here we deliberately create corresponding Unix users even if they are non-loginable.
+
+> **Password design note**  
+> For better separation of concerns, it is recommended to treat the Unix account password and the Samba (SMB) password independently:
+> - The Unix account used for Samba access (e.g. `sambauser1`) does **not** need a valid shell password; you can lock or delete the Unix password and let only the Samba passdb (`pdbedit`) control SMB logins.
+> - If you do set a Unix password, make it **different from** the Samba password and sufficiently long and complex.
+>  
+> The companion script **[samba-provision.sh](samba-provision.sh)** demonstrates both approaches:
+> it can either lock the Unix account password or set a hard-to-type one, depending on a configuration variable.
+
 **1. Create shared group**
 ```bash
 groupadd -g 1990 sambashare
@@ -21,13 +49,25 @@ groupadd -g 1990 sambashare
 ```bash
 useradd -u 1991 -m -k /dev/null -s /sbin/nologin sambauser1
 usermod -aG sambashare sambauser1
-echo "Qwerty123" | passwd --stdin sambauser1
+# Ensure the shadow password field is empty, then lock the account
+passwd -d sambauser1
+passwd -l sambauser1
 ```
 
 This creates `sambauser1` as the primary Samba user.
 
 - `-s /sbin/nologin`: disable shell logins (SSH etc.) – Samba access is still allowed.
 - `-m -k /dev/null`: create an empty home directory without skeleton files.
+- `passwd -d`: delete any existing password hash from the shadow entry.
+- `passwd -l`: lock the account so that Unix logins are not possible.
+
+Alternatively, you can choose to set a long, complex random password instead of locking the Unix account, for example:
+
+```bash
+echo "3ovtajNowlIrm=gledsIsUd6" | passwd --stdin sambauser1
+```
+
+In both cases, the Samba password (managed via `pdbedit` in the next step) is independent from the Unix password and should be treated separately.
 
 📝 **Note:** Later, we will also create a dummy Unix user to catch all *undefined* SMB usernames in order to secure Samba. See the [/etc/samba/user.map](#etcsambausermap) section under ["5. Configure Samba Server"](#%EF%B8%8F-5-configure-samba-server) for details.
 
@@ -66,6 +106,15 @@ ls -lZa /data/sharedstore
 ```
 
 📝`semanage` is provided by `policycoreutils-python-utils` if not installed.
+
+> ⚠️ **SELinux and custom mount points**  
+> When the share resides on a separate filesystem mounted at a non-standard path (e.g. `/data`, `/arch`), the mount point may initially be labeled `unlabeled_t`. Samba (`smbd_t`) cannot traverse paths that contain `unlabeled_t` in the directory chain (having `default_t` is not a problem).  
+> In such cases:
+> - First, fix the mount point label with `restorecon` so that it becomes a normal type (e.g. `default_t`).
+> - Then apply a persistent `fcontext` rule for the share (or, on a fully dedicated volume, for the whole mount point), and run `restorecon` again.
+> - If you label the entire mount point for Samba, pay special attention to the `lost+found` directory: it should keep the SELinux type `lost_found_t` (file class: directory), not `samba_share_t`.  
+>  
+> These conditions and the concrete ordering of operations (such as when to check for `unlabeled_t` and how to treat a dedicated Samba volume) are automated in the [samba-provision.sh](samba-provision.sh) script. Reading that script alongside this document will help clarify the exact decision points and procedures.
 
 ---
 
@@ -164,7 +213,7 @@ useradd --system -s /sbin/nologin nonexunix
 ```
 
 Then, as an additional safeguard, also create a corresponding Samba account with the same name. This prevents Samba from even probing the dummy Unix account.  
-📌 Do NOT give it an empty or simple password; use [pw-o-matic](https://github.com/Tatsuya-Nonogaki/pw-o-matic) on our Repository or `openssl rand -base64 32`, for example.
+📌 Do NOT give it an empty or simple password; use [pw-o-matic](https://github.com/Tatsuya-Nonogaki/pw-o-matic) or `openssl rand -base64 32`, for example. The provisioning script [samba-provision.sh](samba-provision.sh) follows exactly this pattern: it creates a non-loginable Unix account `nonexunix`, registers a Samba account of the same name with a long random password, and immediately disables it via `pdbedit -c '[D]'`.
 
 ```bash
 # Register a Samba user of the exact name
@@ -252,4 +301,4 @@ smbclient //server_hostname/sharedstore -U admin
 \\server_hostname\sharedstore
 ```
 
-using `administrator` (or `admin`) as the username, which is internally mapped to the Unix account `sambauser1` via `user.map`.
+using `administrator` (or `admin`) as the username, which is internally mapped to the Unix account `sambauser1` via [user.map](#etcsambausermap).
