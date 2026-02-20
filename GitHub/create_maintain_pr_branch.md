@@ -70,6 +70,15 @@ Delete the now-unnecessary branch locally:
 ```bash
 git branch -d feature/update-config
 ```
+If the remote-tracking branch still appears in `git branch -r` or `git branch -a`,
+delete the corresponding remote-tracking branch explicitly:
+```bash
+git branch -dr origin/feature/update-config
+```
+Or, to clean up all "ghost" remote-tracking branches at once:
+```bash
+git fetch --prune origin
+```
 
 If needed, delete the remote branch as well:
 ```bash
