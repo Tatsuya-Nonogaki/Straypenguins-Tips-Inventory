@@ -189,7 +189,7 @@ virsh net-info br0-net
 
 #### How to switch between netplan and NetworkManager
 
-**Switch to netplan bridge mode (Mode A)**
+**Switch to netplan bridge mode (Mode A): `net-br.sh`**
 ```bash
 nmcli connection modify "Ethernet1" connection.autoconnect no
 nmcli connection down "Ethernet1" || true
@@ -202,7 +202,7 @@ netplan generate
 netplan apply
 ```
 
-**Switch to NetworkManager mode (Mode B)**
+**Switch to NetworkManager mode (Mode B): `net-nm.sh`**
 ```bash
 mv /etc/netplan/01-br0.yaml /etc/netplan/01-br0.yaml.disabled
 netplan generate
