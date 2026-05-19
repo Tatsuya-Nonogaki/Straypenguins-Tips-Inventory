@@ -116,7 +116,7 @@ virsh net-destroy default
 systemctl enable systemd-networkd --now
 ```
 
-**`/etc/netplan/01-br0.yaml`**
+**[`/etc/netplan/01-br0.yaml`](net-br0/netplan)**
 
 ```yaml
 network:
@@ -152,7 +152,7 @@ bridge link
 
 **Tune the physical network interface**
 
-1. **`/etc/udev/rules.d/99-tune-enp3s0.rule`**
+1. **[`/etc/udev/rules.d/99-tune-enp3s0.rule`](net-br0/udev)**
 
    ```bash
    ACTION=="add", SUBSYSTEM=="net", KERNEL=="enp3s0", RUN+="/usr/sbin/ethtool -K enp3s0 gro off gso off tso off"
