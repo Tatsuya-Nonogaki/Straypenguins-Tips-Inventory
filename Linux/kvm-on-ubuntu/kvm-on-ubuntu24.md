@@ -324,7 +324,7 @@ dd if=/dev/vg_vm/testvm of=/dev/vg_vm/testvm_clone bs=4M conv=sparse status=prog
 
 3. **Use bridging by default; NAT can also be used for experiments**
 
-5. **Store virtual disks directly on LVM**  
+4. **Store virtual disks directly on LVM**  
    * Faster than qcow2, and SSD performance can be fully utilized
 
 ---
