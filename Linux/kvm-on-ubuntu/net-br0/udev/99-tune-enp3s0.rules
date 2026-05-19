@@ -1,0 +1,2 @@
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="enp3s0", RUN+="/usr/sbin/ethtool -K enp3s0 gro off gso off tso off"
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="enp3s0", RUN+="/usr/sbin/ethtool -G enp3s0 rx 2048 tx 2048"
