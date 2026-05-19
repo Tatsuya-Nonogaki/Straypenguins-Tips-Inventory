@@ -108,7 +108,7 @@ virsh net-destroy default
 * Static address, gateway, and DNS are configured on the bridge, **not** on the NIC.
 * The physical interface (`enp3s0`) has no IP address assigned — it is only a bridge port.
 
-> 📝 Most of the bunches of commands and definitions are found as files in [`net-br0`](net-br0) folder.
+> 📝 Most of the bunches of commands and definitions are found as files under [`net-br0`](net-br0) folder.
 
 **Enable and start `systemd-networkd.service`**
 
