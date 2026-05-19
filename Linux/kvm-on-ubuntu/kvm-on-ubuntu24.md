@@ -189,7 +189,7 @@ virsh net-info br0-net
 
 #### How to switch between netplan and NetworkManager
 
-**Switch to netplan bridge mode (Mode A): `net-br.sh`**
+**Switch to netplan bridge mode (Mode A): [`net-br.sh`](net-br0)**
 ```bash
 nmcli connection modify "Ethernet1" connection.autoconnect no
 nmcli connection down "Ethernet1" || true
@@ -202,7 +202,7 @@ netplan generate
 netplan apply
 ```
 
-**Switch to NetworkManager mode (Mode B): `net-nm.sh`**
+**Switch to NetworkManager mode (Mode B): [`net-nm.sh`](net-br0)**
 ```bash
 mv /etc/netplan/01-br0.yaml /etc/netplan/01-br0.yaml.disabled
 netplan generate
@@ -233,7 +233,7 @@ virt-install \
   --graphics spice
 ```
 > 💡 **To make this reproducible, we can automate it with scripts.**
-> See the sample scripts in the [`scripts`](scripts) folder.  
+> See the sample scripts in the [`scripts`](scripts) folder.
 > `virt-install-*.sh` files are the main scripts, while the other `*.sh` and `*.py` are helper libraries.
 
 ### Fast deployment from a cloud image
