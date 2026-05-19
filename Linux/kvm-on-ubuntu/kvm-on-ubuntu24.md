@@ -316,15 +316,15 @@ dd if=/dev/vg_vm/testvm of=/dev/vg_vm/testvm_clone bs=4M conv=sparse status=prog
 
 ## 🎯 7. Operational Best Practices
 
-1. **Manage VMs by workload using snapshots**
-
+1. **Manage VMs by workload using snapshots**  
    * If an experiment breaks the VM, roll back immediately
-2. **Back up by dumping the LVM snapshot externally with `dd`**
 
+2. **Back up by dumping the LVM snapshot externally with `dd`**  
    * If speed matters, recover with `lvconvert --merge`
-3. **Use bridging by default; NAT can also be used for experiments**
-4. **Store virtual disks directly on LVM**
 
+3. **Use bridging by default; NAT can also be used for experiments**
+
+5. **Store virtual disks directly on LVM**  
    * Faster than qcow2, and SSD performance can be fully utilized
 
 ---
