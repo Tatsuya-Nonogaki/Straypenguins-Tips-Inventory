@@ -34,6 +34,8 @@ System administration and security:
   - [SELinux Policy Troubleshooting: Resolving Audit Denials for a Custom Service](Linux/SELinux/selinux-service-policy-troubleshooting.md)
 - [Samba](Linux/Samba)
   - [Configure Samba Server on RHEL9](Linux/Samba/samba-settings.md) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/Samba/samba-settings.html)
+- [KVM on Ubuntu Linux](Linux/kvm-on-ubuntu/) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/kvm-on-ubuntu/)
+  - Guidance to use an Ubuntu Linux PC for KVM virtual machine host. Provides several automation scripts and configuration files. 
 - [Reliably Update RHEL](Linux/update-rhel/howto-reliably-update-rhel.md) *(GitHub Web)* / [*(GitHub Pages HTML)*](https://tatsuya-nonogaki.github.io/Straypenguins-Tips-Inventory/Linux/update-rhel/howto-reliably-update-rhel.html)
 
 ## ☕ [WebLogic](https://github.com/Tatsuya-Nonogaki/Straypenguins-Tips-Inventory/tree/main/WebLogic)
