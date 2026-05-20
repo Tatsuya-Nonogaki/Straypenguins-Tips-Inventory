@@ -54,7 +54,7 @@ lvcreate -L 20G -n testvm vg_vm
 
 ---
 
-## 🖧 4. Network Configuration (Bridge)
+## 🌐 4. Network Configuration (Bridge)
 
 To ensure the network is up when `libvirt` starts during Ubuntu boot, the most reliable approach is to configure **bridge networking** without relying on `NetworkManager`. Wi-Fi is generally not suitable as a bridge backend. If wireless is the only available uplink, use a Wi-Fi repeater or access point and connect the virtualization host to it via Ethernet.
 
